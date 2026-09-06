@@ -101,3 +101,48 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+## Incremental RoadMesh enhancements
+user_problem_statement: "Correct uploaded logo including register; quick damage capture with photo and severity; share quotes via email/WhatsApp; workshop-wide license plate search; internal invoice PDF with logo/client/parts/labor. PT-PT."
+backend:
+  - task: "Managed photo upload/download, damage validation and tenant isolation"
+    implemented: true
+    working: NA
+    needs_retesting: true
+    file: "/app/backend/media_storage.py; /app/backend/server.py"
+  - task: "Normalized vehicle search, contact-enriched quotes, snapshotted paginated invoice PDFs"
+    implemented: true
+    working: NA
+    needs_retesting: true
+    file: "/app/backend/server.py; /app/backend/pdf_documents.py"
+frontend:
+  - task: "Uploaded logo on login, register, dashboard and more"
+    implemented: true
+    working: true
+    needs_retesting: true
+    status_history:
+      - agent: main
+        working: true
+        comment: "Screenshot confirmed login and register use the supplied exact JPEG."
+  - task: "Vehicle search/detail, damage capture/history, quote sharing, contacts editing and PDF export"
+    implemented: true
+    working: NA
+    needs_retesting: true
+    status_history:
+      - agent: main
+        working: NA
+        comment: "App loaded and search/detail rendered. Screenshot click picked a behind-screen reused quick-action testID; replaced all quick-action IDs with unique per-screen prefixes. Added searching placeholder to hide old results during debounce. No source errors: tsc and lints pass."
+test_plan:
+  current_focus: ["damage photo upload and persistence", "normalized plate search", "PDF binary/content/pagination/isolation", "email/WhatsApp URI and honest status", "logo on register"]
+  test_all: false
+agent_communication:
+  - agent: main
+    message: "Existing login credentials in memory/test_credentials.md confirmed. Photos now use managed storage media_id, old image_b64 documents remain readable; old tests expecting base64 creation need adapting intentionally. Run full new flows incl real storage, mobile viewport and tablet. Do not actually send email/WhatsApp messages. Validate compose URL recipients/body and that status stays rascunho until explicit confirmation. Native camera/mail clients/share sheets require device verification. If registering any test account, record credentials in memory/test_credentials.md."
+
+## Follow-up verification
+- Testing agent iteration_2: 29/29 backend tests passed; quote sharing/status/conversion, invoice export, mobile/tablet layout passed.
+- Main follow-up after user requested transparent logo: generated transparent PNG preserving supplied artwork, stored in managed storage, public brand-only route. Screenshots show transparent logo on login and register without photo background.
+- Gallery issue reported in iteration_2 is resolved as an automation timing issue: main screenshot 20260906_214005 used `async with page.expect_file_chooser()` BEFORE clicking `damage-gallery`, successfully received filechooser. Main screenshot 20260906_214110 selected JPEG via chooser.set_files, confirmed preview, actual upload/save HTTP201, displayed stored history image, and verified cancel/confirm delete (temporary record removed). No picker production-code change required.
+- Metro1006 investigated by RCA: idle development socket only, stable process and continued functioning UI; no application outage.
+- Test account credentials from regression suite have been documented in memory/test_credentials.md.
+- Transparent-logo final PDF downloaded successfully with authentication; document analysis confirms logo has no blue/photo backdrop, correct client/vehicle/parts/labor/VAT/EUR totals and no clipping. Native camera and external app share sheets remain device-verification tasks, not verified in browser.

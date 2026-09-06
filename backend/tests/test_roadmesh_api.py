@@ -4,7 +4,21 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "https://mesh-workshop.preview.emergentagent.com").rstrip("/")
+
+def _base_url() -> str:
+    env_url = (os.environ.get("EXPO_PUBLIC_BACKEND_URL") or "").strip()
+    if env_url:
+        return env_url.rstrip("/")
+    env_file = "/app/frontend/.env"
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("EXPO_PUBLIC_BACKEND_URL="):
+                    return line.split("=", 1)[1].strip().strip('"').rstrip("/")
+    return ""
+
+
+BASE_URL = _base_url()
 API = f"{BASE_URL}/api"
 
 
@@ -16,7 +30,6 @@ def _rand_email():
 def session_a():
     """Register a fresh workshop A and return (session, user, token)."""
     s = requests.Session()
-    s.headers.update({"Content-Type": "application/json"})
     email = _rand_email()
     r = s.post(f"{API}/auth/register", json={
         "workshop_name": "TEST_Oficina_A",
@@ -33,7 +46,6 @@ def session_a():
 @pytest.fixture(scope="session")
 def session_b():
     s = requests.Session()
-    s.headers.update({"Content-Type": "application/json"})
     email = _rand_email()
     r = s.post(f"{API}/auth/register", json={
         "workshop_name": "TEST_Oficina_B",
@@ -335,9 +347,11 @@ class TestQuotes:
         s = session_a["session"]
         clients = s.get(f"{API}/clients").json()
         vehicles = s.get(f"{API}/vehicles").json()
+        client = clients[0]
+        vehicle = next(v for v in vehicles if v["client_id"] == client["id"])
 
         r = s.post(f"{API}/quotes", json={
-            "client_id": clients[0]["id"], "vehicle_id": vehicles[0]["id"],
+            "client_id": client["id"], "vehicle_id": vehicle["id"],
             "items": [{"item_type": "mao_de_obra", "description": "Orç", "quantity": 1, "unit_price": 100, "vat_rate": 23}],
             "notes": "T"
         })
@@ -373,10 +387,17 @@ class TestPhotos:
         vehicles = s.get(f"{API}/vehicles").json()
         vid = vehicles[0]["id"]
 
-        b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        img = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\xcf\xc0\x00\x00\x03\x01\x01\x00\x18\xdd\x8d\x18\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        upload = s.post(f"{API}/media", files={"file": ("tiny.png", img, "image/png")})
+        assert upload.status_code == 201, upload.text
+        media_id = upload.json()["id"]
+
         r = s.post(f"{API}/photos", json={
             "vehicle_id": vid, "zone": "exterior_360",
-            "image_b64": b64, "caption": "T"
+            "media_id": media_id, "caption": "T"
         })
         assert r.status_code == 201, r.text
         pid = r.json()["id"]
@@ -386,7 +407,7 @@ class TestPhotos:
 
         # cross-tenant: workshop B cannot post photo on A's vehicle
         cross = session_b["session"].post(f"{API}/photos", json={
-            "vehicle_id": vid, "zone": "interior", "image_b64": b64
+            "vehicle_id": vid, "zone": "interior", "media_id": media_id
         })
         assert cross.status_code == 404
         # and cross list returns empty

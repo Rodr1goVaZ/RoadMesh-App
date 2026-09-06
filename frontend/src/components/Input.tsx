@@ -7,13 +7,13 @@ type Props = TextInputProps & { label?: string; error?: string };
 export function Input({ label, error, style, ...rest }: Props) {
   return (
     <View style={styles.wrap}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text testID={rest.testID ? `${rest.testID}-label` : undefined} style={styles.label}>{label}</Text> : null}
       <TextInput
         placeholderTextColor={colors.muted}
         {...rest}
         style={[styles.input, error ? { borderColor: colors.error } : null, style]}
       />
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+      {error ? <Text testID={rest.testID ? `${rest.testID}-error` : undefined} style={styles.err}>{error}</Text> : null}
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { StatusChip } from "@/src/components/StatusChip";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { Button } from "@/src/components/Button";
 import { formatEUR, formatDate } from "@/src/utils/format";
+import { ClientContactEditor } from "@/src/components/ClientContactEditor";
 
 const TABS = ["contactos", "viaturas", "historico"] as const;
 
@@ -39,7 +40,8 @@ export default function ClientDetail() {
           </Pressable>
         ))}
       </View>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
         {tab === "contactos" && (
           <View style={styles.card}>
             <Row label="Nome" value={data.name} />
@@ -47,6 +49,7 @@ export default function ClientDetail() {
             <Row label="Telefone" value={data.phone || "—"} />
             <Row label="Email" value={data.email || "—"} />
             <Row label="Morada" value={data.address || "—"} />
+            <ClientContactEditor key={data.id} client={data} />
             <View style={{ height: 8 }} />
             <Button title="Apagar cliente" variant="danger" testID="client-delete" onPress={del} />
           </View>
@@ -55,10 +58,10 @@ export default function ClientDetail() {
           <>
             {(data.vehicles || []).length === 0 && <Text style={styles.mut}>Sem viaturas registadas.</Text>}
             {(data.vehicles || []).map((v: any) => (
-              <Pressable key={v.id} onPress={() => router.push(`/(app)/fotos/${v.id}`)} style={[styles.card, { gap: 4 }]}>
+              <Pressable key={v.id} testID={`client-vehicle-${v.id}`} onPress={() => router.push({ pathname: "/(app)/viatura", params: { id: v.id } })} style={[styles.card, { gap: 4 }]}>
                 <Text style={styles.title}>{v.make} {v.model}</Text>
                 <Text style={styles.mut}>{v.license_plate} · {v.year || "—"} · {v.fuel || "—"}</Text>
-                <Text style={styles.link}>Ver fotos →</Text>
+                <Text style={styles.link}>Ver viatura, fotos e danos →</Text>
               </Pressable>
             ))}
             <Button title="+ Adicionar viatura" variant="secondary" testID="add-vehicle"
@@ -80,6 +83,7 @@ export default function ClientDetail() {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -90,6 +94,7 @@ function Row({ label, value }: any) {
   </View>;
 }
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   tabs: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: 8, paddingVertical: 4 },
   tab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
   tabActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },

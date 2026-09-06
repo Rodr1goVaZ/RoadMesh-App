@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "RoadMesh",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,9 +9,14 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fotografe danos e o estado das viaturas.",
+        "NSPhotoLibraryUsageDescription": "Anexe fotografias aos registos das viaturas."
+      },
       "bundleIdentifier": "com.emergent.meshworkshop.v4s3w1"
     },
     "android": {
+      "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -38,7 +43,13 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-sharing",
+      ["expo-image-picker", {
+        "photosPermission": "Anexe fotografias aos registos das viaturas.",
+        "cameraPermission": "Fotografe danos e o estado das viaturas.",
+        "microphonePermission": false
+      }]
     ],
     "experiments": {
       "typedRoutes": true

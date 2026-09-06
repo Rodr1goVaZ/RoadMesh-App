@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/src/auth";
 import { Input } from "@/src/components/Input";
 import { Button } from "@/src/components/Button";
-import { LogoWithText, Logo } from "@/src/components/Logo";
+import { Logo } from "@/src/components/Logo";
 import { colors, spacing } from "@/src/theme";
 
 export default function LoginScreen() {
@@ -31,7 +31,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScrollView contentContainerStyle={[styles.wrap, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
-          <Logo size={72} />
+          <Logo size={120} testID="login-logo" />
           <Text style={styles.title}>RoadMesh</Text>
           <Text style={styles.subtitle}>Gestão inteligente para oficinas</Text>
         </View>

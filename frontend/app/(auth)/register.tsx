@@ -6,6 +6,7 @@ import { useAuth } from "@/src/auth";
 import { Input } from "@/src/components/Input";
 import { Button } from "@/src/components/Button";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { Logo } from "@/src/components/Logo";
 import { colors, spacing } from "@/src/theme";
 
 export default function RegisterScreen() {
@@ -34,7 +35,11 @@ export default function RegisterScreen() {
       <ScreenHeader title="Criar conta" back testID="register-header" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
-          <Text style={styles.help}>Crie a sua oficina e comece a usar o RoadMesh.</Text>
+          <View style={styles.brand}>
+            <Logo size={112} testID="register-logo" />
+            <Text testID="register-brand-name" style={styles.brandName}>RoadMesh</Text>
+          </View>
+          <Text testID="register-help" style={styles.help}>Crie a sua oficina e comece a usar o RoadMesh.</Text>
           <Input testID="reg-workshop" label="Nome da oficina" value={workshop} onChangeText={setWorkshop} placeholder="Oficina Central" />
           <Input testID="reg-name" label="O seu nome" value={name} onChangeText={setName} placeholder="Rodrigo Ricardo" />
           <Input testID="reg-email" label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="nome@oficina.pt" />
@@ -47,6 +52,8 @@ export default function RegisterScreen() {
   );
 }
 const styles = StyleSheet.create({
+  brand: { alignItems: "center", gap: 8, marginBottom: 8 },
+  brandName: { fontSize: 26, fontWeight: "800", color: colors.onSurface },
   wrap: { paddingHorizontal: spacing.xl, paddingTop: 16, gap: 14 },
   help: { color: colors.muted, fontSize: 13, marginBottom: 4 },
   error: { color: colors.error, fontSize: 13 },

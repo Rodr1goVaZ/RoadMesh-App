@@ -43,6 +43,9 @@ export default function AppLayout() {
       <Tabs.Screen name="faturacao" options={{ href: null }} />
       <Tabs.Screen name="orcamentos" options={{ href: null }} />
       <Tabs.Screen name="orcamento-new" options={{ href: null }} />
+      <Tabs.Screen name="viaturas" options={{ href: null }} />
+      <Tabs.Screen name="viatura" options={{ href: null }} />
+      <Tabs.Screen name="danos" options={{ href: null }} />
     </Tabs>
   );
 }

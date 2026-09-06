@@ -10,6 +10,8 @@ import { KpiCard } from "@/src/components/Card";
 import { StatusChip } from "@/src/components/StatusChip";
 import { LogoWithText } from "@/src/components/Logo";
 import { formatEUR, todayLongPT } from "@/src/utils/format";
+import { Ionicons } from "@expo/vector-icons";
+import { DamageQuickActions } from "@/src/components/DamageQuickActions";
 
 export default function Inicio() {
   const insets = useSafeAreaInsets();
@@ -24,7 +26,7 @@ export default function Inicio() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <LogoWithText />
+        <LogoWithText testID="dashboard-brand" />
         <Pressable testID="header-user-btn" onPress={() => router.push("/(app)/mais")} style={styles.userBadge}>
           <Text style={styles.userInitials}>{(user?.name || "?").slice(0, 2).toUpperCase()}</Text>
         </Pressable>
@@ -36,6 +38,13 @@ export default function Inicio() {
           <Text style={styles.today}>{todayLongPT()}</Text>
         </View>
 
+        <Pressable testID="dashboard-search-plate" accessibilityRole="button" onPress={() => router.push("/(app)/viaturas")}
+          style={({ pressed }) => [styles.searchPlate, pressed && styles.pressed]}>
+          <Ionicons name="search-outline" size={22} color={colors.brandPrimary} />
+          <Text style={styles.searchPlateText}>Pesquisar por matrícula</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </Pressable>
+
         <View style={styles.kpiRow}>
           <KpiCard testID="kpi-ordens" label="Ordens de Serviço" value={String(k.ordens)} delta="este mês" />
           <KpiCard testID="kpi-em-reparacao" label="Em Reparação" value={String(k.em_reparacao)} delta="ativas" />
@@ -44,6 +53,8 @@ export default function Inicio() {
           <KpiCard testID="kpi-aguarda" label="Aguardam Cliente" value={String(k.aguarda_cliente)} delta="a aguardar" />
           <KpiCard testID="kpi-faturacao" label="Faturação" value={formatEUR(k.faturacao)} delta="este mês" />
         </View>
+
+        <DamageQuickActions testID="dashboard-damage" />
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -90,6 +101,9 @@ function QuickAction({ label, onPress, testID }: any) {
   );
 }
 const styles = StyleSheet.create({
+  searchPlate: { flexDirection: "row", alignItems: "center", minHeight: 56, padding: 16, gap: 12, borderRadius: radius.lg, backgroundColor: colors.surfaceSecondary, ...shadows.card },
+  searchPlateText: { flex: 1, color: colors.muted, fontSize: 15 },
+  pressed: { opacity: .7 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: spacing.lg, paddingBottom: 8, backgroundColor: colors.surface },
   userBadge: { width: 36, height: 36, borderRadius: 999, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" },

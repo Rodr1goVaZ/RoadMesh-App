@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -9,6 +9,8 @@ import { StatusChip } from "@/src/components/StatusChip";
 import { Button } from "@/src/components/Button";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { formatEUR } from "@/src/utils/format";
+import { DamageQuickActions } from "@/src/components/DamageQuickActions";
+import { Feedback } from "@/src/components/Feedback";
 
 const STATUSES = ["entrada", "diagnostico", "aguardando_pecas", "concluido"];
 
@@ -22,6 +24,8 @@ export default function WoDetail() {
     enabled: !!id,
   });
   const [saving, setSaving] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [invoiceError, setInvoiceError] = useState("");
 
   if (!data) return <View style={{ flex: 1, backgroundColor: colors.surface }}><ScreenHeader title="OS" back /></View>;
 
@@ -65,6 +69,9 @@ export default function WoDetail() {
           <Text style={styles.mut}>{data.vehicle_label} · {data.license_plate}</Text>
         </View>
 
+        <DamageQuickActions vehicleId={data.vehicle_id} testID="wo-damage" />
+        <Button title="Ver viatura e danos" testID="wo-open-vehicle" variant="secondary" onPress={() => router.push({ pathname: "/(app)/viatura", params: { id: data.vehicle_id } })} />
+
         <View style={styles.card}>
           <Text style={styles.label}>Queixa</Text>
           <Text style={styles.value}>{data.complaint || "—"}</Text>
@@ -106,12 +113,17 @@ export default function WoDetail() {
         </View>
 
         <View style={styles.card}>
-          <Button title="Emitir Fatura" variant="secondary" testID="wo-emit-invoice" onPress={async () => {
+          <Feedback testID="wo-invoice-error" message={invoiceError} error />
+          <Text testID="wo-invoice-notice" style={styles.mut}>Documento interno, sem validade fiscal.</Text>
+          <Button title="Emitir Fatura" variant="secondary" testID="wo-emit-invoice" loading={issuing} onPress={async () => {
+            setIssuing(true); setInvoiceError("");
             try {
               await api.post("/invoices", { work_order_id: id, document_type: "fatura" });
-              Alert.alert("Sucesso", "Fatura criada.");
-              qc.invalidateQueries({ queryKey: ["invoices"] });
-            } catch (e: any) { Alert.alert("Erro", e.message); }
+              await qc.invalidateQueries({ queryKey: ["invoices"] });
+              qc.invalidateQueries({ queryKey: ["dashboard"] });
+              router.push("/(app)/faturacao");
+            } catch (e: any) { setInvoiceError(e.message); }
+            finally { setIssuing(false); }
           }} />
           <View style={{ height: 8 }} />
           <Button title="Apagar OS" variant="danger" testID="wo-delete" onPress={del} />

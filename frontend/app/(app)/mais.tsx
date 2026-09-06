@@ -16,6 +16,8 @@ export default function Mais() {
   ]);
 
   const items = [
+    { label: "Pesquisar por Matrícula", onPress: () => router.push("/(app)/viaturas"), testID: "mais-search-plate" },
+    { label: "Registo de Danos", onPress: () => router.push("/(app)/danos"), testID: "mais-damages" },
     { label: "Nova Ordem de Serviço", onPress: () => router.push("/(app)/servico/new"), testID: "mais-new-wo" },
     { label: "Novo Orçamento", onPress: () => router.push("/(app)/orcamento-new"), testID: "mais-new-quote" },
     { label: "Novo Cliente", onPress: () => router.push("/(app)/clientes/new"), testID: "mais-new-client" },
@@ -29,7 +31,7 @@ export default function Mais() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }}>
       <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg }}>
-        <LogoWithText />
+        <LogoWithText testID="more-brand" />
         <View style={styles.userCard}>
           <View style={styles.avatar}><Text style={styles.avatarTxt}>{(user?.name || "?").slice(0, 2).toUpperCase()}</Text></View>
           <View style={{ flex: 1 }}>

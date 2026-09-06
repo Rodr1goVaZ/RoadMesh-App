@@ -1,33 +1,25 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
-import { colors, radius } from "../theme";
+import { Image, View, Text, StyleSheet } from "react-native";
+import { colors } from "../theme";
+import { API_BASE } from "../api";
 
-export function Logo({ size = 40 }: { size?: number }) {
-  const w = size * 0.9;
-  return (
-    <View style={{ width: w, height: size, justifyContent: "center", alignItems: "center" }}>
-      <View style={[styles.badge, { width: w, height: size, borderRadius: radius.md }]}>
-        <Text style={[styles.r, { fontSize: size * 0.6 }]}>R</Text>
-        <View style={[styles.dot, { top: size * 0.15, right: size * 0.15 }]} />
-        <View style={[styles.dot, { bottom: size * 0.15, right: size * 0.28 }]} />
-      </View>
-    </View>
-  );
+export const LOGO_URL = `${API_BASE}/brand/logo.png?v=transparent-1`;
+
+export function Logo({ size = 48, testID = "roadmesh-logo" }: { size?: number; testID?: string }) {
+  return <Image testID={testID} accessibilityLabel="Logótipo RoadMesh" source={{ uri: LOGO_URL }}
+    style={[styles.logo, { width: size, height: size }]} resizeMode="contain" />;
 }
-export function LogoWithText({ compact }: { compact?: boolean }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Logo size={compact ? 28 : 34} />
-      <Text style={{ fontWeight: "800", fontSize: compact ? 15 : 18, color: colors.onSurface, letterSpacing: 0.2 }}>
-        RoadMesh
-      </Text>
-    </View>
-  );
+
+export function LogoWithText({ compact, testID = "roadmesh-brand" }: { compact?: boolean; testID?: string }) {
+  return <View style={styles.row}>
+    <Logo size={compact ? 36 : 44} testID={`${testID}-logo`} />
+    <Text testID={`${testID}-name`} style={[styles.name, compact && styles.compact]}>RoadMesh</Text>
+  </View>;
 }
+
 const styles = StyleSheet.create({
-  badge: {
-    backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", position: "relative",
-  },
-  r: { color: "#fff", fontWeight: "900", letterSpacing: -1 },
-  dot: { position: "absolute", width: 5, height: 5, borderRadius: 999, backgroundColor: "#fff", opacity: 0.9 },
+  logo: { backgroundColor: "transparent" },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  name: { fontWeight: "800", fontSize: 18, color: colors.onSurface, letterSpacing: .2 },
+  compact: { fontSize: 15 },
 });

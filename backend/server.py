@@ -7,16 +7,20 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Literal
 
 import bcrypt
 import jwt
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from fastapi.security import OAuth2PasswordBearer
+from starlette.concurrency import run_in_threadpool
+from media_storage import init_storage, register_media_routes
+from pdf_documents import build_invoice_pdf
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -123,11 +127,11 @@ class VehicleIn(BaseModel):
 
 
 class WorkOrderItemIn(BaseModel):
-    item_type: str  # peca | mao_de_obra
-    description: str
-    quantity: float = 1
-    unit_price: float = 0
-    vat_rate: float = 23
+    item_type: Literal["peca", "mao_de_obra"]
+    description: str = Field(min_length=1, max_length=1000)
+    quantity: float = Field(default=1, gt=0, allow_inf_nan=False)
+    unit_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+    vat_rate: float = Field(default=23, ge=0, le=100, allow_inf_nan=False)
     product_id: Optional[str] = None
 
 
@@ -175,24 +179,25 @@ class QuoteIn(BaseModel):
 
 class InvoiceIn(BaseModel):
     work_order_id: str
-    document_type: str  # orcamento | fatura | fatura_recibo
+    document_type: Literal["orcamento", "fatura", "fatura_recibo"]
 
 
 class PhotoIn(BaseModel):
     vehicle_id: str
     work_order_id: Optional[str] = None
     zone: str  # exterior_360 | interior | pneus_rodas | pintura | chassis_inferior
-    image_b64: str  # base64 data uri
+    media_id: str
     caption: Optional[str] = None
 
 
 class DamageIn(BaseModel):
     vehicle_id: str
     photo_id: Optional[str] = None
-    category: str  # ferrugem | dano_estrutural | fuga | desgaste_pneu | risco | amolgadela | outro
-    severity: str  # baixo | medio | critico
-    description: str
-    image_b64: Optional[str] = None
+    category: Literal["ferrugem", "dano_estrutural", "fuga", "desgaste_pneu", "risco", "amolgadela", "outro"]
+    severity: Literal["baixo", "medio", "critico"]
+    description: str = Field(default="", max_length=1000)
+    location: str = Field(default="", max_length=150)
+    media_id: str
 
 
 # ----------------------------- auth -----------------------------
@@ -331,16 +336,27 @@ async def delete_client(client_id: str, user: CurrentUser):
 
 # ----------------------------- vehicles -----------------------------
 @api.get("/vehicles")
-async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None):
+async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None, search: str = ""):
     q = tenant_filter(user)
     if client_id:
         q["client_id"] = client_id
+    if search.strip():
+        normalized = re.sub(r"[^A-Z0-9]", "", search.upper())
+        if not normalized:
+            return []
+        q["license_plate"] = {"$regex": r"[\s-]*".join(re.escape(char) for char in normalized), "$options": "i"}
     docs = await db.vehicles.find(q, {"_id": 0}).sort("license_plate", 1).to_list(1000)
+    clients = await db.clients.find(tenant_filter(user, {"id": {"$in": [d["client_id"] for d in docs]}}), {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+    names = {c["id"]: c["name"] for c in clients}
+    for vehicle in docs:
+        vehicle["client_name"] = names.get(vehicle["client_id"], "")
     return docs
 
 
 @api.post("/vehicles", status_code=201)
 async def create_vehicle(data: VehicleIn, user: CurrentUser):
+    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Cliente não encontrado")
     doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
            "created_at": now_iso(), "updated_at": now_iso()}
     await db.vehicles.insert_one(doc)
@@ -353,8 +369,10 @@ async def get_vehicle(vehicle_id: str, user: CurrentUser):
     doc = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0})
     if not doc:
         raise HTTPException(404, "Viatura não encontrada")
-    doc["photos"] = await db.photos.find({"vehicle_id": vehicle_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    doc["damages"] = await db.damages.find({"vehicle_id": vehicle_id}, {"_id": 0}).to_list(500)
+    doc["photos"] = await db.photos.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
+    doc["damages"] = await db.damages.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
+    doc["client"] = await db.clients.find_one(tenant_filter(user, {"id": doc["client_id"]}), {"_id": 0})
+    doc["work_orders"] = await db.work_orders.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
     return doc
 
 
@@ -611,6 +629,7 @@ async def create_photo(data: PhotoIn, user: CurrentUser):
     v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
     if not v:
         raise HTTPException(404, "Viatura não encontrada")
+    await require_media(data.media_id, user)
     doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
            "created_at": now_iso()}
     await db.photos.insert_one(doc)
@@ -625,6 +644,11 @@ async def delete_photo(pid: str, user: CurrentUser):
 
 
 # ----------------------------- damages -----------------------------
+async def require_media(media_id: str, user: dict):
+    if not await db.media.find_one(tenant_filter(user, {"id": media_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Fotografia não encontrada")
+
+
 @api.get("/damages")
 async def list_damages(user: CurrentUser, vehicle_id: Optional[str] = None):
     q: dict = tenant_filter(user)
@@ -638,6 +662,9 @@ async def create_damage(data: DamageIn, user: CurrentUser):
     v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
     if not v:
         raise HTTPException(404, "Viatura não encontrada")
+    await require_media(data.media_id, user)
+    if data.photo_id and not await db.photos.find_one(tenant_filter(user, {"id": data.photo_id, "vehicle_id": data.vehicle_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Fotografia não encontrada nesta viatura")
     doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
            "created_at": now_iso()}
     await db.damages.insert_one(doc)
@@ -645,18 +672,38 @@ async def create_damage(data: DamageIn, user: CurrentUser):
     return doc
 
 
+@api.delete("/damages/{damage_id}")
+async def delete_damage(damage_id: str, user: CurrentUser):
+    result = await db.damages.delete_one(tenant_filter(user, {"id": damage_id}))
+    if not result.deleted_count:
+        raise HTTPException(404, "Dano não encontrado")
+    return {"ok": True}
+
+
 # ----------------------------- quotes (orçamentos) -----------------------------
 @api.get("/quotes")
 async def list_quotes(user: CurrentUser):
     docs = await db.quotes.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
+    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0, "name": 1})
     for d in docs:
-        c = await db.clients.find_one({"id": d["client_id"]}, {"_id": 0, "name": 1})
+        c = await db.clients.find_one(tenant_filter(user, {"id": d["client_id"]}), {"_id": 0, "name": 1, "email": 1, "phone": 1})
+        v = await db.vehicles.find_one(tenant_filter(user, {"id": d["vehicle_id"]}), {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
         d["client_name"] = c["name"] if c else ""
+        d["client_email"] = c.get("email") if c else None
+        d["client_phone"] = c.get("phone") if c else None
+        d["workshop_name"] = workshop["name"] if workshop else "RoadMesh"
+        d["vehicle"] = v or {}
     return docs
 
 
 @api.post("/quotes", status_code=201)
 async def create_quote(data: QuoteIn, user: CurrentUser):
+    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Cliente não encontrado")
+    if not await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Viatura não encontrada para este cliente")
+    if not data.items:
+        raise HTTPException(422, "Adicione pelo menos uma linha ao orçamento")
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
     totals = compute_totals(items)
     count = await db.quotes.count_documents(tenant_filter(user))
@@ -710,13 +757,26 @@ async def convert_quote_to_wo(qid: str, user: CurrentUser):
 
 
 # ----------------------------- invoices -----------------------------
+async def invoice_snapshot(wo: dict, user: dict):
+    client_doc = await db.clients.find_one(tenant_filter(user, {"id": wo["client_id"]}), {"_id": 0})
+    vehicle = await db.vehicles.find_one(tenant_filter(user, {"id": wo["vehicle_id"]}), {"_id": 0})
+    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
+    return {"client": client_doc or {}, "vehicle": vehicle or {}, "workshop": workshop or {},
+            "items": wo.get("items", []), "wo_number": wo["number"], "notes": wo.get("notes")}
+
+
 @api.get("/invoices")
 async def list_invoices(user: CurrentUser):
     docs = await db.invoices.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
     for d in docs:
-        wo = await db.work_orders.find_one({"id": d["work_order_id"]}, {"_id": 0, "client_id": 1, "number": 1})
+        if d.get("snapshot"):
+            d["client_name"] = d["snapshot"].get("client", {}).get("name", "")
+            d["wo_number"] = d["snapshot"].get("wo_number", "")
+            d.pop("snapshot", None)
+            continue
+        wo = await db.work_orders.find_one(tenant_filter(user, {"id": d["work_order_id"]}), {"_id": 0, "client_id": 1, "number": 1})
         if wo:
-            c = await db.clients.find_one({"id": wo["client_id"]}, {"_id": 0, "name": 1})
+            c = await db.clients.find_one(tenant_filter(user, {"id": wo["client_id"]}), {"_id": 0, "name": 1})
             d["client_name"] = c["name"] if c else ""
             d["wo_number"] = wo["number"]
     return docs
@@ -740,11 +800,28 @@ async def create_invoice(data: InvoiceIn, user: CurrentUser):
         "total_parts": round(total_parts, 2),
         "subtotal": wo["subtotal"], "vat": wo["vat"], "grand_total": wo["total"],
         "external_invoice_id": None,
+        "snapshot": await invoice_snapshot(wo, user),
         "created_at": now_iso(), "updated_at": now_iso(),
     }
     await db.invoices.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+@api.get("/invoices/{invoice_id}/pdf")
+async def invoice_pdf(invoice_id: str, user: CurrentUser):
+    invoice = await db.invoices.find_one(tenant_filter(user, {"id": invoice_id}), {"_id": 0})
+    if not invoice:
+        raise HTTPException(404, "Documento não encontrado")
+    if not invoice.get("snapshot"):
+        wo = await db.work_orders.find_one(tenant_filter(user, {"id": invoice["work_order_id"]}), {"_id": 0})
+        if not wo:
+            raise HTTPException(404, "Não existem detalhes da OS para exportar este documento antigo")
+        invoice["snapshot"] = await invoice_snapshot(wo, user)
+        await db.invoices.update_one(tenant_filter(user, {"id": invoice_id}), {"$set": {"snapshot": invoice["snapshot"]}})
+    pdf = await run_in_threadpool(build_invoice_pdf, invoice)
+    filename = re.sub(r"[^A-Za-z0-9_-]", "-", invoice["document_number"]) + ".pdf"
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="RoadMesh-{filename}"', "Cache-Control": "private, no-store"})
 
 
 # ----------------------------- dashboard -----------------------------
@@ -888,12 +965,21 @@ async def seed_demo_data(workshop_id: str, user_id: str):
 
 
 # ----------------------------- health -----------------------------
+@api.get("/brand/logo.png")
+async def brand_logo():
+    # Public brand art only; user-submitted media always uses authenticated routes.
+    # This is a local cache of the version stored in managed object storage.
+    return FileResponse(ROOT_DIR / "assets" / "roadmesh-logo.png", media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
 @api.get("/")
 async def root():
     return {"app": "RoadMesh", "status": "ok"}
 
 
 # ----------------------------- register app -----------------------------
+register_media_routes(api, db, current_user)
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -906,6 +992,14 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("roadmesh")
+
+
+@app.on_event("startup")
+async def _startup_storage():
+    try:
+        await run_in_threadpool(init_storage)
+    except Exception as exc:
+        logger.warning("Photo storage startup unavailable: %s", type(exc).__name__)
 
 
 @app.on_event("shutdown")
