@@ -1,0 +1,913 @@
+"""RoadMesh backend API - multi-tenant workshop SaaS."""
+from __future__ import annotations
+
+import logging
+import os
+import re
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Annotated, List, Optional
+
+import bcrypt
+import jwt
+from dotenv import load_dotenv
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, EmailStr, Field
+from fastapi.security import OAuth2PasswordBearer
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
+
+MONGO_URL = os.environ["MONGO_URL"]
+DB_NAME = os.environ["DB_NAME"]
+JWT_SECRET = os.environ.get("JWT_SECRET", "roadmesh-dev-secret-change-in-prod-please-use-openssl-rand")
+JWT_ALGO = "HS256"
+JWT_EXP_MIN = 60 * 24 * 7  # 7 days
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
+
+app = FastAPI(title="RoadMesh API")
+api = APIRouter(prefix="/api")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+
+# ----------------------------- helpers -----------------------------
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def new_id() -> str:
+    return str(uuid.uuid4())
+
+
+def hash_pw(pw: str) -> str:
+    return bcrypt.hashpw(pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_pw(pw: str, h: str) -> bool:
+    try:
+        return bcrypt.checkpw(pw.encode("utf-8"), h.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def make_token(user_id: str, workshop_id: str, role: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "workshop_id": workshop_id,
+        "role": role,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=JWT_EXP_MIN)).timestamp()),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+async def current_user(token: Annotated[Optional[str], Depends(oauth2_scheme)]) -> dict:
+    if not token:
+        raise HTTPException(401, "Autenticação necessária")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+    except jwt.PyJWTError:
+        raise HTTPException(401, "Token inválido ou expirado")
+    user = await db.users.find_one({"id": payload["sub"], "workshop_id": payload["workshop_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(401, "Utilizador não encontrado")
+    return user
+
+
+CurrentUser = Annotated[dict, Depends(current_user)]
+
+
+def tenant_filter(user: dict, extra: dict | None = None) -> dict:
+    f = {"workshop_id": user["workshop_id"]}
+    if extra:
+        f.update(extra)
+    return f
+
+
+# ----------------------------- models -----------------------------
+class RegisterIn(BaseModel):
+    workshop_name: str = Field(min_length=2, max_length=100)
+    name: str = Field(min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class ClientIn(BaseModel):
+    name: str
+    nif: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+
+class VehicleIn(BaseModel):
+    client_id: str
+    license_plate: str
+    make: str
+    model: str
+    year: Optional[int] = None
+    vin: Optional[str] = None
+    fuel: Optional[str] = None
+    mileage: Optional[int] = None
+
+
+class WorkOrderItemIn(BaseModel):
+    item_type: str  # peca | mao_de_obra
+    description: str
+    quantity: float = 1
+    unit_price: float = 0
+    vat_rate: float = 23
+    product_id: Optional[str] = None
+
+
+class WorkOrderIn(BaseModel):
+    client_id: str
+    vehicle_id: str
+    mechanic: Optional[str] = None
+    complaint: Optional[str] = None
+    notes: Optional[str] = None
+    mileage_in: Optional[int] = None
+    status: str = "entrada"  # entrada | diagnostico | aguardando_pecas | concluido
+    items: List[WorkOrderItemIn] = []
+
+
+class ProductIn(BaseModel):
+    reference: str
+    name: str
+    supplier: Optional[str] = None
+    category: Optional[str] = None
+    stock: int = 0
+    min_stock: int = 0
+    purchase_price: float = 0
+    sale_price: float = 0
+    vat_rate: float = 23
+
+
+class OrderItemIn(BaseModel):
+    product_id: str
+    quantity: int
+    unit_price: float
+
+
+class PurchaseOrderIn(BaseModel):
+    supplier: str
+    items: List[OrderItemIn]
+    notes: Optional[str] = None
+
+
+class QuoteIn(BaseModel):
+    client_id: str
+    vehicle_id: str
+    items: List[WorkOrderItemIn]
+    notes: Optional[str] = None
+
+
+class InvoiceIn(BaseModel):
+    work_order_id: str
+    document_type: str  # orcamento | fatura | fatura_recibo
+
+
+class PhotoIn(BaseModel):
+    vehicle_id: str
+    work_order_id: Optional[str] = None
+    zone: str  # exterior_360 | interior | pneus_rodas | pintura | chassis_inferior
+    image_b64: str  # base64 data uri
+    caption: Optional[str] = None
+
+
+class DamageIn(BaseModel):
+    vehicle_id: str
+    photo_id: Optional[str] = None
+    category: str  # ferrugem | dano_estrutural | fuga | desgaste_pneu | risco | amolgadela | outro
+    severity: str  # baixo | medio | critico
+    description: str
+    image_b64: Optional[str] = None
+
+
+# ----------------------------- auth -----------------------------
+@api.post("/auth/register", status_code=201)
+async def register(data: RegisterIn):
+    email = data.email.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(409, "Este email já está registado")
+
+    workshop_id = new_id()
+    user_id = new_id()
+    ts = now_iso()
+
+    workshop = {
+        "id": workshop_id,
+        "name": data.workshop_name.strip(),
+        "nif": None,
+        "address": None,
+        "logo_url": None,
+        "created_at": ts,
+        "updated_at": ts,
+    }
+    user = {
+        "id": user_id,
+        "workshop_id": workshop_id,
+        "name": data.name.strip(),
+        "email": email,
+        "password_hash": hash_pw(data.password),
+        "role": "admin",
+        "created_at": ts,
+        "updated_at": ts,
+    }
+    await db.workshops.insert_one(workshop)
+    await db.users.insert_one(user)
+
+    await seed_demo_data(workshop_id, user_id)
+
+    token = make_token(user_id, workshop_id, "admin")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user_id,
+            "workshop_id": workshop_id,
+            "workshop_name": workshop["name"],
+            "name": user["name"],
+            "email": user["email"],
+            "role": user["role"],
+        },
+    }
+
+
+@api.post("/auth/login")
+async def login(data: LoginIn):
+    email = data.email.lower().strip()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    if not user or not verify_pw(data.password, user["password_hash"]):
+        raise HTTPException(401, "Email ou palavra-passe inválidos")
+    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
+    token = make_token(user["id"], user["workshop_id"], user["role"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "workshop_id": user["workshop_id"],
+            "workshop_name": workshop["name"] if workshop else "",
+            "name": user["name"],
+            "email": user["email"],
+            "role": user["role"],
+        },
+    }
+
+
+@api.get("/auth/me")
+async def me(user: CurrentUser):
+    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
+    return {
+        "id": user["id"],
+        "workshop_id": user["workshop_id"],
+        "workshop_name": workshop["name"] if workshop else "",
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"],
+    }
+
+
+# ----------------------------- clients -----------------------------
+@api.get("/clients")
+async def list_clients(user: CurrentUser, search: str = ""):
+    q = tenant_filter(user)
+    if search:
+        rx = {"$regex": re.escape(search), "$options": "i"}
+        q["$or"] = [{"name": rx}, {"nif": rx}, {"phone": rx}, {"email": rx}]
+    docs = await db.clients.find(q, {"_id": 0}).sort("name", 1).to_list(1000)
+    for d in docs:
+        d["vehicles_count"] = await db.vehicles.count_documents({"client_id": d["id"]})
+    return docs
+
+
+@api.post("/clients", status_code=201)
+async def create_client(data: ClientIn, user: CurrentUser):
+    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.clients.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/clients/{client_id}")
+async def get_client(client_id: str, user: CurrentUser):
+    doc = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Cliente não encontrado")
+    doc["vehicles"] = await db.vehicles.find({"client_id": client_id}, {"_id": 0}).to_list(500)
+    doc["work_orders"] = await db.work_orders.find(
+        tenant_filter(user, {"client_id": client_id}), {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return doc
+
+
+@api.put("/clients/{client_id}")
+async def update_client(client_id: str, data: ClientIn, user: CurrentUser):
+    upd = {**data.model_dump(), "updated_at": now_iso()}
+    r = await db.clients.update_one(tenant_filter(user, {"id": client_id}), {"$set": upd})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Cliente não encontrado")
+    return {"ok": True}
+
+
+@api.delete("/clients/{client_id}")
+async def delete_client(client_id: str, user: CurrentUser):
+    await db.clients.delete_one(tenant_filter(user, {"id": client_id}))
+    return {"ok": True}
+
+
+# ----------------------------- vehicles -----------------------------
+@api.get("/vehicles")
+async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None):
+    q = tenant_filter(user)
+    if client_id:
+        q["client_id"] = client_id
+    docs = await db.vehicles.find(q, {"_id": 0}).sort("license_plate", 1).to_list(1000)
+    return docs
+
+
+@api.post("/vehicles", status_code=201)
+async def create_vehicle(data: VehicleIn, user: CurrentUser):
+    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.vehicles.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/vehicles/{vehicle_id}")
+async def get_vehicle(vehicle_id: str, user: CurrentUser):
+    doc = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Viatura não encontrada")
+    doc["photos"] = await db.photos.find({"vehicle_id": vehicle_id}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    doc["damages"] = await db.damages.find({"vehicle_id": vehicle_id}, {"_id": 0}).to_list(500)
+    return doc
+
+
+@api.put("/vehicles/{vehicle_id}")
+async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CurrentUser):
+    r = await db.vehicles.update_one(tenant_filter(user, {"id": vehicle_id}),
+                                      {"$set": {**data.model_dump(), "updated_at": now_iso()}})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Viatura não encontrada")
+    return {"ok": True}
+
+
+@api.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, user: CurrentUser):
+    await db.vehicles.delete_one(tenant_filter(user, {"id": vehicle_id}))
+    return {"ok": True}
+
+
+# ----------------------------- work orders -----------------------------
+def compute_totals(items: list) -> dict:
+    subtotal = 0.0
+    vat_total = 0.0
+    for it in items:
+        line = float(it.get("quantity", 0)) * float(it.get("unit_price", 0))
+        subtotal += line
+        vat_total += line * float(it.get("vat_rate", 23)) / 100.0
+    return {"subtotal": round(subtotal, 2), "vat": round(vat_total, 2), "total": round(subtotal + vat_total, 2)}
+
+
+async def _enrich_wo(wo: dict) -> dict:
+    client = await db.clients.find_one({"id": wo["client_id"]}, {"_id": 0, "name": 1})
+    vehicle = await db.vehicles.find_one({"id": wo["vehicle_id"]}, {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
+    wo["client_name"] = client["name"] if client else ""
+    wo["vehicle_label"] = f"{vehicle['make']} {vehicle['model']}" if vehicle else ""
+    wo["license_plate"] = vehicle["license_plate"] if vehicle else ""
+    return wo
+
+
+@api.get("/work-orders")
+async def list_wo(user: CurrentUser, search: str = "", status_filter: Optional[str] = None):
+    q = tenant_filter(user)
+    if status_filter and status_filter != "todos":
+        q["status"] = status_filter
+    docs = await db.work_orders.find(q, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    for d in docs:
+        await _enrich_wo(d)
+    if search:
+        s = search.lower()
+        docs = [d for d in docs if s in d.get("client_name", "").lower()
+                or s in d.get("license_plate", "").lower()
+                or s in d.get("number", "").lower()]
+    return docs
+
+
+@api.post("/work-orders", status_code=201)
+async def create_wo(data: WorkOrderIn, user: CurrentUser):
+    count = await db.work_orders.count_documents(tenant_filter(user))
+    number = f"#{1024 + count}"
+    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+    totals = compute_totals(items)
+    doc = {
+        "id": new_id(),
+        "workshop_id": user["workshop_id"],
+        "number": number,
+        "client_id": data.client_id,
+        "vehicle_id": data.vehicle_id,
+        "mechanic": data.mechanic,
+        "complaint": data.complaint,
+        "notes": data.notes,
+        "mileage_in": data.mileage_in,
+        "status": data.status,
+        "items": items,
+        **totals,
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+        "completed_at": None,
+    }
+    await db.work_orders.insert_one(doc)
+    # discount stock for parts with product_id
+    for it in items:
+        if it.get("item_type") == "peca" and it.get("product_id"):
+            await db.products.update_one(
+                tenant_filter(user, {"id": it["product_id"]}),
+                {"$inc": {"stock": -int(it["quantity"])}}
+            )
+            await db.stock_movements.insert_one({
+                "id": new_id(),
+                "workshop_id": user["workshop_id"],
+                "product_id": it["product_id"],
+                "delta": -int(it["quantity"]),
+                "reason": f"Utilizado OS {number}",
+                "work_order_id": doc["id"],
+                "created_at": now_iso(),
+            })
+    doc.pop("_id", None)
+    return await _enrich_wo(doc)
+
+
+@api.get("/work-orders/{wo_id}")
+async def get_wo(wo_id: str, user: CurrentUser):
+    doc = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "OS não encontrada")
+    return await _enrich_wo(doc)
+
+
+@api.put("/work-orders/{wo_id}")
+async def update_wo(wo_id: str, data: WorkOrderIn, user: CurrentUser):
+    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+    totals = compute_totals(items)
+    upd = {
+        "client_id": data.client_id,
+        "vehicle_id": data.vehicle_id,
+        "mechanic": data.mechanic,
+        "complaint": data.complaint,
+        "notes": data.notes,
+        "mileage_in": data.mileage_in,
+        "status": data.status,
+        "items": items,
+        **totals,
+        "updated_at": now_iso(),
+    }
+    if data.status == "concluido":
+        upd["completed_at"] = now_iso()
+    r = await db.work_orders.update_one(tenant_filter(user, {"id": wo_id}), {"$set": upd})
+    if r.matched_count == 0:
+        raise HTTPException(404, "OS não encontrada")
+    return {"ok": True}
+
+
+@api.delete("/work-orders/{wo_id}")
+async def delete_wo(wo_id: str, user: CurrentUser):
+    await db.work_orders.delete_one(tenant_filter(user, {"id": wo_id}))
+    return {"ok": True}
+
+
+# ----------------------------- products (stock) -----------------------------
+@api.get("/products")
+async def list_products(user: CurrentUser, search: str = "", category: Optional[str] = None):
+    q = tenant_filter(user)
+    if category and category != "todos":
+        q["category"] = category
+    if search:
+        rx = {"$regex": re.escape(search), "$options": "i"}
+        q["$or"] = [{"name": rx}, {"reference": rx}, {"supplier": rx}]
+    return await db.products.find(q, {"_id": 0}).sort("name", 1).to_list(2000)
+
+
+@api.post("/products", status_code=201)
+async def create_product(data: ProductIn, user: CurrentUser):
+    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.products.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.get("/products/{pid}")
+async def get_product(pid: str, user: CurrentUser):
+    doc = await db.products.find_one(tenant_filter(user, {"id": pid}), {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Produto não encontrado")
+    doc["movements"] = await db.stock_movements.find(
+        {"product_id": pid}, {"_id": 0}
+    ).sort("created_at", -1).to_list(200)
+    return doc
+
+
+@api.put("/products/{pid}")
+async def update_product(pid: str, data: ProductIn, user: CurrentUser):
+    r = await db.products.update_one(tenant_filter(user, {"id": pid}),
+                                      {"$set": {**data.model_dump(), "updated_at": now_iso()}})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Produto não encontrado")
+    return {"ok": True}
+
+
+@api.delete("/products/{pid}")
+async def delete_product(pid: str, user: CurrentUser):
+    await db.products.delete_one(tenant_filter(user, {"id": pid}))
+    return {"ok": True}
+
+
+# ----------------------------- purchase orders (encomendas) -----------------------------
+@api.get("/purchase-orders")
+async def list_po(user: CurrentUser):
+    return await db.purchase_orders.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
+
+
+@api.post("/purchase-orders", status_code=201)
+async def create_po(data: PurchaseOrderIn, user: CurrentUser):
+    items = []
+    subtotal = 0.0
+    for it in data.items:
+        line = it.quantity * it.unit_price
+        subtotal += line
+        prod = await db.products.find_one({"id": it.product_id}, {"_id": 0, "name": 1, "reference": 1})
+        items.append({"id": new_id(), **it.model_dump(),
+                      "product_name": prod["name"] if prod else "", "line_total": round(line, 2)})
+    vat = subtotal * 0.23
+    doc = {
+        "id": new_id(),
+        "workshop_id": user["workshop_id"],
+        "supplier": data.supplier,
+        "items": items,
+        "notes": data.notes,
+        "subtotal": round(subtotal, 2),
+        "vat": round(vat, 2),
+        "total": round(subtotal + vat, 2),
+        "status": "pendente",  # pendente | recebida
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.purchase_orders.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.post("/purchase-orders/{po_id}/receive")
+async def receive_po(po_id: str, user: CurrentUser):
+    po = await db.purchase_orders.find_one(tenant_filter(user, {"id": po_id}), {"_id": 0})
+    if not po:
+        raise HTTPException(404, "Encomenda não encontrada")
+    if po["status"] == "recebida":
+        return {"ok": True, "already": True}
+    for it in po["items"]:
+        await db.products.update_one(tenant_filter(user, {"id": it["product_id"]}),
+                                      {"$inc": {"stock": int(it["quantity"])}})
+        await db.stock_movements.insert_one({
+            "id": new_id(), "workshop_id": user["workshop_id"],
+            "product_id": it["product_id"], "delta": int(it["quantity"]),
+            "reason": "Entrada encomenda", "purchase_order_id": po_id,
+            "created_at": now_iso(),
+        })
+    await db.purchase_orders.update_one({"id": po_id},
+                                         {"$set": {"status": "recebida", "updated_at": now_iso()}})
+    return {"ok": True}
+
+
+# ----------------------------- photos -----------------------------
+@api.get("/photos")
+async def list_photos(user: CurrentUser, vehicle_id: Optional[str] = None):
+    q: dict = tenant_filter(user)
+    if vehicle_id:
+        v = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}))
+        if not v:
+            return []
+        q["vehicle_id"] = vehicle_id
+    return await db.photos.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api.post("/photos", status_code=201)
+async def create_photo(data: PhotoIn, user: CurrentUser):
+    v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
+    if not v:
+        raise HTTPException(404, "Viatura não encontrada")
+    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
+           "created_at": now_iso()}
+    await db.photos.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.delete("/photos/{pid}")
+async def delete_photo(pid: str, user: CurrentUser):
+    await db.photos.delete_one({"id": pid, "workshop_id": user["workshop_id"]})
+    return {"ok": True}
+
+
+# ----------------------------- damages -----------------------------
+@api.get("/damages")
+async def list_damages(user: CurrentUser, vehicle_id: Optional[str] = None):
+    q: dict = tenant_filter(user)
+    if vehicle_id:
+        q["vehicle_id"] = vehicle_id
+    return await db.damages.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@api.post("/damages", status_code=201)
+async def create_damage(data: DamageIn, user: CurrentUser):
+    v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
+    if not v:
+        raise HTTPException(404, "Viatura não encontrada")
+    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
+           "created_at": now_iso()}
+    await db.damages.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+# ----------------------------- quotes (orçamentos) -----------------------------
+@api.get("/quotes")
+async def list_quotes(user: CurrentUser):
+    docs = await db.quotes.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for d in docs:
+        c = await db.clients.find_one({"id": d["client_id"]}, {"_id": 0, "name": 1})
+        d["client_name"] = c["name"] if c else ""
+    return docs
+
+
+@api.post("/quotes", status_code=201)
+async def create_quote(data: QuoteIn, user: CurrentUser):
+    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+    totals = compute_totals(items)
+    count = await db.quotes.count_documents(tenant_filter(user))
+    doc = {
+        "id": new_id(), "workshop_id": user["workshop_id"],
+        "number": f"ORC{datetime.now().year}/{count + 1:03d}",
+        "client_id": data.client_id, "vehicle_id": data.vehicle_id,
+        "items": items, "notes": data.notes, **totals,
+        "status": "rascunho",  # rascunho | enviado | aceite | recusado
+        "created_at": now_iso(), "updated_at": now_iso(),
+    }
+    await db.quotes.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api.post("/quotes/{qid}/status")
+async def set_quote_status(qid: str, body: dict, user: CurrentUser):
+    st = body.get("status")
+    if st not in {"rascunho", "enviado", "aceite", "recusado"}:
+        raise HTTPException(400, "Estado inválido")
+    r = await db.quotes.update_one(tenant_filter(user, {"id": qid}),
+                                    {"$set": {"status": st, "updated_at": now_iso()}})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Orçamento não encontrado")
+    return {"ok": True}
+
+
+@api.post("/quotes/{qid}/convert")
+async def convert_quote_to_wo(qid: str, user: CurrentUser):
+    q = await db.quotes.find_one(tenant_filter(user, {"id": qid}), {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Orçamento não encontrado")
+    if q["status"] != "aceite":
+        raise HTTPException(400, "Só é possível converter orçamentos aceites")
+    count = await db.work_orders.count_documents(tenant_filter(user))
+    wo = {
+        "id": new_id(), "workshop_id": user["workshop_id"],
+        "number": f"#{1024 + count}",
+        "client_id": q["client_id"], "vehicle_id": q["vehicle_id"],
+        "mechanic": None, "complaint": None, "notes": q.get("notes"),
+        "mileage_in": None, "status": "entrada",
+        "items": q["items"],
+        "subtotal": q["subtotal"], "vat": q["vat"], "total": q["total"],
+        "created_at": now_iso(), "updated_at": now_iso(), "completed_at": None,
+        "quote_id": qid,
+    }
+    await db.work_orders.insert_one(wo)
+    wo.pop("_id", None)
+    return await _enrich_wo(wo)
+
+
+# ----------------------------- invoices -----------------------------
+@api.get("/invoices")
+async def list_invoices(user: CurrentUser):
+    docs = await db.invoices.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for d in docs:
+        wo = await db.work_orders.find_one({"id": d["work_order_id"]}, {"_id": 0, "client_id": 1, "number": 1})
+        if wo:
+            c = await db.clients.find_one({"id": wo["client_id"]}, {"_id": 0, "name": 1})
+            d["client_name"] = c["name"] if c else ""
+            d["wo_number"] = wo["number"]
+    return docs
+
+
+@api.post("/invoices", status_code=201)
+async def create_invoice(data: InvoiceIn, user: CurrentUser):
+    wo = await db.work_orders.find_one(tenant_filter(user, {"id": data.work_order_id}), {"_id": 0})
+    if not wo:
+        raise HTTPException(404, "OS não encontrada")
+    total_labor = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "mao_de_obra")
+    total_parts = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "peca")
+    prefix = {"orcamento": "ORC", "fatura": "FT", "fatura_recibo": "FR"}[data.document_type]
+    count = await db.invoices.count_documents(tenant_filter(user, {"document_type": data.document_type}))
+    doc = {
+        "id": new_id(), "workshop_id": user["workshop_id"],
+        "work_order_id": data.work_order_id,
+        "document_type": data.document_type,
+        "document_number": f"{prefix}{datetime.now().year}/{count + 1:03d}",
+        "total_labor": round(total_labor, 2),
+        "total_parts": round(total_parts, 2),
+        "subtotal": wo["subtotal"], "vat": wo["vat"], "grand_total": wo["total"],
+        "external_invoice_id": None,
+        "created_at": now_iso(), "updated_at": now_iso(),
+    }
+    await db.invoices.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+# ----------------------------- dashboard -----------------------------
+@api.get("/dashboard")
+async def dashboard(user: CurrentUser):
+    f = tenant_filter(user)
+    total = await db.work_orders.count_documents(f)
+    em_rep = await db.work_orders.count_documents({**f, "status": {"$in": ["entrada", "diagnostico"]}})
+    aguarda = await db.work_orders.count_documents({**f, "status": "aguardando_pecas"})
+    # month invoicing
+    start_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    invs = await db.invoices.find(
+        {**f, "created_at": {"$gte": start_month}, "document_type": {"$in": ["fatura", "fatura_recibo"]}},
+        {"_id": 0, "grand_total": 1}
+    ).to_list(2000)
+    faturacao = round(sum(i.get("grand_total", 0) for i in invs), 2)
+
+    recent = await db.work_orders.find(f, {"_id": 0}).sort("created_at", -1).to_list(6)
+    for w in recent:
+        await _enrich_wo(w)
+
+    return {
+        "kpis": {
+            "ordens": total,
+            "em_reparacao": em_rep,
+            "aguarda_cliente": aguarda,
+            "faturacao": faturacao,
+        },
+        "recent_work_orders": recent,
+    }
+
+
+# ----------------------------- seed demo -----------------------------
+async def seed_demo_data(workshop_id: str, user_id: str):
+    ts = now_iso()
+
+    def wid(d): return {**d, "workshop_id": workshop_id, "created_at": ts, "updated_at": ts}
+
+    clients = [
+        wid({"id": new_id(), "name": "João Silva", "nif": "234567890", "phone": "912 345 678",
+             "email": "joao@email.pt", "address": "Rua das Flores, 210, 1200-100 Lisboa"}),
+        wid({"id": new_id(), "name": "Ana Costa", "nif": "212345678", "phone": "913 222 111",
+             "email": "ana.costa@email.pt", "address": "Av. República, 45, Porto"}),
+        wid({"id": new_id(), "name": "Pedro Alves", "nif": "220456789", "phone": "914 555 222",
+             "email": "pedro@email.pt", "address": "Rua Nova, 12, Braga"}),
+        wid({"id": new_id(), "name": "Marta Lopes", "nif": "224789123", "phone": "915 666 333",
+             "email": "marta@email.pt", "address": "Rua do Sol, 88, Coimbra"}),
+        wid({"id": new_id(), "name": "Carlos Ferreira", "nif": "228112233", "phone": "916 777 444",
+             "email": "carlos@email.pt", "address": "Rua Central, 3, Setúbal"}),
+    ]
+    await db.clients.insert_many(clients)
+
+    vehicles = [
+        wid({"id": new_id(), "client_id": clients[0]["id"], "license_plate": "AA-12-BB",
+             "make": "BMW", "model": "320d", "year": 2019, "fuel": "Diesel", "mileage": 84500, "vin": "WBA5A7C50FD001234"}),
+        wid({"id": new_id(), "client_id": clients[1]["id"], "license_plate": "22-CD-44",
+             "make": "VW", "model": "Golf", "year": 2017, "fuel": "Gasolina", "mileage": 105000, "vin": "WVWZZZ1KZ7W123456"}),
+        wid({"id": new_id(), "client_id": clients[2]["id"], "license_plate": "55-CD-99",
+             "make": "Audi", "model": "A4", "year": 2018, "fuel": "Diesel", "mileage": 92000, "vin": "WAUZZZ8K5JA111222"}),
+        wid({"id": new_id(), "client_id": clients[3]["id"], "license_plate": "11-GG-22",
+             "make": "Renault", "model": "Clio", "year": 2020, "fuel": "Gasolina", "mileage": 45000, "vin": "VF1CB0A0H12345678"}),
+        wid({"id": new_id(), "client_id": clients[4]["id"], "license_plate": "77-JK-11",
+             "make": "Peugeot", "model": "308", "year": 2016, "fuel": "Diesel", "mileage": 132000, "vin": "VF3LBHZTZFS123456"}),
+    ]
+    await db.vehicles.insert_many(vehicles)
+
+    products = [
+        wid({"id": new_id(), "reference": "OL-SW30", "name": "Óleo Motor SW30 5L",
+             "supplier": "Fornecedor X", "category": "Óleos", "stock": 24, "min_stock": 10,
+             "purchase_price": 32.00, "sale_price": 42.50, "vat_rate": 23}),
+        wid({"id": new_id(), "reference": "PB-001", "name": "Pastilhas Travão BMW",
+             "supplier": "Bosch", "category": "Travões", "stock": 3, "min_stock": 5,
+             "purchase_price": 55.00, "sale_price": 85.00, "vat_rate": 23}),
+        wid({"id": new_id(), "reference": "FL-001", "name": "Filtro de Óleo",
+             "supplier": "Mann", "category": "Filtros", "stock": 42, "min_stock": 15,
+             "purchase_price": 6.50, "sale_price": 12.50, "vat_rate": 23}),
+        wid({"id": new_id(), "reference": "BAT-001", "name": "Bateria 12V 70Ah",
+             "supplier": "Varta", "category": "Baterias", "stock": 8, "min_stock": 4,
+             "purchase_price": 85.00, "sale_price": 130.00, "vat_rate": 23}),
+        wid({"id": new_id(), "reference": "PN-205", "name": "Pneu 205/55 R16",
+             "supplier": "Michelin", "category": "Pneus", "stock": 16, "min_stock": 8,
+             "purchase_price": 62.00, "sale_price": 95.00, "vat_rate": 23}),
+    ]
+    await db.products.insert_many(products)
+
+    # work orders
+    def item(t, desc, qty, price, rate=23):
+        return {"id": new_id(), "item_type": t, "description": desc, "quantity": qty,
+                "unit_price": price, "vat_rate": rate, "product_id": None}
+
+    wos = []
+    wo1_items = [item("mao_de_obra", "Mudança de óleo", 1, 80),
+                 item("peca", "Pastilhas de travão", 1, 120),
+                 item("mao_de_obra", "Mão de obra", 2, 45)]
+    totals1 = compute_totals(wo1_items)
+    wos.append(wid({"id": new_id(), "number": "#1024", "client_id": clients[0]["id"],
+                    "vehicle_id": vehicles[0]["id"], "mechanic": "Rodrigo Ricardo",
+                    "complaint": "Ruído nos travões",
+                    "notes": "Substituídas pastilhas dianteiras.", "mileage_in": 84500,
+                    "status": "diagnostico", "items": wo1_items, **totals1, "completed_at": None}))
+
+    wo2_items = [item("mao_de_obra", "Revisão geral", 3, 40),
+                 item("peca", "Filtro de óleo", 1, 12.50)]
+    totals2 = compute_totals(wo2_items)
+    wos.append(wid({"id": new_id(), "number": "#1023", "client_id": clients[1]["id"],
+                    "vehicle_id": vehicles[1]["id"], "mechanic": "Rodrigo Ricardo",
+                    "complaint": "Revisão anual", "notes": "", "mileage_in": 105000,
+                    "status": "entrada", "items": wo2_items, **totals2, "completed_at": None}))
+
+    wo3_items = [item("mao_de_obra", "Substituição correia", 2, 60),
+                 item("peca", "Correia distribuição", 1, 380)]
+    totals3 = compute_totals(wo3_items)
+    wos.append(wid({"id": new_id(), "number": "#1022", "client_id": clients[2]["id"],
+                    "vehicle_id": vehicles[2]["id"], "mechanic": "Rodrigo Ricardo",
+                    "complaint": "Barulho no motor", "notes": "Correia trocada, tudo ok.",
+                    "mileage_in": 92000, "status": "concluido", "items": wo3_items, **totals3,
+                    "completed_at": ts}))
+
+    wo4_items = [item("mao_de_obra", "Diagnóstico", 1, 30),
+                 item("peca", "Sensor", 1, 60)]
+    totals4 = compute_totals(wo4_items)
+    wos.append(wid({"id": new_id(), "number": "#1021", "client_id": clients[3]["id"],
+                    "vehicle_id": vehicles[3]["id"], "mechanic": "Rodrigo Ricardo",
+                    "complaint": "Luz avaria no painel", "notes": "", "mileage_in": 45000,
+                    "status": "aguardando_pecas", "items": wo4_items, **totals4, "completed_at": None}))
+
+    await db.work_orders.insert_many(wos)
+
+    # one invoice
+    concluded = [w for w in wos if w["status"] == "concluido"][0]
+    inv = wid({
+        "id": new_id(), "work_order_id": concluded["id"],
+        "document_type": "fatura", "document_number": f"FT{datetime.now().year}/001",
+        "total_labor": 120.0, "total_parts": 380.0,
+        "subtotal": concluded["subtotal"], "vat": concluded["vat"], "grand_total": concluded["total"],
+        "external_invoice_id": None,
+    })
+    inv.pop("workshop_id", None)  # re-add cleanly
+    inv["workshop_id"] = workshop_id
+    await db.invoices.insert_one(inv)
+
+
+# ----------------------------- health -----------------------------
+@api.get("/")
+async def root():
+    return {"app": "RoadMesh", "status": "ok"}
+
+
+# ----------------------------- register app -----------------------------
+app.include_router(api)
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("roadmesh")
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    client.close()

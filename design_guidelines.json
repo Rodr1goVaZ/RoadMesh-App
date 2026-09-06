@@ -1,0 +1,197 @@
+{
+  "app_name": "RoadMesh",
+  "personality": "1 iOS-Native Clean (adapted for Enterprise SaaS with User's Wine-Red/Light-Blue preferences)",
+  "personality_one_liner": "A highly professional, high-fidelity auto workshop SaaS blending clean white cards, subtle shadows, and a soft light-blue canvas with authoritative wine-red actions.",
+  "color": {
+    "surface": "#EEF3FA",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#111827",
+    "surfaceTertiary": "#F3F4F6",
+    "onSurfaceTertiary": "#374151",
+    "surfaceInverse": "#1F2937",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#7A1E2B",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#7A1E2B",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#1E293B",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#FCEAEA",
+    "onBrandTertiary": "#7A1E2B",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#38BDF8",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#D1D5DB",
+    "divider": "#E5E7EB",
+    "muted": "#6B7280"
+  },
+  "typography": {
+    "displayFontFamily": "Geist",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use 8pt grid system. Generous padding inside white cards (16pt), 12pt gap between cards, and 16-24pt horizontal screen padding. Ensure all primary CTAs have sufficient bottom safe-area spacing.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 8,
+    "lg": 12,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid surfaceSecondary (White) for headers and bottom tabs to maintain the clean SaaS contrast against the light blue background."
+    ],
+    "dont's": [
+      "Avoid heavy blurs. The user requested maximum fidelity to a specific flat/clean wireframe style with white cards and subtle shadows."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Login",
+      "purpose": "Authentication screen with strict branding.",
+      "states": {
+        "loading": "Centered wine-red spinner",
+        "empty": "N/A",
+        "error": "Standard error toast with retry"
+      },
+      "layout": "Centered logo ('R' with mesh nodes, use a placeholder icon if image unavailable), Inputs for Email/Password, full-width wine-red primary button 'Entrar', secondary link 'Criar conta'."
+    },
+    {
+      "name": "Dashboard (Início)",
+      "purpose": "Overview of workshop KPIs and immediate active tasks.",
+      "states": {
+        "loading": "Skeleton loaders for KPI cards and list rows",
+        "empty": "Illustration of a clean workshop, 'Sem atividade recente'",
+        "error": "Error message with 'Tentar novamente' button"
+      },
+      "layout": "Scrollable layout. Top section: 2x2 grid of white KPI cards with subtle shadows (Ordens de Serviço, Em Reparação, Aguardam Cliente, Faturação). Bottom section: List of recent work orders using list row cards."
+    },
+    {
+      "name": "Ordens de Serviço",
+      "purpose": "CRUD list of work orders with workflow status.",
+      "states": {
+        "loading": "List skeleton",
+        "empty": "Empty state illustration with 'Nenhuma ordem de serviço' and '+' FAB.",
+        "error": "Error loading orders, retry button"
+      },
+      "layout": "Horizontal scrollable filter chip row at the top. Vertical list of white cards. Each card displays Client, Vehicle, Date, and a pill-shaped status chip (e.g., Reparação, Orçamento, Concluído). FAB (wine-red) at the bottom right for new order."
+    },
+    {
+      "name": "OS Detail",
+      "purpose": "Detailed view of a specific work order.",
+      "states": {
+        "loading": "Content skeleton",
+        "empty": "N/A",
+        "error": "Failed to load OS details"
+      },
+      "layout": "White cards grouping information: Cliente info, Viatura info, Serviços table (list of tasks/parts). Bottom section shows Subtotal, IVA, TOTAL. Sticky bottom container with 'Concluir Ordem' (wine-red) and 'Guardar' (secondary) buttons."
+    },
+    {
+      "name": "Clientes",
+      "purpose": "List of workshop clients.",
+      "states": {
+        "loading": "List skeleton",
+        "empty": "Empty state illustration with 'Adicionar primeiro cliente'",
+        "error": "Retry fetching clients"
+      },
+      "layout": "Search bar at top. Vertical list of client cards showing name, phone, and number of vehicles. Wine-red FAB to add new."
+    },
+    {
+      "name": "Cliente Detail",
+      "purpose": "Client profile including contact info, vehicles, and intervention history.",
+      "states": {
+        "loading": "Profile skeleton",
+        "empty": "No history found for client",
+        "error": "Failed to load client details"
+      },
+      "layout": "Top banner with Client Name and contact quick-actions. Custom tabbed navigation below (Contactos, Viaturas, Histórico). Content below changes based on selected tab."
+    },
+    {
+      "name": "Fotos do Veículo",
+      "purpose": "Visual documentation of vehicle condition (damage, interior, etc).",
+      "states": {
+        "loading": "Image grid skeleton",
+        "empty": "'Nenhuma foto adicionada' with large upload button",
+        "error": "Failed to load images"
+      },
+      "layout": "Large main image viewer at the top. Grid of square thumbnails below. Wine-red primary button to 'Adicionar Foto' at the bottom. Use provided auto repair placeholder images."
+    },
+    {
+      "name": "Produtos",
+      "purpose": "Stock and inventory management.",
+      "states": {
+        "loading": "List skeleton",
+        "empty": "'Stock vazio', add product button",
+        "error": "Failed to load inventory"
+      },
+      "layout": "Search and horizontal filter chips (Category, Stock, Fornecedor). List of white cards displaying product name, SKU, and current stock level (with low-stock indicator in red/warning). FAB for Nova Encomenda."
+    }
+  ],
+  "images": {
+    "workshop_interior": {
+      "url": "https://images.unsplash.com/photo-1727893119356-1702fe921cf9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwxfHxhdXRvJTIwcmVwYWlyJTIwd29ya3Nob3AlMjBpbnRlcmlvcnxlbnwwfHx8fDE3ODg3MjcwNjB8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Bright, spacious automotive repair workshop"
+    },
+    "mechanic_engine": {
+      "url": "https://images.unsplash.com/photo-1615906655593-ad0386982a0f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwxfHxtZWNoYW5pYyUyMGZpeGluZyUyMGNhciUyMGVuZ2luZXxlbnwwfHx8fDE3ODg3MjcwNjB8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Mechanic working on car engine"
+    },
+    "tyre_close_up": {
+      "url": "https://images.unsplash.com/photo-1571335746824-742511d49bce?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHxjYXIlMjB0eXJlJTIwY2xvc2UlMjB1cHxlbnwwfHx8fDE3ODg3MjcwNjB8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Four vehicle tires close up"
+    },
+    "dashboard_close_up": {
+      "url": "https://images.unsplash.com/photo-1667893591090-19729ae8fee3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxjYXIlMjBkYXNoYm9hcmQlMjBjbG9zZSUyMHVwfGVufDB8fHx8MTc4ODcyNzA2MHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Car dashboard close up"
+    }
+  },
+  "instructions_to_main_agent": [
+    "MAXIMUM FIDELITY to user's requested style: Use #EEF3FA (soft light blue) strictly for the main background of screens.",
+    "Cards MUST be solid white (#FFFFFF) with a very subtle shadow (shadow_tier 1 or equivalent React Native elevation: 2, shadowOpacity: 0.05).",
+    "All primary action buttons MUST be full-width and use the wine-red color (#7A1E2B).",
+    "Bottom Tab Navigation must contain exactly 5 items: Início, Serviço, Clientes, Stock, Mais.",
+    "Status chips (Reparação, Orçamento, Concluído) must be pill-shaped. Use semantic colors: Warning (Amber) for Em Reparação, Success (Emerald) for Concluído, Info (Cyan/Blue) for Orçamento, and Muted (Slate) for Aguarda Cliente.",
+    "Adhere strictly to PT-PT localization: Use dd/mm/yyyy date formatting and EUR (€) for all currency displays.",
+    "Implement sticky primary CTAs (e.g., 'Concluir Ordem', 'Guardar') at the bottom of scrollable forms/details.",
+    "For the Logo, since an exact image was not provided, implement a sleek text-based or icon-based placeholder featuring a red 'R' with a mesh/network icon beside it.",
+    "Ensure every numeric or monetary value is formatted to Portuguese standards (e.g., 1.250,00 €)."
+  ]
+}
