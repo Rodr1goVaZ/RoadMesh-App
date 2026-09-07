@@ -5,38 +5,35 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, List, Optional, Literal
 
-import bcrypt
-import jwt
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
-from fastapi.security import OAuth2PasswordBearer
 from starlette.concurrency import run_in_threadpool
 from media_storage import init_storage, register_media_routes
 from pdf_documents import build_invoice_pdf
+from access_control import Access, register_auth_routes
+from admin_routes import register_admin_routes
+from portal_routes import register_portal_routes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
-JWT_SECRET = os.environ.get("JWT_SECRET", "roadmesh-dev-secret-change-in-prod-please-use-openssl-rand")
-JWT_ALGO = "HS256"
-JWT_EXP_MIN = 60 * 24 * 7  # 7 days
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
+access = Access(db)
 
 app = FastAPI(title="RoadMesh API")
 api = APIRouter(prefix="/api")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 # ----------------------------- helpers -----------------------------
@@ -48,43 +45,7 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
-def hash_pw(pw: str) -> str:
-    return bcrypt.hashpw(pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_pw(pw: str, h: str) -> bool:
-    try:
-        return bcrypt.checkpw(pw.encode("utf-8"), h.encode("utf-8"))
-    except Exception:
-        return False
-
-
-def make_token(user_id: str, workshop_id: str, role: str) -> str:
-    now = datetime.now(timezone.utc)
-    payload = {
-        "sub": user_id,
-        "workshop_id": workshop_id,
-        "role": role,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=JWT_EXP_MIN)).timestamp()),
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
-
-
-async def current_user(token: Annotated[Optional[str], Depends(oauth2_scheme)]) -> dict:
-    if not token:
-        raise HTTPException(401, "Autenticação necessária")
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
-    except jwt.PyJWTError:
-        raise HTTPException(401, "Token inválido ou expirado")
-    user = await db.users.find_one({"id": payload["sub"], "workshop_id": payload["workshop_id"]}, {"_id": 0})
-    if not user:
-        raise HTTPException(401, "Utilizador não encontrado")
-    return user
-
-
-CurrentUser = Annotated[dict, Depends(current_user)]
+CurrentUser = Annotated[dict, Depends(access.workshop)]
 
 
 def tenant_filter(user: dict, extra: dict | None = None) -> dict:
@@ -201,88 +162,7 @@ class DamageIn(BaseModel):
 
 
 # ----------------------------- auth -----------------------------
-@api.post("/auth/register", status_code=201)
-async def register(data: RegisterIn):
-    email = data.email.lower().strip()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(409, "Este email já está registado")
-
-    workshop_id = new_id()
-    user_id = new_id()
-    ts = now_iso()
-
-    workshop = {
-        "id": workshop_id,
-        "name": data.workshop_name.strip(),
-        "nif": None,
-        "address": None,
-        "logo_url": None,
-        "created_at": ts,
-        "updated_at": ts,
-    }
-    user = {
-        "id": user_id,
-        "workshop_id": workshop_id,
-        "name": data.name.strip(),
-        "email": email,
-        "password_hash": hash_pw(data.password),
-        "role": "admin",
-        "created_at": ts,
-        "updated_at": ts,
-    }
-    await db.workshops.insert_one(workshop)
-    await db.users.insert_one(user)
-
-    await seed_demo_data(workshop_id, user_id)
-
-    token = make_token(user_id, workshop_id, "admin")
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user_id,
-            "workshop_id": workshop_id,
-            "workshop_name": workshop["name"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"],
-        },
-    }
-
-
-@api.post("/auth/login")
-async def login(data: LoginIn):
-    email = data.email.lower().strip()
-    user = await db.users.find_one({"email": email}, {"_id": 0})
-    if not user or not verify_pw(data.password, user["password_hash"]):
-        raise HTTPException(401, "Email ou palavra-passe inválidos")
-    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
-    token = make_token(user["id"], user["workshop_id"], user["role"])
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user["id"],
-            "workshop_id": user["workshop_id"],
-            "workshop_name": workshop["name"] if workshop else "",
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"],
-        },
-    }
-
-
-@api.get("/auth/me")
-async def me(user: CurrentUser):
-    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
-    return {
-        "id": user["id"],
-        "workshop_id": user["workshop_id"],
-        "workshop_name": workshop["name"] if workshop else "",
-        "name": user["name"],
-        "email": user["email"],
-        "role": user["role"],
-    }
+register_auth_routes(api, access)
 
 
 # ----------------------------- clients -----------------------------
@@ -294,7 +174,7 @@ async def list_clients(user: CurrentUser, search: str = ""):
         q["$or"] = [{"name": rx}, {"nif": rx}, {"phone": rx}, {"email": rx}]
     docs = await db.clients.find(q, {"_id": 0}).sort("name", 1).to_list(1000)
     for d in docs:
-        d["vehicles_count"] = await db.vehicles.count_documents({"client_id": d["id"]})
+        d["vehicles_count"] = await db.vehicles.count_documents(tenant_filter(user, {"client_id": d["id"]}))
     return docs
 
 
@@ -312,7 +192,7 @@ async def get_client(client_id: str, user: CurrentUser):
     doc = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0})
     if not doc:
         raise HTTPException(404, "Cliente não encontrado")
-    doc["vehicles"] = await db.vehicles.find({"client_id": client_id}, {"_id": 0}).to_list(500)
+    doc["vehicles"] = await db.vehicles.find(tenant_filter(user, {"client_id": client_id}), {"_id": 0}).to_list(500)
     doc["work_orders"] = await db.work_orders.find(
         tenant_filter(user, {"client_id": client_id}), {"_id": 0}
     ).sort("created_at", -1).to_list(500)
@@ -378,6 +258,8 @@ async def get_vehicle(vehicle_id: str, user: CurrentUser):
 
 @api.put("/vehicles/{vehicle_id}")
 async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CurrentUser):
+    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Cliente não encontrado")
     r = await db.vehicles.update_one(tenant_filter(user, {"id": vehicle_id}),
                                       {"$set": {**data.model_dump(), "updated_at": now_iso()}})
     if r.matched_count == 0:
@@ -392,6 +274,16 @@ async def delete_vehicle(vehicle_id: str, user: CurrentUser):
 
 
 # ----------------------------- work orders -----------------------------
+async def validate_order_relations(data, user):
+    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Cliente não encontrado nesta oficina")
+    if not await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Viatura não encontrada para este cliente")
+    for item in data.items:
+        if item.product_id and not await db.products.find_one(tenant_filter(user, {"id": item.product_id}), {"_id": 0, "id": 1}):
+            raise HTTPException(404, "Produto não encontrado nesta oficina")
+
+
 def compute_totals(items: list) -> dict:
     subtotal = 0.0
     vat_total = 0.0
@@ -403,8 +295,8 @@ def compute_totals(items: list) -> dict:
 
 
 async def _enrich_wo(wo: dict) -> dict:
-    client = await db.clients.find_one({"id": wo["client_id"]}, {"_id": 0, "name": 1})
-    vehicle = await db.vehicles.find_one({"id": wo["vehicle_id"]}, {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
+    client = await db.clients.find_one({"id": wo["client_id"], "workshop_id": wo["workshop_id"]}, {"_id": 0, "name": 1})
+    vehicle = await db.vehicles.find_one({"id": wo["vehicle_id"], "workshop_id": wo["workshop_id"], "client_id": wo["client_id"]}, {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
     wo["client_name"] = client["name"] if client else ""
     wo["vehicle_label"] = f"{vehicle['make']} {vehicle['model']}" if vehicle else ""
     wo["license_plate"] = vehicle["license_plate"] if vehicle else ""
@@ -429,6 +321,7 @@ async def list_wo(user: CurrentUser, search: str = "", status_filter: Optional[s
 
 @api.post("/work-orders", status_code=201)
 async def create_wo(data: WorkOrderIn, user: CurrentUser):
+    await validate_order_relations(data, user)
     count = await db.work_orders.count_documents(tenant_filter(user))
     number = f"#{1024 + count}"
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
@@ -481,6 +374,7 @@ async def get_wo(wo_id: str, user: CurrentUser):
 
 @api.put("/work-orders/{wo_id}")
 async def update_wo(wo_id: str, data: WorkOrderIn, user: CurrentUser):
+    await validate_order_relations(data, user)
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
     totals = compute_totals(items)
     upd = {
@@ -536,7 +430,7 @@ async def get_product(pid: str, user: CurrentUser):
     if not doc:
         raise HTTPException(404, "Produto não encontrado")
     doc["movements"] = await db.stock_movements.find(
-        {"product_id": pid}, {"_id": 0}
+        tenant_filter(user, {"product_id": pid}), {"_id": 0}
     ).sort("created_at", -1).to_list(200)
     return doc
 
@@ -569,7 +463,9 @@ async def create_po(data: PurchaseOrderIn, user: CurrentUser):
     for it in data.items:
         line = it.quantity * it.unit_price
         subtotal += line
-        prod = await db.products.find_one({"id": it.product_id}, {"_id": 0, "name": 1, "reference": 1})
+        prod = await db.products.find_one(tenant_filter(user, {"id": it.product_id}), {"_id": 0, "name": 1, "reference": 1})
+        if not prod:
+            raise HTTPException(404, "Produto não encontrado nesta oficina")
         items.append({"id": new_id(), **it.model_dump(),
                       "product_name": prod["name"] if prod else "", "line_total": round(line, 2)})
     vat = subtotal * 0.23
@@ -607,7 +503,7 @@ async def receive_po(po_id: str, user: CurrentUser):
             "reason": "Entrada encomenda", "purchase_order_id": po_id,
             "created_at": now_iso(),
         })
-    await db.purchase_orders.update_one({"id": po_id},
+    await db.purchase_orders.update_one(tenant_filter(user, {"id": po_id}),
                                          {"$set": {"status": "recebida", "updated_at": now_iso()}})
     return {"ok": True}
 
@@ -979,7 +875,9 @@ async def root():
 
 
 # ----------------------------- register app -----------------------------
-register_media_routes(api, db, current_user)
+register_admin_routes(api, db, access)
+register_portal_routes(api, db, access)
+register_media_routes(api, db, access)
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -996,6 +894,7 @@ logger = logging.getLogger("roadmesh")
 
 @app.on_event("startup")
 async def _startup_storage():
+    await access.initialize()
     try:
         await run_in_threadpool(init_storage)
     except Exception as exc:

@@ -16,6 +16,7 @@ export default function Mais() {
   ]);
 
   const items = [
+    { label: "Marcações dos Clientes", onPress: () => router.push("/(app)/marcacoes"), testID: "mais-appointments" },
     { label: "Pesquisar por Matrícula", onPress: () => router.push("/(app)/viaturas"), testID: "mais-search-plate" },
     { label: "Registo de Danos", onPress: () => router.push("/(app)/danos"), testID: "mais-damages" },
     { label: "Nova Ordem de Serviço", onPress: () => router.push("/(app)/servico/new"), testID: "mais-new-wo" },

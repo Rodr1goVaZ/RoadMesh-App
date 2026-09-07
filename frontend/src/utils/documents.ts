@@ -38,7 +38,8 @@ export async function shareQuote(quote: any, channel: "email" | "whatsapp") {
 export async function exportInvoice(invoice: any) {
   const token = await session.getToken();
   const url = `${API_BASE}/invoices/${invoice.id}/pdf`;
-  const headers = { Authorization: `Bearer ${token}` };
+  const support = await session.getSupport();
+  const headers = { Authorization: `Bearer ${token}`, ...(support?.token ? { "X-Support-Token": support.token } : {}) };
   if (Platform.OS === "web") {
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error("Não foi possível gerar o PDF. Tente novamente.");

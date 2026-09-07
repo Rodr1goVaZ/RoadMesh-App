@@ -10,6 +10,7 @@ import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { Button } from "@/src/components/Button";
 import { formatEUR, formatDate } from "@/src/utils/format";
 import { ClientContactEditor } from "@/src/components/ClientContactEditor";
+import { ClientAccess } from "@/src/components/ClientAccess";
 
 const TABS = ["contactos", "viaturas", "historico"] as const;
 
@@ -50,6 +51,7 @@ export default function ClientDetail() {
             <Row label="Email" value={data.email || "—"} />
             <Row label="Morada" value={data.address || "—"} />
             <ClientContactEditor key={data.id} client={data} />
+            <ClientAccess client={data} />
             <View style={{ height: 8 }} />
             <Button title="Apagar cliente" variant="danger" testID="client-delete" onPress={del} />
           </View>

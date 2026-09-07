@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { View, Text, Platform } from "react-native";
-import { useAuth } from "@/src/auth";
+import { useAuth, homeFor } from "@/src/auth";
+import { SupportBanner } from "@/src/components/SupportBanner";
 import { colors } from "@/src/theme";
 
 function Icon({ label, focused }: { label: string; focused: boolean }) {
@@ -13,14 +14,15 @@ function Icon({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, support } = useAuth();
+  const allowed = user && !user.password_change_required && (user.role === "workshop_staff" || (user.role === "admin" && support));
   useEffect(() => {
-    if (!loading && !user) router.replace("/(auth)/login");
-  }, [user, loading]);
-  if (!user) return null;
+    if (!loading && !allowed) router.replace(homeFor(user));
+  }, [user, loading, allowed]);
+  if (!allowed) return null;
 
   return (
-    <Tabs
+    <View style={{ flex: 1 }}><SupportBanner /><Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brandPrimary,
@@ -46,6 +48,7 @@ export default function AppLayout() {
       <Tabs.Screen name="viaturas" options={{ href: null }} />
       <Tabs.Screen name="viatura" options={{ href: null }} />
       <Tabs.Screen name="danos" options={{ href: null }} />
-    </Tabs>
+      <Tabs.Screen name="marcacoes" options={{ href: null }} />
+    </Tabs></View>
   );
 }

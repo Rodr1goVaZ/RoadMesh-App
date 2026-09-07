@@ -65,9 +65,11 @@ def storage_failure(exc):
     return HTTPException(503, "Não foi possível aceder à fotografia. Tente novamente mais tarde.")
 
 
-def register_media_routes(api, db, current_user):
+def register_media_routes(api, db, access):
     @api.post("/media", status_code=201)
-    async def upload_media(file: UploadFile = File(...), user=Depends(current_user)):
+    async def upload_media(file: UploadFile = File(...), user=Depends(access.media_actor)):
+        if user["role"] == "client":
+            raise HTTPException(403, "Apenas a oficina pode carregar fotografias.")
         raw = await file.read(MAX_UPLOAD + 1)
         await file.close()
         if len(raw) > MAX_UPLOAD:
@@ -86,8 +88,20 @@ def register_media_routes(api, db, current_user):
         return {"id": media_id, "size": len(image)}
 
     @api.get("/media/{media_id}")
-    async def download_media(media_id: str, user=Depends(current_user)):
-        doc = await db.media.find_one({"id": media_id, "workshop_id": user["workshop_id"]}, {"_id": 0})
+    async def download_media(media_id: str, user=Depends(access.media_actor)):
+        scope = {"id": media_id}
+        if user["role"] != "admin":
+            scope["workshop_id"] = user["workshop_id"]
+        doc = await db.media.find_one(scope, {"_id": 0})
+        if user["role"] == "client":
+            vehicles = await db.vehicles.find({"client_id": user["client_id"], "workshop_id": user["workshop_id"]}, {"_id": 0, "id": 1}).to_list(1000)
+            relation = {"workshop_id": user["workshop_id"], "vehicle_id": {"$in": [v["id"] for v in vehicles]}, "media_id": media_id}
+            allowed = await db.photos.find_one(relation, {"_id": 0, "id": 1}) or await db.damages.find_one(relation, {"_id": 0, "id": 1})
+            logo = await db.workshops.find_one({"id": user["workshop_id"], "logo_media_id": media_id}, {"_id": 0, "id": 1})
+            if logo:
+                doc = await db.media.find_one({"id": media_id}, {"_id": 0})
+            if not allowed and not logo:
+                raise HTTPException(404, "Fotografia não encontrada")
         if not doc:
             raise HTTPException(404, "Fotografia não encontrada")
         try:

@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEY = "roadmesh_token";
 const USER_KEY = "roadmesh_user";
+const SUPPORT_KEY = "roadmesh_support";
 
 async function set(key: string, value: string) {
   if (Platform.OS === "web") await AsyncStorage.setItem(key, value);
@@ -19,6 +20,9 @@ async function del(key: string) {
 }
 
 export const session = {
+  saveSupport: (support: any) => set(SUPPORT_KEY, JSON.stringify(support)),
+  getSupport: async () => { const value = await get(SUPPORT_KEY); try { return value ? JSON.parse(value) : null; } catch { return null; } },
+  clearSupport: () => del(SUPPORT_KEY),
   saveToken: (t: string) => set(KEY, t),
   getToken: () => get(KEY),
   clearToken: () => del(KEY),
