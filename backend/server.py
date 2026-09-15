@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
+from pymongo import ReturnDocument
 from starlette.concurrency import run_in_threadpool
 from media_storage import init_storage, register_media_routes
 from pdf_documents import build_invoice_pdf
@@ -103,7 +104,7 @@ class WorkOrderIn(BaseModel):
     complaint: Optional[str] = None
     notes: Optional[str] = None
     mileage_in: Optional[int] = None
-    status: str = "entrada"  # entrada | diagnostico | aguardando_pecas | concluido
+    status: Literal["entrada", "diagnostico", "aguardando_pecas", "concluido"] = "entrada"
     items: List[WorkOrderItemIn] = []
 
 
@@ -121,8 +122,8 @@ class ProductIn(BaseModel):
 
 class OrderItemIn(BaseModel):
     product_id: str
-    quantity: int
-    unit_price: float
+    quantity: int = Field(gt=0)
+    unit_price: float = Field(ge=0, allow_inf_nan=False)
 
 
 class PurchaseOrderIn(BaseModel):
@@ -210,6 +211,11 @@ async def update_client(client_id: str, data: ClientIn, user: CurrentUser):
 
 @api.delete("/clients/{client_id}")
 async def delete_client(client_id: str, user: CurrentUser):
+    client = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0, "id": 1})
+    if not client:
+        raise HTTPException(404, "Cliente não encontrado")
+    if await db.vehicles.find_one(tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}) or await db.work_orders.find_one(tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(409, "Não é possível apagar um cliente com viaturas ou histórico. Arquive-o em vez disso.")
     await db.clients.delete_one(tenant_filter(user, {"id": client_id}))
     return {"ok": True}
 
@@ -294,6 +300,80 @@ def compute_totals(items: list) -> dict:
     return {"subtotal": round(subtotal, 2), "vat": round(vat_total, 2), "total": round(subtotal + vat_total, 2)}
 
 
+async def next_sequence(counter_id: str, collection: str, scope: dict, field: str, pattern: str, minimum: int = 0) -> int:
+    """Return a workshop-local, monotonically increasing document sequence.
+
+    Legacy records did not have counters. On the first use we derive a safe
+    starting point from their numbers, then MongoDB's $inc makes all later
+    allocations atomic (including requests arriving at the same time).
+    """
+    counter = await db.counters.find_one({"id": counter_id}, {"_id": 0, "sequence": 1})
+    if not counter:
+        highest = minimum
+        regex = re.compile(pattern)
+        docs = await db[collection].find(scope, {"_id": 0, field: 1}).to_list(None)
+        for doc in docs:
+            match = regex.search(str(doc.get(field, "")))
+            if match:
+                highest = max(highest, int(match.group(1)))
+        await db.counters.update_one(
+            {"id": counter_id},
+            {"$setOnInsert": {"id": counter_id, "sequence": highest, "created_at": now_iso()}},
+            upsert=True,
+        )
+    counter = await db.counters.find_one_and_update(
+        {"id": counter_id},
+        {"$inc": {"sequence": 1}, "$set": {"updated_at": now_iso()}},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0, "sequence": 1},
+    )
+    return int(counter["sequence"])
+
+
+async def next_work_order_number(user: dict) -> str:
+    sequence = await next_sequence(
+        f"work-order:{user['workshop_id']}", "work_orders", tenant_filter(user), "number", r"#(\d+)$", minimum=1023
+    )
+    return f"#{sequence}"
+
+
+async def next_yearly_number(user: dict, collection: str, field: str, prefix: str) -> str:
+    year = datetime.now().year
+    sequence = await next_sequence(
+        f"{collection}:{prefix}:{year}:{user['workshop_id']}", collection,
+        tenant_filter(user), field, rf"{re.escape(prefix)}{year}/(\d+)$",
+    )
+    return f"{prefix}{year}/{sequence:03d}"
+
+
+def stock_deltas(items: list) -> dict[str, float]:
+    """Summarise the inventory impact of a work order's parts."""
+    deltas: dict[str, float] = {}
+    for item in items:
+        if item.get("item_type") == "peca" and item.get("product_id"):
+            product_id = item["product_id"]
+            deltas[product_id] = deltas.get(product_id, 0.0) + float(item.get("quantity", 0))
+    return deltas
+
+
+async def apply_stock_delta(user: dict, product_id: str, delta: float, reason: str, **references) -> None:
+    """Apply one auditable movement. Positive delta adds stock; negative removes it."""
+    if not delta:
+        return
+    result = await db.products.update_one(tenant_filter(user, {"id": product_id}), {"$inc": {"stock": delta}, "$set": {"updated_at": now_iso()}})
+    if not result.matched_count:
+        raise HTTPException(404, "Produto não encontrado nesta oficina")
+    await db.stock_movements.insert_one({
+        "id": new_id(), "workshop_id": user["workshop_id"], "product_id": product_id,
+        "delta": delta, "reason": reason, **references, "created_at": now_iso(),
+    })
+
+
+async def apply_work_order_stock(user: dict, items: list, multiplier: float, work_order_id: str, reason: str) -> None:
+    for product_id, quantity in stock_deltas(items).items():
+        await apply_stock_delta(user, product_id, -quantity * multiplier, reason, work_order_id=work_order_id)
+
+
 async def _enrich_wo(wo: dict) -> dict:
     client = await db.clients.find_one({"id": wo["client_id"], "workshop_id": wo["workshop_id"]}, {"_id": 0, "name": 1})
     vehicle = await db.vehicles.find_one({"id": wo["vehicle_id"], "workshop_id": wo["workshop_id"], "client_id": wo["client_id"]}, {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
@@ -322,8 +402,7 @@ async def list_wo(user: CurrentUser, search: str = "", status_filter: Optional[s
 @api.post("/work-orders", status_code=201)
 async def create_wo(data: WorkOrderIn, user: CurrentUser):
     await validate_order_relations(data, user)
-    count = await db.work_orders.count_documents(tenant_filter(user))
-    number = f"#{1024 + count}"
+    number = await next_work_order_number(user)
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
     totals = compute_totals(items)
     doc = {
@@ -344,22 +423,7 @@ async def create_wo(data: WorkOrderIn, user: CurrentUser):
         "completed_at": None,
     }
     await db.work_orders.insert_one(doc)
-    # discount stock for parts with product_id
-    for it in items:
-        if it.get("item_type") == "peca" and it.get("product_id"):
-            await db.products.update_one(
-                tenant_filter(user, {"id": it["product_id"]}),
-                {"$inc": {"stock": -int(it["quantity"])}}
-            )
-            await db.stock_movements.insert_one({
-                "id": new_id(),
-                "workshop_id": user["workshop_id"],
-                "product_id": it["product_id"],
-                "delta": -int(it["quantity"]),
-                "reason": f"Utilizado OS {number}",
-                "work_order_id": doc["id"],
-                "created_at": now_iso(),
-            })
+    await apply_work_order_stock(user, items, 1, doc["id"], f"Utilizado OS {number}")
     doc.pop("_id", None)
     return await _enrich_wo(doc)
 
@@ -374,6 +438,11 @@ async def get_wo(wo_id: str, user: CurrentUser):
 
 @api.put("/work-orders/{wo_id}")
 async def update_wo(wo_id: str, data: WorkOrderIn, user: CurrentUser):
+    existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "OS não encontrada")
+    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser alterada")
     await validate_order_relations(data, user)
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
     totals = compute_totals(items)
@@ -391,15 +460,24 @@ async def update_wo(wo_id: str, data: WorkOrderIn, user: CurrentUser):
     }
     if data.status == "concluido":
         upd["completed_at"] = now_iso()
-    r = await db.work_orders.update_one(tenant_filter(user, {"id": wo_id}), {"$set": upd})
-    if r.matched_count == 0:
-        raise HTTPException(404, "OS não encontrada")
+    await db.work_orders.update_one(tenant_filter(user, {"id": wo_id}), {"$set": upd})
+    old_deltas, new_deltas = stock_deltas(existing.get("items", [])), stock_deltas(items)
+    for product_id in set(old_deltas) | set(new_deltas):
+        # New quantity minus old quantity: a positive difference consumes stock.
+        difference = new_deltas.get(product_id, 0) - old_deltas.get(product_id, 0)
+        await apply_stock_delta(user, product_id, -difference, f"Ajuste OS {existing['number']}", work_order_id=wo_id)
     return {"ok": True}
 
 
 @api.delete("/work-orders/{wo_id}")
 async def delete_wo(wo_id: str, user: CurrentUser):
+    existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "OS não encontrada")
+    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}):
+        raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser apagada")
     await db.work_orders.delete_one(tenant_filter(user, {"id": wo_id}))
+    await apply_work_order_stock(user, existing.get("items", []), -1, wo_id, f"Reposição por eliminação OS {existing['number']}")
     return {"ok": True}
 
 
@@ -446,6 +524,13 @@ async def update_product(pid: str, data: ProductIn, user: CurrentUser):
 
 @api.delete("/products/{pid}")
 async def delete_product(pid: str, user: CurrentUser):
+    product = await db.products.find_one(tenant_filter(user, {"id": pid}), {"_id": 0, "id": 1})
+    if not product:
+        raise HTTPException(404, "Produto não encontrado")
+    used_in_wo = await db.work_orders.find_one(tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1})
+    used_in_po = await db.purchase_orders.find_one(tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1})
+    if used_in_wo or used_in_po:
+        raise HTTPException(409, "Não é possível apagar um produto usado em documentos. Mantenha-o para preservar o histórico.")
     await db.products.delete_one(tenant_filter(user, {"id": pid}))
     return {"ok": True}
 
@@ -489,10 +574,16 @@ async def create_po(data: PurchaseOrderIn, user: CurrentUser):
 
 @api.post("/purchase-orders/{po_id}/receive")
 async def receive_po(po_id: str, user: CurrentUser):
-    po = await db.purchase_orders.find_one(tenant_filter(user, {"id": po_id}), {"_id": 0})
+    po = await db.purchase_orders.find_one_and_update(
+        tenant_filter(user, {"id": po_id, "status": "pendente"}),
+        {"$set": {"status": "recebida", "updated_at": now_iso()}},
+        return_document=ReturnDocument.BEFORE,
+        projection={"_id": 0},
+    )
     if not po:
-        raise HTTPException(404, "Encomenda não encontrada")
-    if po["status"] == "recebida":
+        existing = await db.purchase_orders.find_one(tenant_filter(user, {"id": po_id}), {"_id": 0, "status": 1})
+        if not existing:
+            raise HTTPException(404, "Encomenda não encontrada")
         return {"ok": True, "already": True}
     for it in po["items"]:
         await db.products.update_one(tenant_filter(user, {"id": it["product_id"]}),
@@ -503,8 +594,6 @@ async def receive_po(po_id: str, user: CurrentUser):
             "reason": "Entrada encomenda", "purchase_order_id": po_id,
             "created_at": now_iso(),
         })
-    await db.purchase_orders.update_one(tenant_filter(user, {"id": po_id}),
-                                         {"$set": {"status": "recebida", "updated_at": now_iso()}})
     return {"ok": True}
 
 
@@ -602,10 +691,9 @@ async def create_quote(data: QuoteIn, user: CurrentUser):
         raise HTTPException(422, "Adicione pelo menos uma linha ao orçamento")
     items = [{"id": new_id(), **it.model_dump()} for it in data.items]
     totals = compute_totals(items)
-    count = await db.quotes.count_documents(tenant_filter(user))
     doc = {
         "id": new_id(), "workshop_id": user["workshop_id"],
-        "number": f"ORC{datetime.now().year}/{count + 1:03d}",
+        "number": await next_yearly_number(user, "quotes", "number", "ORC"),
         "client_id": data.client_id, "vehicle_id": data.vehicle_id,
         "items": items, "notes": data.notes, **totals,
         "status": "rascunho",  # rascunho | enviado | aceite | recusado
@@ -635,10 +723,11 @@ async def convert_quote_to_wo(qid: str, user: CurrentUser):
         raise HTTPException(404, "Orçamento não encontrado")
     if q["status"] != "aceite":
         raise HTTPException(400, "Só é possível converter orçamentos aceites")
-    count = await db.work_orders.count_documents(tenant_filter(user))
+    if await db.work_orders.find_one(tenant_filter(user, {"quote_id": qid}), {"_id": 0, "id": 1}):
+        raise HTTPException(409, "Este orçamento já foi convertido numa OS")
     wo = {
         "id": new_id(), "workshop_id": user["workshop_id"],
-        "number": f"#{1024 + count}",
+        "number": await next_work_order_number(user),
         "client_id": q["client_id"], "vehicle_id": q["vehicle_id"],
         "mechanic": None, "complaint": None, "notes": q.get("notes"),
         "mileage_in": None, "status": "entrada",
@@ -648,6 +737,7 @@ async def convert_quote_to_wo(qid: str, user: CurrentUser):
         "quote_id": qid,
     }
     await db.work_orders.insert_one(wo)
+    await apply_work_order_stock(user, wo["items"], 1, wo["id"], f"Utilizado OS {wo['number']}")
     wo.pop("_id", None)
     return await _enrich_wo(wo)
 
@@ -683,15 +773,18 @@ async def create_invoice(data: InvoiceIn, user: CurrentUser):
     wo = await db.work_orders.find_one(tenant_filter(user, {"id": data.work_order_id}), {"_id": 0})
     if not wo:
         raise HTTPException(404, "OS não encontrada")
+    if wo["status"] != "concluido":
+        raise HTTPException(409, "Só é possível emitir documentos para uma OS concluída")
+    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": data.work_order_id, "document_type": data.document_type}), {"_id": 0, "id": 1}):
+        raise HTTPException(409, "Já existe um documento deste tipo para esta OS")
     total_labor = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "mao_de_obra")
     total_parts = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "peca")
     prefix = {"orcamento": "ORC", "fatura": "FT", "fatura_recibo": "FR"}[data.document_type]
-    count = await db.invoices.count_documents(tenant_filter(user, {"document_type": data.document_type}))
     doc = {
         "id": new_id(), "workshop_id": user["workshop_id"],
         "work_order_id": data.work_order_id,
         "document_type": data.document_type,
-        "document_number": f"{prefix}{datetime.now().year}/{count + 1:03d}",
+        "document_number": await next_yearly_number(user, "invoices", "document_number", prefix),
         "total_labor": round(total_labor, 2),
         "total_parts": round(total_parts, 2),
         "subtotal": wo["subtotal"], "vat": wo["vat"], "grand_total": wo["total"],

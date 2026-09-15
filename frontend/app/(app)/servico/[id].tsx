@@ -115,7 +115,8 @@ export default function WoDetail() {
         <View style={styles.card}>
           <Feedback testID="wo-invoice-error" message={invoiceError} error />
           <Text testID="wo-invoice-notice" style={styles.mut}>Documento interno, sem validade fiscal.</Text>
-          <Button title="Emitir Fatura" variant="secondary" testID="wo-emit-invoice" loading={issuing} onPress={async () => {
+          {data.status !== "concluido" ? <Text testID="wo-invoice-required-status" style={styles.mut}>Conclua a ordem de serviço antes de emitir a fatura.</Text> : null}
+          <Button title="Emitir Fatura" variant="secondary" testID="wo-emit-invoice" loading={issuing} disabled={data.status !== "concluido"} onPress={async () => {
             setIssuing(true); setInvoiceError("");
             try {
               await api.post("/invoices", { work_order_id: id, document_type: "fatura" });
