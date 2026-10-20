@@ -132,6 +132,7 @@ def main():
         config_file.chmod(0o600)
     env = {
         **os.environ,
+        "DATABASE_URL": "",
         "MONGO_URL": f"mongodb://127.0.0.1:{args.mongo_port}/?replicaSet=roadmesh-demo",
         "DB_NAME": "roadmesh_demo",
         "JWT_SECRET": config["jwt_secret"],

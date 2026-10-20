@@ -91,6 +91,7 @@ def main():
         db_name = "roadmesh_test_" + secrets.token_hex(6)
         env = {
             **os.environ,
+            "DATABASE_URL": "",
             "MONGO_URL": mongo_url,
             "DB_NAME": db_name,
             "JWT_SECRET": secrets.token_urlsafe(48),

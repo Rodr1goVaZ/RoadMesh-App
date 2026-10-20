@@ -9,7 +9,7 @@ from pydantic import EmailStr, Field
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
 from access_control import StrictModel, identifier, now, password_hash, timestamp
-from database_integrity import revenue_pipeline
+from database_integrity import revenue_pipeline, transact
 
 
 class WorkshopBody(StrictModel):
@@ -90,13 +90,13 @@ def register_admin_routes(api, db, access):
         if await db.users.find_one({"email": str(body.manager_email).lower()}, {"_id": 0, "id": 1}):
             raise HTTPException(409, "O email do gerente já tem uma conta.")
         wid = identifier()
-        manager, credentials = await access.create_account(body.manager_name, str(body.manager_email), "workshop_staff", wid, manager=True)
-        doc = {"id": wid, **body.model_dump(), "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
-        try:
-            await db.workshops.insert_one(doc)
-        except Exception:
-            await db.users.delete_one({"id": manager["id"], "workshop_id": wid})
-            raise
+        async def operation(session):
+            manager, credentials = await access.create_account(body.manager_name, str(body.manager_email), "workshop_staff", wid, manager=True, session=session)
+            doc = {"id": wid, **body.model_dump(), "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
+            await db.workshops.insert_one(doc, session=session)
+            return doc, credentials
+
+        doc, credentials = await transact(db, operation)
         doc.pop("_id", None)
         await access.audit(account, "create_workshop", wid)
         return {"workshop": doc, "credentials": credentials}

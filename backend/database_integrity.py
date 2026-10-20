@@ -15,6 +15,8 @@ async def transact(db, operation):
     external IO: Motor may run them again after a conflicting request commits.
     """
     try:
+        if getattr(db, "is_postgres", False) is True:
+            return await db.transact(operation)
         async with await db.client.start_session() as session:
             return await session.with_transaction(
                 operation,
@@ -31,12 +33,16 @@ async def transact(db, operation):
 
 
 async def initialize_integrity(db):
+    if getattr(db, "is_postgres", False) is True:
+        await db.initialize()
+        return
     hello = await db.client.admin.command("hello")
     if not hello.get("setName") and hello.get("msg") != "isdbgrid":
         raise RuntimeError(
             "RoadMesh requires MongoDB Atlas or a replica set for atomic stock/document operations. See README.md."
         )
     collections = (
+        "workshops",
         "clients",
         "vehicles",
         "products",

@@ -68,6 +68,9 @@ class Access:
             raise RuntimeError("JWT_SECRET must contain at least 32 characters")
 
     async def initialize(self):
+        if getattr(self.db, "is_postgres", False) is True:
+            await self.bootstrap()
+            return
         # Preserve migration information; never infer platform privileges from an email.
         legacy = await self.db.users.find({"role": "admin", "workshop_id": {"$nin": [None, ""]}}, {"_id": 0, "id": 1, "role": 1, "workshop_id": 1}).to_list(None)
         for account in legacy:
@@ -84,8 +87,19 @@ class Access:
         await self.db.login_limits.create_index("expires_at", expireAfterSeconds=0)
         await self.db.vehicles.create_index([("workshop_id", 1), ("client_id", 1)])
         await self.db.appointments.create_index([("workshop_id", 1), ("client_id", 1), ("scheduled_at", 1)])
+        await self.bootstrap()
+
+    async def bootstrap(self):
+        if getattr(self.db, "is_postgres", False) is True:
+            async def operation(session):
+                return await self._bootstrap(session)
+            await self.db.transact(operation)
+        else:
+            await self._bootstrap()
+
+    async def _bootstrap(self, session=None):
         email = os.environ["BOOTSTRAP_ADMIN_EMAIL"].strip().lower()
-        existing = await self.db.users.find_one({"email": email}, {"_id": 0})
+        existing = await self.db.users.find_one({"email": email}, {"_id": 0}, session=session)
         if existing:
             if existing["role"] != "admin" or existing.get("workshop_id"):
                 raise RuntimeError("Bootstrap email is already assigned to a non-platform account")
@@ -94,18 +108,18 @@ class Access:
         if len(password) < 12:
             raise RuntimeError("Bootstrap password must be at least 12 characters")
         try:
-            await self.create_account("RoadMesh Admin", email, "admin", password=password)
+            await self.create_account("RoadMesh Admin", email, "admin", password=password, session=session)
         except DuplicateKeyError:
             pass
 
-    async def create_account(self, name, email, role, workshop_id=None, client_id=None, password=None, manager=False):
+    async def create_account(self, name, email, role, workshop_id=None, client_id=None, password=None, manager=False, session=None):
         secret = password or secrets.token_urlsafe(18)
         account = {"id": identifier(), "name": name.strip(), "email": email.strip().lower(), "role": role,
                    "workshop_id": workshop_id, "client_id": client_id, "is_manager": manager,
                    "is_active": True, "password_change_required": True, "session_version": 0,
                    "password_hash": await run_in_threadpool(password_hash, secret), "created_at": timestamp(), "updated_at": timestamp()}
         try:
-            await self.db.users.insert_one(account)
+            await self.db.users.insert_one(account, session=session)
         except DuplicateKeyError as exc:
             raise HTTPException(409, "Já existe uma conta para este email ou cliente.") from exc
         account.pop("_id", None)

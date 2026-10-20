@@ -29,11 +29,13 @@ from portal_routes import register_portal_routes
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
-
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
+if os.environ.get("DATABASE_URL", "").strip():
+    from postgres_database import PostgresDatabase
+    db = PostgresDatabase(os.environ["DATABASE_URL"].strip())
+    client = None
+else:
+    client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+    db = client[os.environ["DB_NAME"]]
 access = Access(db)
 
 app = FastAPI(title="RoadMesh API")
@@ -1305,4 +1307,7 @@ async def _startup_storage():
 
 @app.on_event("shutdown")
 async def _shutdown():
-    client.close()
+    if client is None:
+        await db.close()
+    else:
+        client.close()

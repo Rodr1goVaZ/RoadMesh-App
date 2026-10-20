@@ -1,6 +1,8 @@
 # RoadMesh
 
-Aplicação móvel, web e tablet para oficinas automóveis. Expo/React Native no frontend, FastAPI e MongoDB no backend.
+Aplicação móvel, web e tablet para oficinas automóveis. Expo/React Native no frontend, FastAPI e PostgreSQL/Supabase ou MongoDB no backend.
+
+Para publicar na Vercel com Supabase, siga [SUPABASE.md](SUPABASE.md). Quando `DATABASE_URL` está preenchido, todos os registos da API usam as tabelas relacionais do esquema `roadmesh`. Sem essa variável, mantém-se o modo MongoDB. O ambiente `./dev.sh` continua isolado em MongoDB local.
 
 ## Estrutura
 
@@ -17,7 +19,7 @@ Veja [TESTAR.md](TESTAR.md) para os acessos, percurso de teste e arranque no bro
 
 ## Arranque local
 
-Requisitos: Python 3.12, Node.js 20+, Yarn 1 e MongoDB com **replica set** ou MongoDB Atlas. Um MongoDB standalone não suporta as transações usadas pelo stock e pelos documentos; a API verifica esta condição no arranque.
+Requisitos: Python 3.12, Node.js 22.13+, Yarn 1 e PostgreSQL/Supabase (ver SUPABASE.md) ou MongoDB com **replica set** ou MongoDB Atlas. Um MongoDB standalone não suporta as transações usadas pelo stock e pelos documentos; a API verifica esta condição no arranque.
 
 1. Se precisar de MongoDB local e tiver Docker, execute na raiz:
 

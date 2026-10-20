@@ -12,3 +12,5 @@ pillow==12.3.0
 reportlab==4.5.1
 requests==2.34.2
 uvicorn==0.54.0
+psycopg[binary]==3.3.6
+psycopg_pool==3.3.1
