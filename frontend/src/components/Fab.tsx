@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
-import { colors, radius, shadows } from "../theme";
+import { colors, shadows } from "../theme";
 
 export function Fab({ onPress, label = "+", testID }: { onPress: () => void; label?: string; testID?: string }) {
   return (

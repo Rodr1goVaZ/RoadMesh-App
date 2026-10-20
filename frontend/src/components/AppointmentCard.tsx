@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { useNow } from "../../hooks/useNow";
 import { Panel, areaStyles } from "./AreaUI";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -10,9 +11,10 @@ import { appointmentLocal, localToInputs } from "./AppointmentForm";
 export const APPOINTMENT_STATUS: Record<string, string> = { agendada: "Agendada · Aguarda confirmação", confirmada: "Confirmada", concluida: "Concluída", cancelada: "Cancelada" };
 export function appointmentLabel(local: string) { const { date, time } = localToInputs(local); return `${date} às ${time}`; }
 export function AppointmentCard({ item, portal, onEdit }: { item: any; portal: boolean; onEdit: (item: any) => void }) {
+  const now = useNow();
   const qc = useQueryClient(); const [details, setDetails] = useState(false); const [confirm, setConfirm] = useState(""); const [suggest, setSuggest] = useState(false);
   const [date, setDate] = useState(""); const [time, setTime] = useState(""); const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  const open = ["agendada", "confirmada"].includes(item.status); const future = new Date(item.scheduled_at).getTime() > Date.now();
+  const open = ["agendada", "confirmada"].includes(item.status); const future = new Date(item.scheduled_at).getTime() > now;
   const prefix = portal ? "/portal/appointments" : "/appointments";
   const action = async (kind: string) => {
     setBusy(true); setError("");

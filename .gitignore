@@ -80,3 +80,14 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+# Local configuration and caches
+.env
+.env.*
+!.env.example
+.metro-cache/
+.pytest_cache/
+.ruff_cache/
+
+# Persistent local demonstration environment
+.demo/
+backend/.local-media/

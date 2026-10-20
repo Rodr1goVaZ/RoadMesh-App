@@ -113,8 +113,11 @@ class Access:
         return account, {"email": account["email"], "temporary_password": secret, "password_change_required": True}
 
     def token(self, account):
+        session_id = account.get("_session_id") or identifier()
+        session_exp = account.get("_session_exp") or int((now() + timedelta(hours=12)).timestamp())
         return jwt.encode({"sub": account["id"], "iss": "roadmesh-api", "aud": account["role"], "jti": identifier(),
-                           "sv": account.get("session_version", 0), "iat": now(), "exp": now() + timedelta(minutes=15)}, self.secret, algorithm="HS256")
+                           "sv": account.get("session_version", 0), "sid": session_id, "session_exp": session_exp,
+                           "iat": now(), "exp": min(int((now() + timedelta(minutes=15)).timestamp()), session_exp)}, self.secret, algorithm="HS256")
 
     async def public(self, account):
         result = {key: account.get(key) for key in ["id", "name", "email", "role", "workshop_id", "client_id", "is_manager", "is_active", "password_change_required"]}
@@ -143,9 +146,12 @@ class Access:
         await self.check_account(account)
         if account["role"] != claims["aud"] or account.get("session_version", 0) != claims["sv"]:
             raise HTTPException(401, "A sessão foi terminada. Entre novamente.")
-        if await self.db.revoked_sessions.find_one({"jti": claims["jti"]}, {"_id": 0, "jti": 1}):
+        session_id = claims.get("sid", claims["jti"])
+        if await self.db.revoked_sessions.find_one({"jti": session_id}, {"_id": 0, "jti": 1}):
             raise HTTPException(401, "Sessão terminada")
         account["_jti"], account["_exp"] = claims["jti"], claims["exp"]
+        account["_session_id"] = session_id
+        account["_session_exp"] = claims.get("session_exp", claims["exp"])
         return account
 
     async def ready(self, account):
@@ -230,6 +236,12 @@ def register_auth_routes(api, access):
     async def me(account=Depends(access.identity)):
         return await access.public(account)
 
+    @api.post("/auth/refresh")
+    async def refresh(account=Depends(access.identity)):
+        if account["_session_exp"] <= int(now().timestamp()):
+            raise HTTPException(401, "Sessão expirada. Entre novamente.")
+        return {"access_token": access.token(account), "token_type": "bearer"}
+
     @api.post("/auth/change-password")
     async def change_password(body: PasswordBody, account=Depends(access.identity)):
         if not await run_in_threadpool(verify_password, body.current_password, account["password_hash"]):
@@ -244,6 +256,6 @@ def register_auth_routes(api, access):
 
     @api.post("/auth/logout")
     async def logout(account=Depends(access.identity)):
-        await access.db.revoked_sessions.update_one({"jti": account["_jti"]}, {"$set": {"jti": account["_jti"], "expires_at": datetime.fromtimestamp(account["_exp"], timezone.utc)}}, upsert=True)
+        await access.db.revoked_sessions.update_one({"jti": account["_session_id"]}, {"$set": {"jti": account["_session_id"], "expires_at": datetime.fromtimestamp(account["_session_exp"], timezone.utc)}}, upsert=True)
         await access.db.support_sessions.delete_many({"actor_id": account["id"]})
         return {"ok": True}

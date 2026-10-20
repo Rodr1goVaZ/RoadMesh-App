@@ -1,11 +1,12 @@
 import { session } from "./session";
-import Constants from "expo-constants";
 import { authEvents } from "./auth-events";
 
-export const API_BASE = `${(Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")}/api`;
+import { API_BASE } from "./config";
+
+export { API_BASE } from "./config";
 
 async function request(path: string, options: RequestInit = {}) {
-  const token = await session.getToken();
+  const token = path.endsWith("/login") ? null : await session.getFreshToken();
   const support = await session.getSupport();
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {

@@ -9,6 +9,7 @@ import { Input } from "@/src/components/Input";
 import { Button } from "@/src/components/Button";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { Feedback } from "@/src/components/Feedback";
+import { ProductPicker } from "@/src/components/ProductPicker";
 
 export default function NewQuote() {
   const insets = useSafeAreaInsets();
@@ -16,7 +17,7 @@ export default function NewQuote() {
   const { data: clients = [] } = useQuery({ queryKey: ["clients-all"], queryFn: () => api.get("/clients") });
   const { data: vehicles = [] } = useQuery({ queryKey: ["vehicles-all"], queryFn: () => api.get("/vehicles") });
   const [clientId, setClientId] = useState(""); const [vehicleId, setVehicleId] = useState("");
-  const [items, setItems] = useState([{ item_type: "mao_de_obra", description: "", quantity: "1", unit_price: "0" }]);
+  const [items, setItems] = useState([{ item_type: "mao_de_obra", description: "", quantity: "1", unit_price: "0", vat_rate: 23, product_id: null as string | null }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState("");
@@ -35,7 +36,7 @@ export default function NewQuote() {
         client_id: clientId, vehicle_id: vehicleId, notes: notes.trim() || null,
         items: items.filter(i => i.description).map(i => ({
           item_type: i.item_type, description: i.description.trim(),
-          quantity: number(i.quantity), unit_price: number(i.unit_price), vat_rate: 23, product_id: null,
+          quantity: number(i.quantity), unit_price: number(i.unit_price), vat_rate: i.vat_rate, product_id: i.product_id,
         })),
       });
       qc.invalidateQueries({ queryKey: ["quotes"] });
@@ -76,10 +77,11 @@ export default function NewQuote() {
             {items.map((it, idx) => (
               <View key={idx} style={{ gap: 6, marginTop: 8 }}>
                 <View style={styles.types}>
-                  {[{ id: "mao_de_obra", label: "Mão de obra" }, { id: "peca", label: "Peça" }].map(type => <Pressable key={type.id} testID={`quote-item-${idx}-${type.id}`} onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, item_type: type.id } : x))} style={[styles.chip, it.item_type === type.id && styles.chipActive]}>
+                  {[{ id: "mao_de_obra", label: "Mão de obra" }, { id: "peca", label: "Peça" }].map(type => <Pressable key={type.id} testID={`quote-item-${idx}-${type.id}`} onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, item_type: type.id, ...(type.id === "mao_de_obra" ? { product_id: null, vat_rate: 23 } : {}) } : x))} style={[styles.chip, it.item_type === type.id && styles.chipActive]}>
                     <Text style={[styles.chipTxt, it.item_type === type.id && styles.chipTxtActive]}>{type.label}</Text>
                   </Pressable>)}
                 </View>
+                {it.item_type === "peca" && <ProductPicker value={it.product_id} testID={`quote-item-product-${idx}`} onChange={product => setItems(prev => prev.map((item, i) => i === idx ? { ...item, product_id: product?.id || null, ...(product ? { description: product.name, unit_price: String(product.sale_price), vat_rate: product.vat_rate } : {}) } : item))} />}
                 <Input testID={`quote-item-description-${idx}`} label="Descrição" maxLength={1000} value={it.description} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, description: t } : x))} />
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <View style={{ flex: 1 }}><Input testID={`quote-item-quantity-${idx}`} label="Qtd" keyboardType="decimal-pad" value={it.quantity} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: t } : x))} /></View>
@@ -89,7 +91,7 @@ export default function NewQuote() {
               </View>
             ))}
             <View style={{ height: 8 }} />
-            <Button testID="quote-add-item" title="+ Adicionar linha" variant="secondary" onPress={() => setItems(prev => [...prev, { item_type: "mao_de_obra", description: "", quantity: "1", unit_price: "0" }])} />
+            <Button testID="quote-add-item" title="+ Adicionar linha" variant="secondary" onPress={() => setItems(prev => [...prev, { item_type: "mao_de_obra", description: "", quantity: "1", unit_price: "0", vat_rate: 23, product_id: null as string | null }])} />
           </View>
           <Input testID="quote-notes" label="Observações (opcional)" value={notes} onChangeText={setNotes} multiline maxLength={2000} />
           <Feedback testID="quote-save-error" message={error} error />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Image, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,14 +12,21 @@ import { pickPhoto, uploadPhoto } from "@/src/utils/media";
 import { colors } from "@/src/theme";
 const EMPTY = { name: "", nif: "", address: "", email: "", manager_name: "", manager_email: "", logo_media_id: null as string | null };
 export default function WorkshopForm() {
-  const { id } = useLocalSearchParams<{ id?: string }>(); const qc = useQueryClient();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { data, isLoading, error: loadError, refetch } = useQuery({ queryKey: ["admin-workshop", id], queryFn: () => api.get(`/admin/workshops/${id}`), enabled: !!id });
-  const [form, setForm] = useState(EMPTY); const [image, setImage] = useState<any>(null);
-  const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [credentials, setCredentials] = useState<any>(null);
-  useEffect(() => { if (data) {
+  if (id && (isLoading || loadError || !data)) return <AreaPage title="Editar oficina" testID="workshop-form"><QueryState loading={isLoading} error={loadError} retry={refetch} testID="workshop-form-query" /></AreaPage>;
+  return <WorkshopEditor key={id || "new"} id={id} data={data} />;
+}
+
+function WorkshopEditor({ id, data }: { id?: string; data?: any }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState(() => {
+    if (!data) return EMPTY;
     const manager = data.users?.find((u: any) => u.is_manager) || data.users?.find((u: any) => u.role === "workshop_staff");
-    setForm({ name: data.name, nif: data.nif || "", address: data.address || "", email: data.email || "", manager_name: data.manager_name || manager?.name || "", manager_email: data.manager_email || manager?.email || "", logo_media_id: data.logo_media_id || null });
-  } }, [data]);
+    return { name: data.name, nif: data.nif || "", address: data.address || "", email: data.email || "", manager_name: data.manager_name || manager?.name || "", manager_email: data.manager_email || manager?.email || "", logo_media_id: data.logo_media_id || null };
+  });
+  const [image, setImage] = useState<any>(null);
+  const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [credentials, setCredentials] = useState<any>(null);
   const save = async () => {
     setError(""); setBusy(true);
     try {
@@ -34,7 +41,6 @@ export default function WorkshopForm() {
   };
   const pick = async () => { try { const photo = await pickPhoto(); if (photo) setImage(photo); } catch (e: any) { setError(e.message); } };
   return <AreaPage title={id ? "Editar oficina" : "Criar oficina"} testID="workshop-form">
-    {!!id && <QueryState loading={isLoading} error={loadError} retry={refetch} testID="workshop-form-query" />}
     {credentials ? <CredentialsNotice credentials={credentials} onClose={() => router.replace("/(admin)/workshops")} /> : <>
       <Panel testID="workshop-form-details" title="Dados da oficina">
         <Input testID="workshop-name" label="Nome da oficina" value={form.name} onChangeText={name => setForm({ ...form, name })} />
@@ -50,7 +56,7 @@ export default function WorkshopForm() {
         <Input testID="workshop-manager-email" label="Email de acesso do gerente" autoCapitalize="none" keyboardType="email-address" value={form.manager_email} onChangeText={manager_email => setForm({ ...form, manager_email })} />
       </Panel>
       <Feedback testID="workshop-form-error" error message={error} />
-      <Button testID="workshop-form-save" title={id ? "Guardar alterações" : "Criar oficina e acesso"} loading={busy} disabled={!!id && (isLoading || !!loadError)} onPress={save} />
+      <Button testID="workshop-form-save" title={id ? "Guardar alterações" : "Criar oficina e acesso"} loading={busy} onPress={save} />
     </>}
   </AreaPage>;
 }

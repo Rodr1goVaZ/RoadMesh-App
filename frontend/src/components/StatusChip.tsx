@@ -2,7 +2,6 @@ import React from "react";
 import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import { colors, radius, spacing } from "../theme";
 
-type Variant = "reparacao" | "orcamento" | "concluido" | "aguarda" | "entrada" | "diagnostico" | "aguardando_pecas";
 
 const map: Record<string, { bg: string; fg: string; label: string }> = {
   entrada:            { bg: "#DBEAFE", fg: "#1D4ED8", label: "Entrada" },

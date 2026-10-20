@@ -1,4 +1,5 @@
 """RoadMesh backend API - multi-tenant workshop SaaS."""
+
 from __future__ import annotations
 
 import logging
@@ -6,6 +7,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Annotated, List, Optional, Literal
 
@@ -16,6 +18,7 @@ from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pymongo import ReturnDocument
+from database_integrity import initialize_integrity, transact, revenue_pipeline
 from starlette.concurrency import run_in_threadpool
 from media_storage import init_storage, register_media_routes
 from pdf_documents import build_invoice_pdf
@@ -113,11 +116,15 @@ class ProductIn(BaseModel):
     name: str
     supplier: Optional[str] = None
     category: Optional[str] = None
-    stock: int = 0
-    min_stock: int = 0
-    purchase_price: float = 0
-    sale_price: float = 0
-    vat_rate: float = 23
+    stock: float = Field(default=0, ge=0, allow_inf_nan=False)
+    min_stock: float = Field(default=0, ge=0, allow_inf_nan=False)
+    purchase_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+    sale_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+    vat_rate: float = Field(default=23, ge=0, le=100, allow_inf_nan=False)
+
+
+class ProductUpdateIn(ProductIn):
+    stock: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
 
 
 class OrderItemIn(BaseModel):
@@ -128,7 +135,7 @@ class OrderItemIn(BaseModel):
 
 class PurchaseOrderIn(BaseModel):
     supplier: str
-    items: List[OrderItemIn]
+    items: List[OrderItemIn] = Field(min_length=1)
     notes: Optional[str] = None
 
 
@@ -174,8 +181,15 @@ async def list_clients(user: CurrentUser, search: str = ""):
         rx = {"$regex": re.escape(search), "$options": "i"}
         q["$or"] = [{"name": rx}, {"nif": rx}, {"phone": rx}, {"email": rx}]
     docs = await db.clients.find(q, {"_id": 0}).sort("name", 1).to_list(1000)
-    for d in docs:
-        d["vehicles_count"] = await db.vehicles.count_documents(tenant_filter(user, {"client_id": d["id"]}))
+    counts = await db.vehicles.aggregate(
+        [
+            {"$match": tenant_filter(user, {"client_id": {"$in": [d["id"] for d in docs]}})},
+            {"$group": {"_id": "$client_id", "count": {"$sum": 1}}},
+        ]
+    ).to_list(len(docs) or 1)
+    by_client = {row["_id"]: row["count"] for row in counts}
+    for doc in docs:
+        doc["vehicles_count"] = by_client.get(doc["id"], 0)
     return docs
 
 
@@ -211,13 +225,27 @@ async def update_client(client_id: str, data: ClientIn, user: CurrentUser):
 
 @api.delete("/clients/{client_id}")
 async def delete_client(client_id: str, user: CurrentUser):
-    client = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0, "id": 1})
-    if not client:
-        raise HTTPException(404, "Cliente não encontrado")
-    if await db.vehicles.find_one(tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}) or await db.work_orders.find_one(tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(409, "Não é possível apagar um cliente com viaturas ou histórico. Arquive-o em vez disso.")
-    await db.clients.delete_one(tenant_filter(user, {"id": client_id}))
-    return {"ok": True}
+    async def operation(session):
+        client = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0, "id": 1}, session=session)
+        if not client:
+            raise HTTPException(404, "Cliente não encontrado")
+        if await db.vehicles.find_one(
+            tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}, session=session
+        ) or await db.work_orders.find_one(
+            tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}, session=session
+        ):
+            raise HTTPException(
+                409, "Não é possível apagar um cliente com viaturas ou histórico. Arquive-o em vez disso."
+            )
+        for collection in ("quotes", "appointments", "users"):
+            if await db[collection].find_one(
+                tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}, session=session
+            ):
+                raise HTTPException(409, "Não é possível apagar um cliente com histórico ou acesso ao portal.")
+        await db.clients.delete_one(tenant_filter(user, {"id": client_id}), session=session)
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 # ----------------------------- vehicles -----------------------------
@@ -241,13 +269,26 @@ async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None, sear
 
 @api.post("/vehicles", status_code=201)
 async def create_vehicle(data: VehicleIn, user: CurrentUser):
-    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(404, "Cliente não encontrado")
-    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
-           "created_at": now_iso(), "updated_at": now_iso()}
-    await db.vehicles.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        if not await db.clients.find_one_and_update(
+            tenant_filter(user, {"id": data.client_id}),
+            {"$inc": {"reference_revision": 1}},
+            projection={"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(404, "Cliente não encontrado")
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            **data.model_dump(),
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.vehicles.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.get("/vehicles/{vehicle_id}")
@@ -264,54 +305,102 @@ async def get_vehicle(vehicle_id: str, user: CurrentUser):
 
 @api.put("/vehicles/{vehicle_id}")
 async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CurrentUser):
-    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(404, "Cliente não encontrado")
-    r = await db.vehicles.update_one(tenant_filter(user, {"id": vehicle_id}),
-                                      {"$set": {**data.model_dump(), "updated_at": now_iso()}})
-    if r.matched_count == 0:
-        raise HTTPException(404, "Viatura não encontrada")
-    return {"ok": True}
+    async def operation(session):
+        existing = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0}, session=session)
+        if not existing:
+            raise HTTPException(404, "Viatura não encontrada")
+        if existing["client_id"] != data.client_id:
+            for collection in ("work_orders", "quotes", "appointments"):
+                if await db[collection].find_one(
+                    tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0, "id": 1}, session=session
+                ):
+                    raise HTTPException(409, "Não é possível mudar o cliente de uma viatura com histórico.")
+        if not await db.clients.find_one_and_update(
+            tenant_filter(user, {"id": data.client_id}),
+            {"$inc": {"reference_revision": 1}},
+            projection={"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(404, "Cliente não encontrado")
+        r = await db.vehicles.update_one(
+            tenant_filter(user, {"id": vehicle_id}),
+            {"$set": {**data.model_dump(), "updated_at": now_iso()}},
+            session=session,
+        )
+        if r.matched_count == 0:
+            raise HTTPException(404, "Viatura não encontrada")
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 @api.delete("/vehicles/{vehicle_id}")
 async def delete_vehicle(vehicle_id: str, user: CurrentUser):
-    await db.vehicles.delete_one(tenant_filter(user, {"id": vehicle_id}))
-    return {"ok": True}
+    async def operation(session):
+        scope = tenant_filter(user, {"id": vehicle_id})
+        if not await db.vehicles.find_one(scope, {"_id": 0, "id": 1}, session=session):
+            raise HTTPException(404, "Viatura não encontrada")
+        for collection in ("work_orders", "quotes", "photos", "damages", "appointments"):
+            if await db[collection].find_one(
+                tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0, "id": 1}, session=session
+            ):
+                raise HTTPException(409, "Não é possível apagar uma viatura com histórico, fotografias ou marcações.")
+        await db.vehicles.delete_one(scope, session=session)
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 # ----------------------------- work orders -----------------------------
-async def validate_order_relations(data, user):
-    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
+async def validate_order_relations(data, user, session=None):
+    if not await db.clients.find_one_and_update(
+        tenant_filter(user, {"id": data.client_id}),
+        {"$inc": {"reference_revision": 1}},
+        projection={"_id": 0, "id": 1},
+        session=session,
+    ):
         raise HTTPException(404, "Cliente não encontrado nesta oficina")
-    if not await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}), {"_id": 0, "id": 1}):
+    if not await db.vehicles.find_one_and_update(
+        tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}),
+        {"$inc": {"reference_revision": 1}},
+        projection={"_id": 0, "id": 1},
+        session=session,
+    ):
         raise HTTPException(404, "Viatura não encontrada para este cliente")
     for item in data.items:
-        if item.product_id and not await db.products.find_one(tenant_filter(user, {"id": item.product_id}), {"_id": 0, "id": 1}):
+        if item.product_id and not await db.products.find_one_and_update(
+            tenant_filter(user, {"id": item.product_id}),
+            {"$inc": {"reference_revision": 1}},
+            projection={"_id": 0, "id": 1},
+            session=session,
+        ):
             raise HTTPException(404, "Produto não encontrado nesta oficina")
 
 
 def compute_totals(items: list) -> dict:
-    subtotal = 0.0
-    vat_total = 0.0
-    for it in items:
-        line = float(it.get("quantity", 0)) * float(it.get("unit_price", 0))
+    cent = Decimal("0.01")
+    subtotal, vat_total = Decimal(0), Decimal(0)
+    for item in items:
+        line = (Decimal(str(item.get("quantity", 0))) * Decimal(str(item.get("unit_price", 0)))).quantize(cent, rounding=ROUND_HALF_UP)
         subtotal += line
-        vat_total += line * float(it.get("vat_rate", 23)) / 100.0
-    return {"subtotal": round(subtotal, 2), "vat": round(vat_total, 2), "total": round(subtotal + vat_total, 2)}
+        vat_total += (line * Decimal(str(item.get("vat_rate", 23))) / 100).quantize(cent, rounding=ROUND_HALF_UP)
+    return {"subtotal": float(subtotal), "vat": float(vat_total), "total": float(subtotal + vat_total)}
 
 
-async def next_sequence(counter_id: str, collection: str, scope: dict, field: str, pattern: str, minimum: int = 0) -> int:
+async def next_sequence(
+    counter_id: str, collection: str, scope: dict, field: str, pattern: str, minimum: int = 0, session=None
+) -> int:
     """Return a workshop-local, monotonically increasing document sequence.
 
     Legacy records did not have counters. On the first use we derive a safe
     starting point from their numbers, then MongoDB's $inc makes all later
     allocations atomic (including requests arriving at the same time).
     """
-    counter = await db.counters.find_one({"id": counter_id}, {"_id": 0, "sequence": 1})
+    counter = await db.counters.find_one({"id": counter_id}, {"_id": 0, "sequence": 1}, session=session)
     if not counter:
         highest = minimum
         regex = re.compile(pattern)
-        docs = await db[collection].find(scope, {"_id": 0, field: 1}).to_list(None)
+        docs = await db[collection].find(scope, {"_id": 0, field: 1}, session=session).to_list(None)
         for doc in docs:
             match = regex.search(str(doc.get(field, "")))
             if match:
@@ -320,28 +409,40 @@ async def next_sequence(counter_id: str, collection: str, scope: dict, field: st
             {"id": counter_id},
             {"$setOnInsert": {"id": counter_id, "sequence": highest, "created_at": now_iso()}},
             upsert=True,
+            session=session,
         )
     counter = await db.counters.find_one_and_update(
         {"id": counter_id},
         {"$inc": {"sequence": 1}, "$set": {"updated_at": now_iso()}},
         return_document=ReturnDocument.AFTER,
         projection={"_id": 0, "sequence": 1},
+        session=session,
     )
     return int(counter["sequence"])
 
 
-async def next_work_order_number(user: dict) -> str:
+async def next_work_order_number(user: dict, session=None) -> str:
     sequence = await next_sequence(
-        f"work-order:{user['workshop_id']}", "work_orders", tenant_filter(user), "number", r"#(\d+)$", minimum=1023
+        f"work-order:{user['workshop_id']}",
+        "work_orders",
+        tenant_filter(user),
+        "number",
+        r"#(\d+)$",
+        minimum=1023,
+        session=session,
     )
     return f"#{sequence}"
 
 
-async def next_yearly_number(user: dict, collection: str, field: str, prefix: str) -> str:
+async def next_yearly_number(user: dict, collection: str, field: str, prefix: str, session=None) -> str:
     year = datetime.now().year
     sequence = await next_sequence(
-        f"{collection}:{prefix}:{year}:{user['workshop_id']}", collection,
-        tenant_filter(user), field, rf"{re.escape(prefix)}{year}/(\d+)$",
+        f"{collection}:{prefix}:{year}:{user['workshop_id']}",
+        collection,
+        tenant_filter(user),
+        field,
+        rf"{re.escape(prefix)}{year}/(\d+)$",
+        session=session,
     )
     return f"{prefix}{year}/{sequence:03d}"
 
@@ -356,76 +457,138 @@ def stock_deltas(items: list) -> dict[str, float]:
     return deltas
 
 
-async def apply_stock_delta(user: dict, product_id: str, delta: float, reason: str, **references) -> None:
+async def apply_stock_delta(user: dict, product_id: str, delta: float, reason: str, session=None, **references) -> None:
     """Apply one auditable movement. Positive delta adds stock; negative removes it."""
     if not delta:
         return
-    result = await db.products.update_one(tenant_filter(user, {"id": product_id}), {"$inc": {"stock": delta}, "$set": {"updated_at": now_iso()}})
+    scope = tenant_filter(user, {"id": product_id})
+    if delta < 0:
+        scope["stock"] = {"$gte": -delta}
+    result = await db.products.update_one(
+        scope, {"$inc": {"stock": delta}, "$set": {"updated_at": now_iso()}}, session=session
+    )
     if not result.matched_count:
+        if await db.products.find_one(tenant_filter(user, {"id": product_id}), {"_id": 0, "id": 1}, session=session):
+            raise HTTPException(409, "Stock insuficiente para esta operação.")
         raise HTTPException(404, "Produto não encontrado nesta oficina")
-    await db.stock_movements.insert_one({
-        "id": new_id(), "workshop_id": user["workshop_id"], "product_id": product_id,
-        "delta": delta, "reason": reason, **references, "created_at": now_iso(),
-    })
+    await db.stock_movements.insert_one(
+        {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "product_id": product_id,
+            "delta": delta,
+            "reason": reason,
+            **references,
+            "created_at": now_iso(),
+        },
+        session=session,
+    )
 
 
-async def apply_work_order_stock(user: dict, items: list, multiplier: float, work_order_id: str, reason: str) -> None:
+async def apply_work_order_stock(
+    user: dict, items: list, multiplier: float, work_order_id: str, reason: str, session=None
+) -> None:
     for product_id, quantity in stock_deltas(items).items():
-        await apply_stock_delta(user, product_id, -quantity * multiplier, reason, work_order_id=work_order_id)
+        await apply_stock_delta(
+            user, product_id, -quantity * multiplier, reason, work_order_id=work_order_id, session=session
+        )
 
 
-async def _enrich_wo(wo: dict) -> dict:
-    client = await db.clients.find_one({"id": wo["client_id"], "workshop_id": wo["workshop_id"]}, {"_id": 0, "name": 1})
-    vehicle = await db.vehicles.find_one({"id": wo["vehicle_id"], "workshop_id": wo["workshop_id"], "client_id": wo["client_id"]}, {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
+async def _enrich_wo(wo: dict, session=None) -> dict:
+    client = await db.clients.find_one(
+        {"id": wo["client_id"], "workshop_id": wo["workshop_id"]}, {"_id": 0, "name": 1}, session=session
+    )
+    vehicle = await db.vehicles.find_one(
+        {"id": wo["vehicle_id"], "workshop_id": wo["workshop_id"], "client_id": wo["client_id"]},
+        {"_id": 0, "license_plate": 1, "make": 1, "model": 1},
+        session=session,
+    )
     wo["client_name"] = client["name"] if client else ""
     wo["vehicle_label"] = f"{vehicle['make']} {vehicle['model']}" if vehicle else ""
     wo["license_plate"] = vehicle["license_plate"] if vehicle else ""
     return wo
 
 
+async def enrich_work_orders(docs: list, user: dict) -> list:
+    clients = await db.clients.find(
+        tenant_filter(user, {"id": {"$in": list({d["client_id"] for d in docs})}}), {"_id": 0, "id": 1, "name": 1}
+    ).to_list(None)
+    vehicles = await db.vehicles.find(
+        tenant_filter(user, {"id": {"$in": list({d["vehicle_id"] for d in docs})}}),
+        {"_id": 0, "id": 1, "client_id": 1, "license_plate": 1, "make": 1, "model": 1},
+    ).to_list(None)
+    names = {c["id"]: c["name"] for c in clients}
+    by_vehicle = {v["id"]: v for v in vehicles}
+    for doc in docs:
+        vehicle = by_vehicle.get(doc["vehicle_id"], {})
+        if vehicle.get("client_id") != doc["client_id"]:
+            vehicle = {}
+        doc.update(
+            client_name=names.get(doc["client_id"], ""),
+            license_plate=vehicle.get("license_plate", ""),
+            vehicle_label=f"{vehicle.get('make', '')} {vehicle.get('model', '')}".strip(),
+        )
+    return docs
+
+
 @api.get("/work-orders")
-async def list_wo(user: CurrentUser, search: str = "", status_filter: Optional[str] = None):
+async def list_wo(
+    user: CurrentUser, search: str = "", status_filter: Optional[str] = None, skip: int = 0, limit: int = 2000
+):
     q = tenant_filter(user)
     if status_filter and status_filter != "todos":
         q["status"] = status_filter
-    docs = await db.work_orders.find(q, {"_id": 0}).sort("created_at", -1).to_list(2000)
-    for d in docs:
-        await _enrich_wo(d)
-    if search:
-        s = search.lower()
-        docs = [d for d in docs if s in d.get("client_name", "").lower()
-                or s in d.get("license_plate", "").lower()
-                or s in d.get("number", "").lower()]
-    return docs
+    if skip < 0 or not 1 <= limit <= 2000:
+        raise HTTPException(422, "Paginação inválida: skip >= 0 e limit entre 1 e 2000.")
+    if search.strip():
+        rx = {"$regex": re.escape(search.strip()), "$options": "i"}
+        clients = await db.clients.find(tenant_filter(user, {"name": rx}), {"_id": 0, "id": 1}).to_list(None)
+        vehicles = await db.vehicles.find(tenant_filter(user, {"license_plate": rx}), {"_id": 0, "id": 1}).to_list(None)
+        q["$or"] = [
+            {"number": rx},
+            {"client_id": {"$in": [c["id"] for c in clients]}},
+            {"vehicle_id": {"$in": [v["id"] for v in vehicles]}},
+        ]
+    docs = (
+        await db.work_orders.find(q, {"_id": 0})
+        .sort([("created_at", -1), ("id", 1)])
+        .skip(skip)
+        .limit(limit)
+        .to_list(limit)
+    )
+    return await enrich_work_orders(docs, user)
 
 
 @api.post("/work-orders", status_code=201)
 async def create_wo(data: WorkOrderIn, user: CurrentUser):
-    await validate_order_relations(data, user)
-    number = await next_work_order_number(user)
-    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
-    totals = compute_totals(items)
-    doc = {
-        "id": new_id(),
-        "workshop_id": user["workshop_id"],
-        "number": number,
-        "client_id": data.client_id,
-        "vehicle_id": data.vehicle_id,
-        "mechanic": data.mechanic,
-        "complaint": data.complaint,
-        "notes": data.notes,
-        "mileage_in": data.mileage_in,
-        "status": data.status,
-        "items": items,
-        **totals,
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-        "completed_at": None,
-    }
-    await db.work_orders.insert_one(doc)
-    await apply_work_order_stock(user, items, 1, doc["id"], f"Utilizado OS {number}")
-    doc.pop("_id", None)
-    return await _enrich_wo(doc)
+    async def operation(session):
+        await validate_order_relations(data, user, session=session)
+        number = await next_work_order_number(user, session=session)
+        items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+        totals = compute_totals(items)
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "number": number,
+            "client_id": data.client_id,
+            "vehicle_id": data.vehicle_id,
+            "mechanic": data.mechanic,
+            "complaint": data.complaint,
+            "notes": data.notes,
+            "mileage_in": data.mileage_in,
+            "status": data.status,
+            "items": items,
+            **totals,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "completed_at": now_iso() if data.status == "concluido" else None,
+        }
+        await db.work_orders.insert_one(doc, session=session)
+        await apply_work_order_stock(user, items, 1, doc["id"], f"Utilizado OS {number}", session=session)
+        doc.pop("_id", None)
+        return await _enrich_wo(doc, session=session)
+
+    return await transact(db, operation)
 
 
 @api.get("/work-orders/{wo_id}")
@@ -438,47 +601,65 @@ async def get_wo(wo_id: str, user: CurrentUser):
 
 @api.put("/work-orders/{wo_id}")
 async def update_wo(wo_id: str, data: WorkOrderIn, user: CurrentUser):
-    existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0})
-    if not existing:
-        raise HTTPException(404, "OS não encontrada")
-    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser alterada")
-    await validate_order_relations(data, user)
-    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
-    totals = compute_totals(items)
-    upd = {
-        "client_id": data.client_id,
-        "vehicle_id": data.vehicle_id,
-        "mechanic": data.mechanic,
-        "complaint": data.complaint,
-        "notes": data.notes,
-        "mileage_in": data.mileage_in,
-        "status": data.status,
-        "items": items,
-        **totals,
-        "updated_at": now_iso(),
-    }
-    if data.status == "concluido":
-        upd["completed_at"] = now_iso()
-    await db.work_orders.update_one(tenant_filter(user, {"id": wo_id}), {"$set": upd})
-    old_deltas, new_deltas = stock_deltas(existing.get("items", [])), stock_deltas(items)
-    for product_id in set(old_deltas) | set(new_deltas):
-        # New quantity minus old quantity: a positive difference consumes stock.
-        difference = new_deltas.get(product_id, 0) - old_deltas.get(product_id, 0)
-        await apply_stock_delta(user, product_id, -difference, f"Ajuste OS {existing['number']}", work_order_id=wo_id)
-    return {"ok": True}
+    async def operation(session):
+        existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0}, session=session)
+        if not existing:
+            raise HTTPException(404, "OS não encontrada")
+        if await db.invoices.find_one(
+            tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}, session=session
+        ):
+            raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser alterada")
+        await validate_order_relations(data, user, session=session)
+        items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+        totals = compute_totals(items)
+        upd = {
+            "client_id": data.client_id,
+            "vehicle_id": data.vehicle_id,
+            "mechanic": data.mechanic,
+            "complaint": data.complaint,
+            "notes": data.notes,
+            "mileage_in": data.mileage_in,
+            "status": data.status,
+            "items": items,
+            **totals,
+            "updated_at": now_iso(),
+        }
+        upd["completed_at"] = (existing.get("completed_at") or now_iso()) if data.status == "concluido" else None
+        await db.work_orders.update_one(tenant_filter(user, {"id": wo_id}), {"$set": upd}, session=session)
+        old_deltas, new_deltas = stock_deltas(existing.get("items", [])), stock_deltas(items)
+        for product_id in set(old_deltas) | set(new_deltas):
+            # New quantity minus old quantity: a positive difference consumes stock.
+            difference = new_deltas.get(product_id, 0) - old_deltas.get(product_id, 0)
+            await apply_stock_delta(
+                user, product_id, -difference, f"Ajuste OS {existing['number']}", work_order_id=wo_id, session=session
+            )
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 @api.delete("/work-orders/{wo_id}")
 async def delete_wo(wo_id: str, user: CurrentUser):
-    existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0})
-    if not existing:
-        raise HTTPException(404, "OS não encontrada")
-    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser apagada")
-    await db.work_orders.delete_one(tenant_filter(user, {"id": wo_id}))
-    await apply_work_order_stock(user, existing.get("items", []), -1, wo_id, f"Reposição por eliminação OS {existing['number']}")
-    return {"ok": True}
+    async def operation(session):
+        existing = await db.work_orders.find_one(tenant_filter(user, {"id": wo_id}), {"_id": 0}, session=session)
+        if not existing:
+            raise HTTPException(404, "OS não encontrada")
+        if await db.invoices.find_one(
+            tenant_filter(user, {"work_order_id": wo_id}), {"_id": 0, "id": 1}, session=session
+        ):
+            raise HTTPException(409, "Esta OS já tem documentos emitidos e não pode ser apagada")
+        await db.work_orders.delete_one(tenant_filter(user, {"id": wo_id}), session=session)
+        await apply_work_order_stock(
+            user,
+            existing.get("items", []),
+            -1,
+            wo_id,
+            f"Reposição por eliminação OS {existing['number']}",
+            session=session,
+        )
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 # ----------------------------- products (stock) -----------------------------
@@ -495,11 +676,23 @@ async def list_products(user: CurrentUser, search: str = "", category: Optional[
 
 @api.post("/products", status_code=201)
 async def create_product(data: ProductIn, user: CurrentUser):
-    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
-           "created_at": now_iso(), "updated_at": now_iso()}
-    await db.products.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            **data.model_dump(),
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        opening_stock = doc["stock"]
+        doc["stock"] = 0
+        await db.products.insert_one(doc, session=session)
+        await apply_stock_delta(user, doc["id"], opening_stock, "Stock inicial", session=session)
+        doc["stock"] = opening_stock
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.get("/products/{pid}")
@@ -514,25 +707,44 @@ async def get_product(pid: str, user: CurrentUser):
 
 
 @api.put("/products/{pid}")
-async def update_product(pid: str, data: ProductIn, user: CurrentUser):
-    r = await db.products.update_one(tenant_filter(user, {"id": pid}),
-                                      {"$set": {**data.model_dump(), "updated_at": now_iso()}})
-    if r.matched_count == 0:
-        raise HTTPException(404, "Produto não encontrado")
-    return {"ok": True}
+async def update_product(pid: str, data: ProductUpdateIn, user: CurrentUser):
+    async def operation(session):
+        scope = tenant_filter(user, {"id": pid})
+        existing = await db.products.find_one(scope, {"_id": 0}, session=session)
+        if not existing:
+            raise HTTPException(404, "Produto não encontrado")
+        update = data.model_dump(exclude={"stock"})
+        await db.products.update_one(scope, {"$set": {**update, "updated_at": now_iso()}}, session=session)
+        if data.stock is not None:
+            await apply_stock_delta(user, pid, data.stock - existing["stock"], "Ajuste manual de stock", session=session)
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 @api.delete("/products/{pid}")
 async def delete_product(pid: str, user: CurrentUser):
-    product = await db.products.find_one(tenant_filter(user, {"id": pid}), {"_id": 0, "id": 1})
-    if not product:
-        raise HTTPException(404, "Produto não encontrado")
-    used_in_wo = await db.work_orders.find_one(tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1})
-    used_in_po = await db.purchase_orders.find_one(tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1})
-    if used_in_wo or used_in_po:
-        raise HTTPException(409, "Não é possível apagar um produto usado em documentos. Mantenha-o para preservar o histórico.")
-    await db.products.delete_one(tenant_filter(user, {"id": pid}))
-    return {"ok": True}
+    async def operation(session):
+        product = await db.products.find_one(tenant_filter(user, {"id": pid}), {"_id": 0, "id": 1}, session=session)
+        if not product:
+            raise HTTPException(404, "Produto não encontrado")
+        used_in_wo = await db.work_orders.find_one(
+            tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1}, session=session
+        )
+        used_in_po = await db.purchase_orders.find_one(
+            tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1}, session=session
+        )
+        used_in_quote = await db.quotes.find_one(
+            tenant_filter(user, {"items.product_id": pid}), {"_id": 0, "id": 1}, session=session
+        )
+        if used_in_wo or used_in_po or used_in_quote:
+            raise HTTPException(
+                409, "Não é possível apagar um produto usado em documentos. Mantenha-o para preservar o histórico."
+            )
+        await db.products.delete_one(tenant_filter(user, {"id": pid}), session=session)
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 # ----------------------------- purchase orders (encomendas) -----------------------------
@@ -543,58 +755,69 @@ async def list_po(user: CurrentUser):
 
 @api.post("/purchase-orders", status_code=201)
 async def create_po(data: PurchaseOrderIn, user: CurrentUser):
-    items = []
-    subtotal = 0.0
-    for it in data.items:
-        line = it.quantity * it.unit_price
-        subtotal += line
-        prod = await db.products.find_one(tenant_filter(user, {"id": it.product_id}), {"_id": 0, "name": 1, "reference": 1})
-        if not prod:
-            raise HTTPException(404, "Produto não encontrado nesta oficina")
-        items.append({"id": new_id(), **it.model_dump(),
-                      "product_name": prod["name"] if prod else "", "line_total": round(line, 2)})
-    vat = subtotal * 0.23
-    doc = {
-        "id": new_id(),
-        "workshop_id": user["workshop_id"],
-        "supplier": data.supplier,
-        "items": items,
-        "notes": data.notes,
-        "subtotal": round(subtotal, 2),
-        "vat": round(vat, 2),
-        "total": round(subtotal + vat, 2),
-        "status": "pendente",  # pendente | recebida
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-    }
-    await db.purchase_orders.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        items = []
+        for it in data.items:
+            line = compute_totals([it.model_dump()])["subtotal"]
+            prod = await db.products.find_one_and_update(
+                tenant_filter(user, {"id": it.product_id}),
+                {"$inc": {"reference_revision": 1}},
+                projection={"_id": 0, "name": 1, "reference": 1},
+                session=session,
+            )
+            if not prod:
+                raise HTTPException(404, "Produto não encontrado nesta oficina")
+            items.append(
+                {
+                    "id": new_id(),
+                    **it.model_dump(),
+                    "product_name": prod["name"] if prod else "",
+                    "line_total": round(line, 2),
+                }
+            )
+        totals = compute_totals(items)
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "supplier": data.supplier,
+            "items": items,
+            "notes": data.notes,
+            **totals,
+            "status": "pendente",  # pendente | recebida
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.purchase_orders.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.post("/purchase-orders/{po_id}/receive")
 async def receive_po(po_id: str, user: CurrentUser):
-    po = await db.purchase_orders.find_one_and_update(
-        tenant_filter(user, {"id": po_id, "status": "pendente"}),
-        {"$set": {"status": "recebida", "updated_at": now_iso()}},
-        return_document=ReturnDocument.BEFORE,
-        projection={"_id": 0},
-    )
-    if not po:
-        existing = await db.purchase_orders.find_one(tenant_filter(user, {"id": po_id}), {"_id": 0, "status": 1})
-        if not existing:
-            raise HTTPException(404, "Encomenda não encontrada")
-        return {"ok": True, "already": True}
-    for it in po["items"]:
-        await db.products.update_one(tenant_filter(user, {"id": it["product_id"]}),
-                                      {"$inc": {"stock": int(it["quantity"])}})
-        await db.stock_movements.insert_one({
-            "id": new_id(), "workshop_id": user["workshop_id"],
-            "product_id": it["product_id"], "delta": int(it["quantity"]),
-            "reason": "Entrada encomenda", "purchase_order_id": po_id,
-            "created_at": now_iso(),
-        })
-    return {"ok": True}
+    async def operation(session):
+        po = await db.purchase_orders.find_one_and_update(
+            tenant_filter(user, {"id": po_id, "status": "pendente"}),
+            {"$set": {"status": "recebida", "updated_at": now_iso()}},
+            return_document=ReturnDocument.BEFORE,
+            projection={"_id": 0},
+            session=session,
+        )
+        if not po:
+            existing = await db.purchase_orders.find_one(
+                tenant_filter(user, {"id": po_id}), {"_id": 0, "status": 1}, session=session
+            )
+            if not existing:
+                raise HTTPException(404, "Encomenda não encontrada")
+            return {"ok": True, "already": True}
+        for it in po["items"]:
+            await apply_stock_delta(
+                user, it["product_id"], it["quantity"], "Entrada encomenda", purchase_order_id=po_id, session=session
+            )
+        return {"ok": True}
+
+    return await transact(db, operation)
 
 
 # ----------------------------- photos -----------------------------
@@ -611,15 +834,19 @@ async def list_photos(user: CurrentUser, vehicle_id: Optional[str] = None):
 
 @api.post("/photos", status_code=201)
 async def create_photo(data: PhotoIn, user: CurrentUser):
-    v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
-    if not v:
-        raise HTTPException(404, "Viatura não encontrada")
-    await require_media(data.media_id, user)
-    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
-           "created_at": now_iso()}
-    await db.photos.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        v = await db.vehicles.find_one_and_update(
+            tenant_filter(user, {"id": data.vehicle_id}), {"$inc": {"reference_revision": 1}}, session=session
+        )
+        if not v:
+            raise HTTPException(404, "Viatura não encontrada")
+        await require_media(data.media_id, user, session=session)
+        doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(), "created_at": now_iso()}
+        await db.photos.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.delete("/photos/{pid}")
@@ -629,8 +856,8 @@ async def delete_photo(pid: str, user: CurrentUser):
 
 
 # ----------------------------- damages -----------------------------
-async def require_media(media_id: str, user: dict):
-    if not await db.media.find_one(tenant_filter(user, {"id": media_id}), {"_id": 0, "id": 1}):
+async def require_media(media_id: str, user: dict, session=None):
+    if not await db.media.find_one(tenant_filter(user, {"id": media_id}), {"_id": 0, "id": 1}, session=session):
         raise HTTPException(404, "Fotografia não encontrada")
 
 
@@ -644,17 +871,25 @@ async def list_damages(user: CurrentUser, vehicle_id: Optional[str] = None):
 
 @api.post("/damages", status_code=201)
 async def create_damage(data: DamageIn, user: CurrentUser):
-    v = await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id}))
-    if not v:
-        raise HTTPException(404, "Viatura não encontrada")
-    await require_media(data.media_id, user)
-    if data.photo_id and not await db.photos.find_one(tenant_filter(user, {"id": data.photo_id, "vehicle_id": data.vehicle_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(404, "Fotografia não encontrada nesta viatura")
-    doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
-           "created_at": now_iso()}
-    await db.damages.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        v = await db.vehicles.find_one_and_update(
+            tenant_filter(user, {"id": data.vehicle_id}), {"$inc": {"reference_revision": 1}}, session=session
+        )
+        if not v:
+            raise HTTPException(404, "Viatura não encontrada")
+        await require_media(data.media_id, user, session=session)
+        if data.photo_id and not await db.photos.find_one(
+            tenant_filter(user, {"id": data.photo_id, "vehicle_id": data.vehicle_id}),
+            {"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(404, "Fotografia não encontrada nesta viatura")
+        doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(), "created_at": now_iso()}
+        await db.damages.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.delete("/damages/{damage_id}")
@@ -670,38 +905,67 @@ async def delete_damage(damage_id: str, user: CurrentUser):
 async def list_quotes(user: CurrentUser):
     docs = await db.quotes.find(tenant_filter(user), {"_id": 0}).sort("created_at", -1).to_list(1000)
     workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0, "name": 1})
+    clients = await db.clients.find(
+        tenant_filter(user, {"id": {"$in": [d["client_id"] for d in docs]}}),
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "phone": 1},
+    ).to_list(None)
+    vehicles = await db.vehicles.find(
+        tenant_filter(user, {"id": {"$in": [d["vehicle_id"] for d in docs]}}),
+        {"_id": 0, "id": 1, "license_plate": 1, "make": 1, "model": 1},
+    ).to_list(None)
+    by_client, by_vehicle = {c["id"]: c for c in clients}, {v["id"]: v for v in vehicles}
     for d in docs:
-        c = await db.clients.find_one(tenant_filter(user, {"id": d["client_id"]}), {"_id": 0, "name": 1, "email": 1, "phone": 1})
-        v = await db.vehicles.find_one(tenant_filter(user, {"id": d["vehicle_id"]}), {"_id": 0, "license_plate": 1, "make": 1, "model": 1})
-        d["client_name"] = c["name"] if c else ""
-        d["client_email"] = c.get("email") if c else None
-        d["client_phone"] = c.get("phone") if c else None
-        d["workshop_name"] = workshop["name"] if workshop else "RoadMesh"
-        d["vehicle"] = v or {}
+        client = by_client.get(d["client_id"], {})
+        d.update(
+            client_name=client.get("name", ""),
+            client_email=client.get("email"),
+            client_phone=client.get("phone"),
+            workshop_name=workshop["name"] if workshop else "RoadMesh",
+            vehicle=by_vehicle.get(d["vehicle_id"], {}),
+        )
     return docs
 
 
 @api.post("/quotes", status_code=201)
 async def create_quote(data: QuoteIn, user: CurrentUser):
-    if not await db.clients.find_one(tenant_filter(user, {"id": data.client_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(404, "Cliente não encontrado")
-    if not await db.vehicles.find_one(tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}), {"_id": 0, "id": 1}):
-        raise HTTPException(404, "Viatura não encontrada para este cliente")
-    if not data.items:
-        raise HTTPException(422, "Adicione pelo menos uma linha ao orçamento")
-    items = [{"id": new_id(), **it.model_dump()} for it in data.items]
-    totals = compute_totals(items)
-    doc = {
-        "id": new_id(), "workshop_id": user["workshop_id"],
-        "number": await next_yearly_number(user, "quotes", "number", "ORC"),
-        "client_id": data.client_id, "vehicle_id": data.vehicle_id,
-        "items": items, "notes": data.notes, **totals,
-        "status": "rascunho",  # rascunho | enviado | aceite | recusado
-        "created_at": now_iso(), "updated_at": now_iso(),
-    }
-    await db.quotes.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        await validate_order_relations(data, user, session=session)
+        if not await db.clients.find_one_and_update(
+            tenant_filter(user, {"id": data.client_id}),
+            {"$inc": {"reference_revision": 1}},
+            projection={"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(404, "Cliente não encontrado")
+        if not await db.vehicles.find_one_and_update(
+            tenant_filter(user, {"id": data.vehicle_id, "client_id": data.client_id}),
+            {"$inc": {"reference_revision": 1}},
+            projection={"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(404, "Viatura não encontrada para este cliente")
+        if not data.items:
+            raise HTTPException(422, "Adicione pelo menos uma linha ao orçamento")
+        items = [{"id": new_id(), **it.model_dump()} for it in data.items]
+        totals = compute_totals(items)
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "number": await next_yearly_number(user, "quotes", "number", "ORC", session=session),
+            "client_id": data.client_id,
+            "vehicle_id": data.vehicle_id,
+            "items": items,
+            "notes": data.notes,
+            **totals,
+            "status": "rascunho",  # rascunho | enviado | aceite | recusado
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.quotes.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.post("/quotes/{qid}/status")
@@ -709,46 +973,76 @@ async def set_quote_status(qid: str, body: dict, user: CurrentUser):
     st = body.get("status")
     if st not in {"rascunho", "enviado", "aceite", "recusado"}:
         raise HTTPException(400, "Estado inválido")
-    r = await db.quotes.update_one(tenant_filter(user, {"id": qid}),
+    r = await db.quotes.update_one(tenant_filter(user, {"id": qid, "converted_work_order_id": None}),
                                     {"$set": {"status": st, "updated_at": now_iso()}})
     if r.matched_count == 0:
+        if await db.quotes.find_one(tenant_filter(user, {"id": qid}), {"_id": 0, "id": 1}):
+            raise HTTPException(409, "Um orçamento convertido não pode mudar de estado.")
         raise HTTPException(404, "Orçamento não encontrado")
     return {"ok": True}
 
 
 @api.post("/quotes/{qid}/convert")
 async def convert_quote_to_wo(qid: str, user: CurrentUser):
-    q = await db.quotes.find_one(tenant_filter(user, {"id": qid}), {"_id": 0})
-    if not q:
-        raise HTTPException(404, "Orçamento não encontrado")
-    if q["status"] != "aceite":
-        raise HTTPException(400, "Só é possível converter orçamentos aceites")
-    if await db.work_orders.find_one(tenant_filter(user, {"quote_id": qid}), {"_id": 0, "id": 1}):
-        raise HTTPException(409, "Este orçamento já foi convertido numa OS")
-    wo = {
-        "id": new_id(), "workshop_id": user["workshop_id"],
-        "number": await next_work_order_number(user),
-        "client_id": q["client_id"], "vehicle_id": q["vehicle_id"],
-        "mechanic": None, "complaint": None, "notes": q.get("notes"),
-        "mileage_in": None, "status": "entrada",
-        "items": q["items"],
-        "subtotal": q["subtotal"], "vat": q["vat"], "total": q["total"],
-        "created_at": now_iso(), "updated_at": now_iso(), "completed_at": None,
-        "quote_id": qid,
-    }
-    await db.work_orders.insert_one(wo)
-    await apply_work_order_stock(user, wo["items"], 1, wo["id"], f"Utilizado OS {wo['number']}")
-    wo.pop("_id", None)
-    return await _enrich_wo(wo)
+    async def operation(session):
+        q = await db.quotes.find_one(tenant_filter(user, {"id": qid}), {"_id": 0}, session=session)
+        if not q:
+            raise HTTPException(404, "Orçamento não encontrado")
+        if q.get("converted_work_order_id"):
+            raise HTTPException(409, "Este orçamento já foi convertido numa OS")
+        if q["status"] != "aceite":
+            raise HTTPException(400, "Só é possível converter orçamentos aceites")
+        if await db.work_orders.find_one(tenant_filter(user, {"quote_id": qid}), {"_id": 0, "id": 1}, session=session):
+            raise HTTPException(409, "Este orçamento já foi convertido numa OS")
+        wo = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "number": await next_work_order_number(user, session=session),
+            "client_id": q["client_id"],
+            "vehicle_id": q["vehicle_id"],
+            "mechanic": None,
+            "complaint": None,
+            "notes": q.get("notes"),
+            "mileage_in": None,
+            "status": "entrada",
+            "items": q["items"],
+            "subtotal": q["subtotal"],
+            "vat": q["vat"],
+            "total": q["total"],
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+            "completed_at": None,
+            "quote_id": qid,
+        }
+        await validate_order_relations(
+            WorkOrderIn(client_id=q["client_id"], vehicle_id=q["vehicle_id"], items=q["items"]), user, session=session
+        )
+        await db.quotes.update_one(
+            tenant_filter(user, {"id": qid}),
+            {"$set": {"converted_work_order_id": wo["id"], "updated_at": now_iso()}},
+            session=session,
+        )
+        await db.work_orders.insert_one(wo, session=session)
+        await apply_work_order_stock(user, wo["items"], 1, wo["id"], f"Utilizado OS {wo['number']}", session=session)
+        wo.pop("_id", None)
+        return await _enrich_wo(wo, session=session)
+
+    return await transact(db, operation)
 
 
 # ----------------------------- invoices -----------------------------
-async def invoice_snapshot(wo: dict, user: dict):
-    client_doc = await db.clients.find_one(tenant_filter(user, {"id": wo["client_id"]}), {"_id": 0})
-    vehicle = await db.vehicles.find_one(tenant_filter(user, {"id": wo["vehicle_id"]}), {"_id": 0})
-    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
-    return {"client": client_doc or {}, "vehicle": vehicle or {}, "workshop": workshop or {},
-            "items": wo.get("items", []), "wo_number": wo["number"], "notes": wo.get("notes")}
+async def invoice_snapshot(wo: dict, user: dict, session=None):
+    client_doc = await db.clients.find_one(tenant_filter(user, {"id": wo["client_id"]}), {"_id": 0}, session=session)
+    vehicle = await db.vehicles.find_one(tenant_filter(user, {"id": wo["vehicle_id"]}), {"_id": 0}, session=session)
+    workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0}, session=session)
+    return {
+        "client": client_doc or {},
+        "vehicle": vehicle or {},
+        "workshop": workshop or {},
+        "items": wo.get("items", []),
+        "wo_number": wo["number"],
+        "notes": wo.get("notes"),
+    }
 
 
 @api.get("/invoices")
@@ -770,31 +1064,46 @@ async def list_invoices(user: CurrentUser):
 
 @api.post("/invoices", status_code=201)
 async def create_invoice(data: InvoiceIn, user: CurrentUser):
-    wo = await db.work_orders.find_one(tenant_filter(user, {"id": data.work_order_id}), {"_id": 0})
-    if not wo:
-        raise HTTPException(404, "OS não encontrada")
-    if wo["status"] != "concluido":
-        raise HTTPException(409, "Só é possível emitir documentos para uma OS concluída")
-    if await db.invoices.find_one(tenant_filter(user, {"work_order_id": data.work_order_id, "document_type": data.document_type}), {"_id": 0, "id": 1}):
-        raise HTTPException(409, "Já existe um documento deste tipo para esta OS")
-    total_labor = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "mao_de_obra")
-    total_parts = sum(it["quantity"] * it["unit_price"] for it in wo["items"] if it["item_type"] == "peca")
-    prefix = {"orcamento": "ORC", "fatura": "FT", "fatura_recibo": "FR"}[data.document_type]
-    doc = {
-        "id": new_id(), "workshop_id": user["workshop_id"],
-        "work_order_id": data.work_order_id,
-        "document_type": data.document_type,
-        "document_number": await next_yearly_number(user, "invoices", "document_number", prefix),
-        "total_labor": round(total_labor, 2),
-        "total_parts": round(total_parts, 2),
-        "subtotal": wo["subtotal"], "vat": wo["vat"], "grand_total": wo["total"],
-        "external_invoice_id": None,
-        "snapshot": await invoice_snapshot(wo, user),
-        "created_at": now_iso(), "updated_at": now_iso(),
-    }
-    await db.invoices.insert_one(doc)
-    doc.pop("_id", None)
-    return doc
+    async def operation(session):
+        wo = await db.work_orders.find_one(tenant_filter(user, {"id": data.work_order_id}), {"_id": 0}, session=session)
+        if not wo:
+            raise HTTPException(404, "OS não encontrada")
+        if wo["status"] != "concluido":
+            raise HTTPException(409, "Só é possível emitir documentos para uma OS concluída")
+        if await db.invoices.find_one(
+            tenant_filter(user, {"work_order_id": data.work_order_id, "document_type": data.document_type}),
+            {"_id": 0, "id": 1},
+            session=session,
+        ):
+            raise HTTPException(409, "Já existe um documento deste tipo para esta OS")
+        # Touch the OS so issuing a document conflicts with concurrent edits/deletion.
+        await db.work_orders.update_one(
+            tenant_filter(user, {"id": data.work_order_id}), {"$inc": {"document_revision": 1}}, session=session
+        )
+        total_labor = compute_totals([it for it in wo["items"] if it["item_type"] == "mao_de_obra"])["subtotal"]
+        total_parts = compute_totals([it for it in wo["items"] if it["item_type"] == "peca"])["subtotal"]
+        prefix = {"orcamento": "ORC", "fatura": "FT", "fatura_recibo": "FR"}[data.document_type]
+        doc = {
+            "id": new_id(),
+            "workshop_id": user["workshop_id"],
+            "work_order_id": data.work_order_id,
+            "document_type": data.document_type,
+            "document_number": await next_yearly_number(user, "invoices", "document_number", prefix, session=session),
+            "total_labor": round(total_labor, 2),
+            "total_parts": round(total_parts, 2),
+            "subtotal": wo["subtotal"],
+            "vat": wo["vat"],
+            "grand_total": wo["total"],
+            "external_invoice_id": None,
+            "snapshot": await invoice_snapshot(wo, user, session=session),
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        await db.invoices.insert_one(doc, session=session)
+        doc.pop("_id", None)
+        return doc
+
+    return await transact(db, operation)
 
 
 @api.get("/invoices/{invoice_id}/pdf")
@@ -822,15 +1131,11 @@ async def dashboard(user: CurrentUser):
     aguarda = await db.work_orders.count_documents({**f, "status": "aguardando_pecas"})
     # month invoicing
     start_month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
-    invs = await db.invoices.find(
-        {**f, "created_at": {"$gte": start_month}, "document_type": {"$in": ["fatura", "fatura_recibo"]}},
-        {"_id": 0, "grand_total": 1}
-    ).to_list(2000)
-    faturacao = round(sum(i.get("grand_total", 0) for i in invs), 2)
+    revenue = await db.invoices.aggregate(revenue_pipeline(f, since=start_month)).to_list(1)
+    faturacao = round(revenue[0]["total"], 2) if revenue else 0
 
     recent = await db.work_orders.find(f, {"_id": 0}).sort("created_at", -1).to_list(6)
-    for w in recent:
-        await _enrich_wo(w)
+    recent = await enrich_work_orders(recent, user)
 
     return {
         "kpis": {
@@ -974,19 +1279,23 @@ register_media_routes(api, db, access)
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
+    allow_credentials=False,
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://localhost:19006").split(",")
+        if origin.strip()
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("roadmesh")
 
 
 @app.on_event("startup")
 async def _startup_storage():
+    await initialize_integrity(db)
     await access.initialize()
     try:
         await run_in_threadpool(init_storage)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,9 +10,12 @@ import { colors, radius, spacing, shadows } from "@/src/theme";
 
 export default function Damages() {
   const { vehicle_id, category } = useLocalSearchParams<{ vehicle_id?: string; category?: string }>();
-  const [vehicleId, setVehicleId] = useState(vehicle_id || "");
+  return <DamageScreen key={vehicle_id || "all"} initialVehicleId={vehicle_id || ""} category={category} />;
+}
+
+function DamageScreen({ initialVehicleId, category }: { initialVehicleId: string; category?: string }) {
+  const [vehicleId, setVehicleId] = useState(initialVehicleId);
   const insets = useSafeAreaInsets();
-  useEffect(() => { setVehicleId(vehicle_id || ""); }, [vehicle_id]);
   const initialCategory = ["risco", "amolgadela", "fuga"].includes(category || "") ? category : "risco";
   return <View style={styles.screen}>
     <ScreenHeader title="Registo de danos" back testID="damage-header" />

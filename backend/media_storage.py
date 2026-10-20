@@ -1,9 +1,11 @@
-"""Private managed object storage; MongoDB only holds ownership and metadata."""
+"""Private image storage; ownership checks are shared by managed and local drivers."""
 import io
 import logging
 import os
 import threading
 import uuid
+import tempfile
+from pathlib import Path
 from datetime import datetime, timezone
 
 import requests
@@ -18,7 +20,16 @@ _lock = threading.Lock()
 MAX_UPLOAD = 10 * 1024 * 1024
 
 
+def local_root():
+    return Path(os.environ.get("LOCAL_MEDIA_ROOT", Path(__file__).parent / ".local-media")).resolve()
+
+
 def init_storage():
+    if os.environ.get("STORAGE_DRIVER", "managed") == "local":
+        local_root().mkdir(parents=True, exist_ok=True)
+        return "local"
+    if os.environ.get("STORAGE_DRIVER", "managed") != "managed":
+        raise RuntimeError("STORAGE_DRIVER must be managed or local")
     global _key
     with _lock:
         if not _key:
@@ -29,6 +40,8 @@ def init_storage():
 
 
 def storage_request(method, path, content_type="image/jpeg", **kwargs):
+    if os.environ.get("STORAGE_DRIVER", "managed") == "local":
+        return local_request(method, path, content_type, **kwargs)
     global _key
     for attempt in range(2):
         response = requests.request(method, f"{STORAGE_URL}/objects/{path}",
@@ -39,6 +52,38 @@ def storage_request(method, path, content_type="image/jpeg", **kwargs):
             continue
         response.raise_for_status()
         return response
+
+
+def local_request(method, path, content_type="image/jpeg", **kwargs):
+    """Keep the existing storage interface; files never have a public static route."""
+    root = local_root()
+    destination = (root / path).resolve()
+    if not path or destination == root or not destination.is_relative_to(root):
+        raise HTTPException(422, "Caminho de fotografia inválido.")
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = content_type
+    if method == "PUT":
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
+                temporary = Path(handle.name)
+                handle.write(kwargs["data"])
+            temporary.replace(destination)
+        finally:
+            if temporary and temporary.exists():
+                temporary.unlink()
+        import json
+        response._content = json.dumps({"path": path}).encode()
+    elif method == "GET":
+        try:
+            response._content = destination.read_bytes()
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "Fotografia não encontrada.") from exc
+    else:
+        raise ValueError("Unsupported local storage operation")
+    return response
 
 
 def prepare_image(data):
@@ -79,7 +124,7 @@ def register_media_routes(api, db, access):
         path = f"roadmesh/uploads/{user['id']}/{media_id}.jpg"
         try:
             result = await run_in_threadpool(storage_request, "PUT", path, data=image)
-        except requests.RequestException as exc:
+        except (requests.RequestException, OSError) as exc:
             raise storage_failure(exc) from exc
         doc = {"id": media_id, "workshop_id": user["workshop_id"], "owner_id": user["id"],
                "storage_path": result.json()["path"], "content_type": "image/jpeg",
@@ -106,7 +151,7 @@ def register_media_routes(api, db, access):
             raise HTTPException(404, "Fotografia não encontrada")
         try:
             response = await run_in_threadpool(storage_request, "GET", doc["storage_path"])
-        except requests.RequestException as exc:
+        except (requests.RequestException, OSError) as exc:
             raise storage_failure(exc) from exc
         return Response(response.content, media_type=doc["content_type"],
                         headers={"Cache-Control": "private, max-age=3600", "Vary": "Authorization", "X-Content-Type-Options": "nosniff"})

@@ -47,35 +47,6 @@ def _pdf_text_and_pages(content: bytes):
     return text, len(reader.pages)
 
 
-@pytest.fixture(scope="session")
-def admin_session():
-    assert BASE_URL, "EXPO_PUBLIC_BACKEND_URL is required"
-    s = requests.Session()
-    r = s.post(f"{API}/auth/login", json={"email": "rodrigo@oficina.pt", "password": "teste123"})
-    assert r.status_code == 200, r.text
-    token = r.json()["access_token"]
-    s.headers.update({"Authorization": f"Bearer {token}"})
-    return s
-
-
-@pytest.fixture(scope="session")
-def tenant_b_session():
-    s = requests.Session()
-    r = s.post(
-        f"{API}/auth/register",
-        json={
-            "workshop_name": "TEST_Isolation_B",
-            "name": "Isolation B",
-            "email": _email(),
-            "password": "teste123",
-        },
-    )
-    assert r.status_code == 201, r.text
-    token = r.json()["access_token"]
-    s.headers.update({"Authorization": f"Bearer {token}"})
-    return s
-
-
 # Search normalization
 def test_vehicle_search_normalization(admin_session):
     r1 = admin_session.get(f"{API}/vehicles", params={"search": "aa12bb"})
@@ -243,7 +214,10 @@ def test_quote_create_starts_draft_and_requires_explicit_send(admin_session):
 
 # PDF export
 def test_invoice_pdf_binary_headers_auth_and_tenant(admin_session, tenant_b_session):
-    wo = admin_session.get(f"{API}/work-orders").json()[0]
+    source = admin_session.get(f"{API}/work-orders").json()[0]
+    created = admin_session.post(f"{API}/work-orders", json={"client_id": source["client_id"], "vehicle_id": source["vehicle_id"], "status": "concluido", "items": [{"item_type": "mao_de_obra", "description": "PDF test", "quantity": 1, "unit_price": 10}]})
+    assert created.status_code == 201, created.text
+    wo = created.json()
     create = admin_session.post(f"{API}/invoices", json={"work_order_id": wo["id"], "document_type": "fatura"})
     assert create.status_code == 201, create.text
     invoice = create.json()
@@ -275,7 +249,7 @@ def test_invoice_pdf_snapshot_stability_after_source_changes(admin_session):
         json={
             "client_id": client["id"],
             "vehicle_id": vehicle["id"],
-            "status": "entrada",
+            "status": "concluido",
             "items": [{"item_type": "mao_de_obra", "description": "TEST mão de obra", "quantity": 1, "unit_price": 75, "vat_rate": 23}],
         },
     ).json()
@@ -314,7 +288,7 @@ def test_invoice_pdf_multi_page_long_items(admin_session):
     ]
     wo = admin_session.post(
         f"{API}/work-orders",
-        json={"client_id": client["id"], "vehicle_id": vehicle["id"], "status": "entrada", "items": items},
+        json={"client_id": client["id"], "vehicle_id": vehicle["id"], "status": "concluido", "items": items},
     ).json()
     inv = admin_session.post(f"{API}/invoices", json={"work_order_id": wo["id"], "document_type": "fatura"}).json()
     pdf = admin_session.get(f"{API}/invoices/{inv['id']}/pdf")

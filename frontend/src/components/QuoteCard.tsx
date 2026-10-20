@@ -32,7 +32,7 @@ export function QuoteCard({ quote }: { quote: any }) {
     setBusy("convert"); setError("");
     try {
       const order = await api.post(`/quotes/${quote.id}/convert`, {});
-      qc.invalidateQueries({ queryKey: ["work-orders"] }); qc.invalidateQueries({ queryKey: ["dashboard"] });
+      await Promise.all(["work-orders", "dashboard", "quotes", "products", "product"].map(key => qc.invalidateQueries({ queryKey: [key] })));
       setConfirm(false); router.push(`/(app)/servico/${order.id}`);
     } catch (e: any) { setError(e.message); }
     finally { setBusy(""); }
@@ -57,12 +57,13 @@ export function QuoteCard({ quote }: { quote: any }) {
     <Feedback testID={`quote-error-${id}`} error message={error} />
     {error.includes("contactos") && <Button testID={`quote-edit-client-${id}`} title="Abrir ficha do cliente" variant="ghost" onPress={() => router.push(`/(app)/clientes/${quote.client_id}`)} />}
     <Feedback testID={`quote-feedback-${id}`} message={message} />
-    {quote.status === "rascunho" && <Button testID={`quote-mark-sent-${id}`} title="Confirmar que enviei" variant="ghost" disabled={!!busy} loading={busy === "enviado"} onPress={() => changeStatus("enviado")} />}
-    {quote.status === "enviado" && <View style={styles.row}>
+    {quote.converted_work_order_id && <Text testID={`quote-converted-${id}`} style={styles.hint}>Já convertido em ordem de serviço.</Text>}
+    {!quote.converted_work_order_id && quote.status === "rascunho" && <Button testID={`quote-mark-sent-${id}`} title="Confirmar que enviei" variant="ghost" disabled={!!busy} loading={busy === "enviado"} onPress={() => changeStatus("enviado")} />}
+    {!quote.converted_work_order_id && quote.status === "enviado" && <View style={styles.row}>
       <Button testID={`quote-accept-${id}`} title="Aceite" style={styles.flex} disabled={!!busy} loading={busy === "aceite"} onPress={() => changeStatus("aceite")} />
       <Button testID={`quote-reject-${id}`} title="Recusado" variant="secondary" style={styles.flex} disabled={!!busy} onPress={() => changeStatus("recusado")} />
     </View>}
-    {quote.status === "aceite" && (confirm ? <>
+    {!quote.converted_work_order_id && quote.status === "aceite" && (confirm ? <>
       <Text testID={`quote-convert-confirmation-${id}`} style={styles.hint}>Criar uma ordem de serviço a partir deste orçamento?</Text>
       <Button testID={`quote-convert-confirm-${id}`} title="Criar OS" disabled={!!busy} loading={busy === "convert"} onPress={convert} />
       <Button testID={`quote-convert-cancel-${id}`} title="Cancelar" variant="ghost" disabled={!!busy} onPress={() => setConfirm(false)} />

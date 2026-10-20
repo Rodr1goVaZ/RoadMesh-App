@@ -2,7 +2,6 @@
   "expo": {
     "name": "RoadMesh",
     "slug": "frontend",
-    "owner": "roadmesh",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -12,12 +11,15 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Fotografe danos e o estado das viaturas.",
-        "NSPhotoLibraryUsageDescription": "Anexe fotografias aos registos das viaturas."
+        "NSPhotoLibraryUsageDescription": "Anexe fotografias aos registos das viaturas.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.emergent.meshworkshop.v4s3w1"
     },
     "android": {
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -46,14 +48,24 @@
       "expo-web-browser",
       "expo-status-bar",
       "expo-sharing",
-      ["expo-image-picker", {
-        "photosPermission": "Anexe fotografias aos registos das viaturas.",
-        "cameraPermission": "Fotografe danos e o estado das viaturas.",
-        "microphonePermission": false
-      }]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Anexe fotografias aos registos das viaturas.",
+          "cameraPermission": "Fotografe danos e o estado das viaturas.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b12cbaad-65c9-4da0-ba53-261c396696b2"
+      }
+    },
+    "owner": "rodr1g0vazs-team"
   }
 }

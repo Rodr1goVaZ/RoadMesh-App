@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
+import { useNow } from "../../hooks/useNow";
 import { AreaPage, QueryState, areaStyles } from "./AreaUI";
 import { Button } from "./Button";
 import { AppointmentForm } from "./AppointmentForm";
 import { AppointmentCard } from "./AppointmentCard";
 export function Appointments({ portal = true }: { portal?: boolean }) {
+  const now = useNow();
   const [form, setForm] = useState<any>(null);
   const { data = [], error, isLoading, refetch } = useQuery({ queryKey: [portal ? "portal-appointments" : "staff-appointments"], queryFn: () => api.get(portal ? "/portal/appointments" : "/appointments") });
-  const upcoming = data.filter((item: any) => ["agendada", "confirmada"].includes(item.status) && new Date(item.scheduled_at).getTime() > Date.now());
+  const upcoming = data.filter((item: any) => ["agendada", "confirmada"].includes(item.status) && new Date(item.scheduled_at).getTime() > now);
   const past = data.filter((item: any) => !upcoming.includes(item)).reverse();
   return <AreaPage key={form ? "form" : "list"} title="Marcações" testID={portal ? "portal-appointments" : "staff-appointments"} back={!portal}>
     {form ? <AppointmentForm appointment={form.id ? form : undefined} onClose={() => setForm(null)} /> : <>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,7 +14,7 @@ import { formatEUR } from "@/src/utils/format";
 export default function NewOrder() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const { data: products = [] } = useQuery({ queryKey: ["products-all"], queryFn: () => api.get("/products") });
+  const { data: products = [] } = useQuery({ queryKey: ["products", "all"], queryFn: () => api.get("/products") });
   const [supplier, setSupplier] = useState("");
   const [items, setItems] = useState<{ product_id: string; product_name: string; quantity: string; unit_price: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,17 +24,22 @@ export default function NewOrder() {
     setItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity: "1", unit_price: String(p.purchase_price) }]);
   };
 
-  const subtotal = items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_price || 0), 0);
-  const vat = subtotal * 0.23;
-  const total = subtotal + vat;
+  const number = (text: string) => Number(text.trim().replace(",", "."));
+  const lines = items.map(item => Math.round((number(item.quantity || "0") * number(item.unit_price || "0") + Number.EPSILON) * 100));
+  const subtotalCents = lines.reduce((sum, cents) => sum + cents, 0);
+  const vatCents = lines.reduce((sum, cents) => sum + Math.round(cents * 23 / 100), 0);
+  const subtotal = subtotalCents / 100, vat = vatCents / 100, total = (subtotalCents + vatCents) / 100;
 
   const submit = async () => {
     if (!supplier || items.length === 0) { Alert.alert("Erro", "Preencha fornecedor e itens"); return; }
+    if (items.some(item => !Number.isInteger(number(item.quantity)) || number(item.quantity) <= 0 || !item.unit_price.trim() || !Number.isFinite(number(item.unit_price)) || number(item.unit_price) < 0)) {
+      Alert.alert("Erro", "Indique quantidades inteiras positivas e preços válidos."); return;
+    }
     setLoading(true);
     try {
       await api.post("/purchase-orders", {
         supplier, notes: null,
-        items: items.map(i => ({ product_id: i.product_id, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })),
+        items: items.map(i => ({ product_id: i.product_id, quantity: number(i.quantity), unit_price: number(i.unit_price) })),
       });
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       router.back();

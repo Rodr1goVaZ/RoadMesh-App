@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
+import { Feedback } from "@/src/components/Feedback";
 import { colors, spacing, radius, shadows } from "@/src/theme";
 import { StatusChip } from "@/src/components/StatusChip";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
@@ -18,6 +20,7 @@ export default function ClientDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const [operationError, setOperationError] = useState("");
   const [tab, setTab] = useState<typeof TABS[number]>("contactos");
   const { data } = useQuery({ queryKey: ["client", id], queryFn: () => api.get(`/clients/${id}`), enabled: !!id });
   if (!data) return <View style={{ flex: 1, backgroundColor: colors.surface }}><ScreenHeader title="Cliente" back /></View>;
@@ -25,15 +28,19 @@ export default function ClientDetail() {
   const del = () => Alert.alert("Apagar cliente", "Continuar?", [
     { text: "Cancelar", style: "cancel" },
     { text: "Apagar", style: "destructive", onPress: async () => {
-      await api.del(`/clients/${id}`);
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      router.back();
+      setOperationError("");
+      try {
+        await api.del(`/clients/${id}`);
+        await qc.invalidateQueries({ queryKey: ["clients"] });
+        router.back();
+      } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível apagar o cliente."); }
     }},
   ]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title={data.name} back testID="client-detail-header" />
+      <Feedback testID="cliente-operation-error" message={operationError} error />
       <View style={styles.tabs}>
         {TABS.map(t => (
           <Pressable key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { session } from "./session";
+import { AppState } from "react-native";
 import { api } from "./api";
 import { queryClient } from "./query-client";
 import { authEvents } from "./auth-events";
@@ -41,6 +42,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
     return () => authEvents.listen(null);
   }, []);
+  useEffect(() => {
+    if (!user) return;
+    const renew = () => { void session.getFreshToken().catch(() => { /* Requests show network errors; 401 clears auth through authEvents. */ }); };
+    const timer = setInterval(renew, 60000);
+    const listener = AppState.addEventListener("change", state => { if (state === "active") renew(); });
+    return () => { clearInterval(timer); listener.remove(); };
+  }, [user]);
   const accept = async (response: any) => {
     await session.saveToken(response.access_token); await session.saveUser(response.user);
     await session.clearSupport(); queryClient.clear(); setSupport(null); setUser(response.user);

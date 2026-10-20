@@ -1,7 +1,6 @@
 """RoadMesh backend API tests - multi-tenant workshop SaaS."""
 import os
 import uuid
-import pytest
 import requests
 
 
@@ -26,39 +25,6 @@ def _rand_email():
     return f"TEST_{uuid.uuid4().hex[:10]}@oficina.pt"
 
 
-@pytest.fixture(scope="session")
-def session_a():
-    """Register a fresh workshop A and return (session, user, token)."""
-    s = requests.Session()
-    email = _rand_email()
-    r = s.post(f"{API}/auth/register", json={
-        "workshop_name": "TEST_Oficina_A",
-        "name": "Admin A",
-        "email": email,
-        "password": "teste123",
-    })
-    assert r.status_code == 201, r.text
-    data = r.json()
-    s.headers.update({"Authorization": f"Bearer {data['access_token']}"})
-    return {"session": s, "user": data["user"], "token": data["access_token"], "email": email}
-
-
-@pytest.fixture(scope="session")
-def session_b():
-    s = requests.Session()
-    email = _rand_email()
-    r = s.post(f"{API}/auth/register", json={
-        "workshop_name": "TEST_Oficina_B",
-        "name": "Admin B",
-        "email": email,
-        "password": "teste123",
-    })
-    assert r.status_code == 201, r.text
-    data = r.json()
-    s.headers.update({"Authorization": f"Bearer {data['access_token']}"})
-    return {"session": s, "user": data["user"], "token": data["access_token"], "email": email}
-
-
 # --- Health ---
 class TestHealth:
     def test_root(self):
@@ -69,10 +35,10 @@ class TestHealth:
 
 # --- Auth ---
 class TestAuth:
-    def test_register_and_seed(self, session_a):
+    def test_provisioned_workshop_and_test_data(self, session_a):
         s = session_a["session"]
         user = session_a["user"]
-        assert user["role"] == "admin"
+        assert user["role"] == "workshop_staff"
         assert user["workshop_name"] == "TEST_Oficina_A"
         assert "id" in user and "workshop_id" in user
 
@@ -88,18 +54,18 @@ class TestAuth:
         invs = s.get(f"{API}/invoices").json()
         assert len(invs) == 1
 
-    def test_register_duplicate(self, session_a):
+    def test_public_registration_disabled(self, session_a):
         r = requests.post(f"{API}/auth/register", json={
             "workshop_name": "Dup",
             "name": "Dup",
             "email": session_a["email"],
             "password": "teste123",
         })
-        assert r.status_code == 409
+        assert r.status_code == 403
 
     def test_login_success(self, session_a):
         r = requests.post(f"{API}/auth/login", json={
-            "email": session_a["email"], "password": "teste123"
+            "email": session_a["email"], "password": session_a["password"]
         })
         assert r.status_code == 200
         j = r.json()
@@ -266,14 +232,13 @@ class TestProductsCRUD:
 class TestWorkOrders:
     def test_create_with_stock_discount(self, session_a):
         s = session_a["session"]
-        clients = s.get(f"{API}/clients").json()
         vehicles = s.get(f"{API}/vehicles").json()
         products = s.get(f"{API}/products").json()
         prod = products[0]
         initial_stock = prod["stock"]
 
         r = s.post(f"{API}/work-orders", json={
-            "client_id": clients[0]["id"],
+            "client_id": vehicles[0]["client_id"],
             "vehicle_id": vehicles[0]["id"],
             "mechanic": "TEST Mec",
             "complaint": "TEST",
@@ -300,7 +265,7 @@ class TestWorkOrders:
 
         # complete via PUT sets completed_at
         u = s.put(f"{API}/work-orders/{wo['id']}", json={
-            "client_id": clients[0]["id"], "vehicle_id": vehicles[0]["id"],
+            "client_id": vehicles[0]["client_id"], "vehicle_id": vehicles[0]["id"],
             "mechanic": "TEST Mec", "status": "concluido",
             "items": wo["items"],
         })
@@ -423,7 +388,10 @@ class TestInvoices:
     def test_invoice_from_wo(self, session_a):
         s = session_a["session"]
         wos = s.get(f"{API}/work-orders").json()
-        wo = wos[0]
+        source = wos[0]
+        created = s.post(f"{API}/work-orders", json={"client_id": source["client_id"], "vehicle_id": source["vehicle_id"], "status": "concluido", "items": [{"item_type": "mao_de_obra", "description": "Invoice test", "quantity": 1, "unit_price": 10}]})
+        assert created.status_code == 201, created.text
+        wo = created.json()
 
         r = s.post(f"{API}/invoices", json={
             "work_order_id": wo["id"], "document_type": "fatura"

@@ -1,9 +1,11 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
+import { Feedback } from "@/src/components/Feedback";
 import { colors, spacing, radius, shadows } from "@/src/theme";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { Button } from "@/src/components/Button";
@@ -13,6 +15,7 @@ export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const [operationError, setOperationError] = useState("");
   const { data } = useQuery({ queryKey: ["product", id], queryFn: () => api.get(`/products/${id}`), enabled: !!id });
   if (!data) return <View style={{ flex: 1, backgroundColor: colors.surface }}><ScreenHeader title="Produto" back /></View>;
   const low = data.stock <= data.min_stock;
@@ -20,15 +23,19 @@ export default function ProductDetail() {
   const del = () => Alert.alert("Apagar produto", "Continuar?", [
     { text: "Cancelar", style: "cancel" },
     { text: "Apagar", style: "destructive", onPress: async () => {
-      await api.del(`/products/${id}`);
-      qc.invalidateQueries({ queryKey: ["products"] });
-      router.back();
+      setOperationError("");
+      try {
+        await api.del(`/products/${id}`);
+        await qc.invalidateQueries({ queryKey: ["products"] });
+        router.back();
+      } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível apagar o produto."); }
     }},
   ]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title={data.name} back />
+      <Feedback testID="produto-operation-error" message={operationError} error />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
         <View style={styles.card}>
           <Text style={styles.ref}>{data.reference}</Text>

@@ -3,19 +3,24 @@ import { ActivityIndicator, Image, Platform, StyleSheet, View, StyleProp, ImageS
 import { API_BASE } from "../api";
 import { session } from "../session";
 import { colors } from "../theme";
+import { useAuth } from "../auth";
 
 export function Photo({ mediaId, legacyUri, testID, style }: { mediaId?: string; legacyUri?: string; testID: string; style: StyleProp<ImageStyle> }) {
+  const { user, support } = useAuth();
+  return <PhotoImage key={`${user?.id || ""}:${support?.id || ""}:${mediaId || legacyUri || ""}`} mediaId={mediaId} legacyUri={legacyUri} testID={testID} style={style} supportToken={support?.token} />;
+}
+
+function PhotoImage({ mediaId, legacyUri, testID, style, supportToken }: { mediaId?: string; legacyUri?: string; testID: string; style: StyleProp<ImageStyle>; supportToken?: string }) {
   const [source, setSource] = useState<any>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
     let blobUrl: string | undefined;
-    setSource(null); setError(false);
     (async () => {
       if (!mediaId) { if (active) setSource({ uri: legacyUri }); return; }
-      const token = await session.getToken();
+      const token = await session.getFreshToken();
       const uri = `${API_BASE}/media/${mediaId}`;
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = { Authorization: `Bearer ${token}`, ...(supportToken ? { "X-Support-Token": supportToken } : {}) };
       if (Platform.OS === "web") {
         const response = await fetch(uri, { headers });
         if (!response.ok) throw new Error("Foto indisponível");
@@ -24,7 +29,7 @@ export function Photo({ mediaId, legacyUri, testID, style }: { mediaId?: string;
       } else if (active) setSource({ uri, headers });
     })().catch(() => { if (active) setError(true); });
     return () => { active = false; if (blobUrl) URL.revokeObjectURL(blobUrl); };
-  }, [mediaId, legacyUri]);
+  }, [mediaId, legacyUri, supportToken]);
   if (error) return <View style={[style, styles.center]}><Text testID={`${testID}-error`} style={styles.error}>Foto indisponível</Text></View>;
   if (!source) return <View style={[style, styles.center]}><ActivityIndicator testID={`${testID}-loading`} color={colors.brandPrimary} /></View>;
   return <Image testID={testID} source={source} style={style} resizeMode="contain" onError={() => setError(true)} />;

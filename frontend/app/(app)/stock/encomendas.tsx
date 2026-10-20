@@ -1,9 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, Alert } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
+import { Feedback } from "@/src/components/Feedback";
 import { colors, spacing, radius, shadows } from "@/src/theme";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
 import { EmptyState } from "@/src/components/EmptyState";
@@ -11,22 +12,27 @@ import { Fab } from "@/src/components/Fab";
 import { formatEUR, formatDate } from "@/src/utils/format";
 
 export default function Orders() {
-  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const [operationError, setOperationError] = useState("");
+  const [busy, setBusy] = useState(false);
   const { data = [] } = useQuery({ queryKey: ["purchase-orders"], queryFn: () => api.get("/purchase-orders") });
 
   const receive = (id: string) => Alert.alert("Rececionar", "Atualizar stock?", [
     { text: "Cancelar", style: "cancel" },
     { text: "Rececionar", onPress: async () => {
-      await api.post(`/purchase-orders/${id}/receive`, {});
-      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
+      setBusy(true); setOperationError("");
+      try {
+        await api.post(`/purchase-orders/${id}/receive`, {});
+        await Promise.all(["purchase-orders", "products", "product"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+      } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível receber a encomenda."); }
+      finally { setBusy(false); }
     }},
   ]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Encomendas" back />
+      <Feedback testID="purchase-receive-error" message={operationError} error />
       <FlatList
         data={data}
         keyExtractor={(x: any) => x.id}
@@ -43,7 +49,7 @@ export default function Orders() {
             <Text style={styles.mut}>{formatDate(item.created_at)} · {item.items.length} item(s)</Text>
             <Text style={styles.total}>{formatEUR(item.total)}</Text>
             {item.status !== "recebida" && (
-              <Pressable testID={`receive-${item.id}`} onPress={() => receive(item.id)} style={styles.btn}>
+              <Pressable testID={`receive-${item.id}`} disabled={busy} onPress={() => receive(item.id)} style={styles.btn}>
                 <Text style={styles.btnTxt}>Rececionar</Text>
               </Pressable>
             )}

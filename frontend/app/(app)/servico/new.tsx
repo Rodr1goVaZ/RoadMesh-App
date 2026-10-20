@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { colors, spacing, radius, shadows } from "@/src/theme";
 import { Input } from "@/src/components/Input";
 import { Button } from "@/src/components/Button";
 import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { ProductPicker } from "@/src/components/ProductPicker";
 
 type Item = { item_type: "peca" | "mao_de_obra"; description: string; quantity: string; unit_price: string; vat_rate: number; product_id?: string | null };
 
@@ -29,6 +31,10 @@ export default function NewWo() {
 
   const submit = async () => {
     if (!clientId || !vehicleId) { Alert.alert("Erro", "Escolha cliente e viatura"); return; }
+    const number = (text: string) => Number(text.trim().replace(",", "."));
+    if (items.some(item => !item.description.trim() || !Number.isFinite(number(item.quantity)) || number(item.quantity) <= 0 || !item.unit_price.trim() || !Number.isFinite(number(item.unit_price)) || number(item.unit_price) < 0)) {
+      Alert.alert("Erro", "Preencha a descrição, uma quantidade positiva e um preço válido em todas as linhas."); return;
+    }
     setSaving(true);
     try {
       await api.post("/work-orders", {
@@ -38,12 +44,14 @@ export default function NewWo() {
         status: "entrada",
         items: items.filter(i => i.description).map(i => ({
           item_type: i.item_type, description: i.description,
-          quantity: Number(i.quantity || 0), unit_price: Number(i.unit_price || 0),
-          vat_rate: i.vat_rate, product_id: null,
+          quantity: number(i.quantity), unit_price: number(i.unit_price),
+          vat_rate: i.vat_rate, product_id: i.product_id || null,
         })),
       });
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
       router.back();
     } catch (e: any) { Alert.alert("Erro", e.message); }
     finally { setSaving(false); }
@@ -90,7 +98,7 @@ export default function NewWo() {
             {items.map((it, idx) => (
               <View key={idx} style={{ gap: 8, marginTop: 8, paddingTop: 8, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.divider }}>
                 <View style={{ flexDirection: "row", gap: 6 }}>
-                  <Pressable onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, item_type: "mao_de_obra" } : x))}
+                  <Pressable onPress={() => setItems(prev => prev.map((x, i) => i === idx ? { ...x, item_type: "mao_de_obra", product_id: null, vat_rate: 23 } : x))}
                              style={[styles.chip, it.item_type === "mao_de_obra" && styles.chipActive]}>
                     <Text style={[styles.chipTxt, it.item_type === "mao_de_obra" && styles.chipTxtActive]}>Mão de obra</Text>
                   </Pressable>
@@ -99,10 +107,11 @@ export default function NewWo() {
                     <Text style={[styles.chipTxt, it.item_type === "peca" && styles.chipTxtActive]}>Peça</Text>
                   </Pressable>
                 </View>
-                <Input label="Descrição" value={it.description} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, description: t } : x))} />
+                {it.item_type === "peca" && <ProductPicker value={it.product_id} testID={`wo-item-product-${idx}`} onChange={product => setItems(prev => prev.map((item, i) => i === idx ? { ...item, product_id: product?.id || null, ...(product ? { description: product.name, unit_price: String(product.sale_price), vat_rate: product.vat_rate } : {}) } : item))} />}
+                <Input testID={`wo-item-description-${idx}`} label="Descrição" value={it.description} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, description: t } : x))} />
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}><Input label="Qtd" keyboardType="numeric" value={it.quantity} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: t } : x))} /></View>
-                  <View style={{ flex: 1 }}><Input label="Preço" keyboardType="numeric" value={it.unit_price} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, unit_price: t } : x))} /></View>
+                  <View style={{ flex: 1 }}><Input testID={`wo-item-quantity-${idx}`} label="Qtd" keyboardType="decimal-pad" value={it.quantity} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: t } : x))} /></View>
+                  <View style={{ flex: 1 }}><Input testID={`wo-item-price-${idx}`} label="Preço" keyboardType="decimal-pad" value={it.unit_price} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, unit_price: t } : x))} /></View>
                 </View>
               </View>
             ))}

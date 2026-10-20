@@ -36,7 +36,7 @@ export async function shareQuote(quote: any, channel: "email" | "whatsapp") {
 }
 
 export async function exportInvoice(invoice: any) {
-  const token = await session.getToken();
+  const token = await session.getFreshToken();
   const url = `${API_BASE}/invoices/${invoice.id}/pdf`;
   const support = await session.getSupport();
   const headers = { Authorization: `Bearer ${token}`, ...(support?.token ? { "X-Support-Token": support.token } : {}) };

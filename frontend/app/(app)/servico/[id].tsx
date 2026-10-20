@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,13 +25,14 @@ export default function WoDetail() {
     enabled: !!id,
   });
   const [saving, setSaving] = useState(false);
+  const [operationError, setOperationError] = useState("");
   const [issuing, setIssuing] = useState(false);
   const [invoiceError, setInvoiceError] = useState("");
 
   if (!data) return <View style={{ flex: 1, backgroundColor: colors.surface }}><ScreenHeader title="OS" back /></View>;
 
   const changeStatus = async (st: string) => {
-    setSaving(true);
+    setSaving(true); setOperationError("");
     try {
       await api.put(`/work-orders/${id}`, {
         client_id: data.client_id, vehicle_id: data.vehicle_id,
@@ -45,16 +47,21 @@ export default function WoDetail() {
       await refetch();
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-    } finally { setSaving(false); }
+    } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível alterar a OS."); }
+    finally { setSaving(false); }
   };
 
   const del = async () => {
     Alert.alert("Apagar OS", "Tem a certeza?", [
       { text: "Cancelar", style: "cancel" },
       { text: "Apagar", style: "destructive", onPress: async () => {
-        await api.del(`/work-orders/${id}`);
-        qc.invalidateQueries({ queryKey: ["work-orders"] });
-        router.back();
+        setSaving(true); setOperationError("");
+        try {
+          await api.del(`/work-orders/${id}`);
+          await Promise.all(["work-orders", "products", "product", "dashboard", "quotes"].map(key => qc.invalidateQueries({ queryKey: [key] })));
+          router.back();
+        } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível apagar a OS."); }
+        finally { setSaving(false); }
       }},
     ]);
   };
@@ -63,6 +70,7 @@ export default function WoDetail() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title={`OS ${data.number}`} back right={<StatusChip status={data.status} />} testID="wo-detail-header" />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 140 }}>
+        <Feedback testID="wo-operation-error" message={operationError} error />
         <View style={styles.card}>
           <Text style={styles.label}>Cliente</Text>
           <Text style={styles.value}>{data.client_name}</Text>
@@ -104,7 +112,7 @@ export default function WoDetail() {
           <Text style={styles.label}>Alterar estado</Text>
           <View style={styles.chipsRow}>
             {STATUSES.map(s => (
-              <Pressable key={s} testID={`set-status-${s}`} onPress={() => changeStatus(s)}
+              <Pressable key={s} testID={`set-status-${s}`} disabled={saving || issuing} onPress={() => changeStatus(s)}
                          style={[styles.chip, data.status === s && styles.chipActive]}>
                 <Text style={[styles.chipTxt, data.status === s && styles.chipTxtActive]}>{s.replace("_", " ")}</Text>
               </Pressable>
@@ -127,7 +135,7 @@ export default function WoDetail() {
             finally { setIssuing(false); }
           }} />
           <View style={{ height: 8 }} />
-          <Button title="Apagar OS" variant="danger" testID="wo-delete" onPress={del} />
+          <Button title="Apagar OS" variant="danger" testID="wo-delete" disabled={saving || issuing} onPress={del} />
         </View>
       </ScrollView>
       <View style={[styles.sticky, { paddingBottom: insets.bottom + 12 }]}>

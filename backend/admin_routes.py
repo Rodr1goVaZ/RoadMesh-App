@@ -9,6 +9,7 @@ from pydantic import EmailStr, Field
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
 from access_control import StrictModel, identifier, now, password_hash, timestamp
+from database_integrity import revenue_pipeline
 
 
 class WorkshopBody(StrictModel):
@@ -46,7 +47,7 @@ def register_admin_routes(api, db, access):
         scope = {"workshop_id": wid} if wid else {}
         result = {name: await db[collection].count_documents(scope) for name, collection in
                   [("clients", "clients"), ("vehicles", "vehicles"), ("work_orders", "work_orders"), ("users", "users")]}
-        grouped = await db.invoices.aggregate([{"$match": {**scope, "document_type": {"$in": ["fatura", "fatura_recibo"]}}}, {"$group": {"_id": None, "total": {"$sum": "$grand_total"}}}, {"$project": {"_id": 0, "total": 1}}]).to_list(1)
+        grouped = await db.invoices.aggregate(revenue_pipeline(scope)).to_list(1)
         result["revenue"] = round(grouped[0]["total"], 2) if grouped else 0
         return result
 
