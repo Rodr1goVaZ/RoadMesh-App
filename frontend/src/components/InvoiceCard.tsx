@@ -1,3 +1,5 @@
+import { router } from "expo-router";
+import { useAuth } from "../auth";
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors, radius, spacing, shadows } from "../theme";
@@ -16,12 +18,13 @@ export function InvoiceCard({ invoice }: { invoice: any }) {
     catch (e: any) { setError(e.message || "Não foi possível exportar o PDF."); }
     finally { setLoading(false); }
   };
+  const { user, support } = useAuth();
   const id = invoice.id;
   return <View testID={`invoice-card-${id}`} style={styles.card}>
     <Text testID={`invoice-number-${id}`} style={styles.number}>{invoice.document_number}</Text>
     <Text testID={`invoice-type-${id}`} style={styles.type}>{TYPES[invoice.document_type]} · Documento interno</Text>
     <Text testID={`invoice-client-${id}`} style={styles.client}>{invoice.client_name || "Cliente"}</Text>
-    <Text testID={`invoice-date-${id}`} style={styles.hint}>{formatDate(invoice.created_at)} · OS {invoice.wo_number || "—"}</Text>
+    <Text testID={`invoice-date-${id}`} style={styles.hint}>{formatDate(invoice.created_at)} · Ordem de Serviço {invoice.wo_number || "—"}</Text>
     <View style={styles.row}>
       <Text testID={`invoice-parts-${id}`} style={styles.hint}>Peças (s/ IVA): {formatEUR(invoice.total_parts)}</Text>
       <Text testID={`invoice-labor-${id}`} style={styles.hint}>Mão de obra (s/ IVA): {formatEUR(invoice.total_labor)}</Text>
@@ -29,6 +32,7 @@ export function InvoiceCard({ invoice }: { invoice: any }) {
     <Text testID={`invoice-vat-${id}`} style={styles.hint}>IVA: {formatEUR(invoice.vat)}</Text>
     <Text testID={`invoice-total-${id}`} style={styles.total}>Total {formatEUR(invoice.grand_total)}</Text>
     <Feedback testID={`invoice-export-error-${id}`} error message={error} />
+    {(user?.can_manage_workshop || support) && invoice.document_type !== "orcamento" && <Button title="Pagamentos e movimentos" variant="secondary" onPress={() => router.push({ pathname: "/(app)/financeiro", params: { invoiceId: id } })} />}
     <Button testID={`invoice-export-pdf-${id}`} title="Exportar PDF" onPress={exportPdf} loading={loading} />
   </View>;
 }

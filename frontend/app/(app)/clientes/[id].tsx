@@ -1,3 +1,4 @@
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
@@ -32,7 +33,7 @@ export default function ClientDetail() {
       try {
         await api.del(`/clients/${id}`);
         await qc.invalidateQueries({ queryKey: ["clients"] });
-        router.back();
+        goBack();
       } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível apagar o cliente."); }
     }},
   ]);
@@ -49,7 +50,7 @@ export default function ClientDetail() {
         ))}
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
         {tab === "contactos" && (
           <View style={styles.card}>
             <Row label="Nome" value={data.name} />

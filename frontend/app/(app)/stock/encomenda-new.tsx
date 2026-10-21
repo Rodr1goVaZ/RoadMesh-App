@@ -1,8 +1,8 @@
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
 import { colors, spacing, radius, shadows } from "@/src/theme";
@@ -15,19 +15,20 @@ export default function NewOrder() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery({ queryKey: ["products", "all"], queryFn: () => api.get("/products") });
+  const [requestKey] = useState(() => `order-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [supplier, setSupplier] = useState("");
-  const [items, setItems] = useState<{ product_id: string; product_name: string; quantity: string; unit_price: string }[]>([]);
+  const [items, setItems] = useState<{ product_id: string; product_name: string; quantity: string; unit_price: string; vat_rate: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
   const add = (p: any) => {
     if (items.find(i => i.product_id === p.id)) return;
-    setItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity: "1", unit_price: String(p.purchase_price) }]);
+    setItems(prev => [...prev, { product_id: p.id, product_name: p.name, quantity: "1", unit_price: String(p.purchase_price), vat_rate: p.vat_rate }]);
   };
 
   const number = (text: string) => Number(text.trim().replace(",", "."));
   const lines = items.map(item => Math.round((number(item.quantity || "0") * number(item.unit_price || "0") + Number.EPSILON) * 100));
   const subtotalCents = lines.reduce((sum, cents) => sum + cents, 0);
-  const vatCents = lines.reduce((sum, cents) => sum + Math.round(cents * 23 / 100), 0);
+  const vatCents = lines.reduce((sum, cents, index) => sum + Math.round(cents * items[index].vat_rate / 100), 0);
   const subtotal = subtotalCents / 100, vat = vatCents / 100, total = (subtotalCents + vatCents) / 100;
 
   const submit = async () => {
@@ -38,11 +39,11 @@ export default function NewOrder() {
     setLoading(true);
     try {
       await api.post("/purchase-orders", {
-        supplier, notes: null,
+        supplier, notes: null, idempotency_key: requestKey,
         items: items.map(i => ({ product_id: i.product_id, quantity: number(i.quantity), unit_price: number(i.unit_price) })),
       });
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
-      router.back();
+      goBack();
     } catch (e: any) { Alert.alert("Erro", e.message); }
     finally { setLoading(false); }
   };
@@ -51,7 +52,7 @@ export default function NewOrder() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Nova Encomenda" back />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Input label="Fornecedor" value={supplier} onChangeText={setSupplier} placeholder="Ex: Fornecedor X" testID="po-supplier" />
           </View>
@@ -59,7 +60,7 @@ export default function NewOrder() {
           <View style={styles.card}>
             <Text style={styles.label}>Adicionar produto</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
-              {products.map((p: any) => (
+              {products.filter((p: any) => !p.supplier || p.supplier.trim().toLowerCase() === supplier.trim().toLowerCase()).map((p: any) => (
                 <Pressable key={p.id} onPress={() => add(p)} style={styles.chip}>
                   <Text style={styles.chipTxt}>{p.name}</Text>
                 </Pressable>
@@ -85,7 +86,7 @@ export default function NewOrder() {
           {items.length > 0 && (
             <View style={styles.card}>
               <Row label="Subtotal" value={formatEUR(subtotal)} />
-              <Row label="IVA (23%)" value={formatEUR(vat)} />
+              <Row label="IVA" value={formatEUR(vat)} />
               <Row label="TOTAL" value={formatEUR(total)} bold />
             </View>
           )}

@@ -6,7 +6,7 @@ import { API_BASE } from "../api";
 export const LOGO_URL = `${API_BASE}/brand/logo.png?v=transparent-1`;
 
 export function Logo({ size = 48, testID = "roadmesh-logo" }: { size?: number; testID?: string }) {
-  return <Image testID={testID} accessibilityLabel="Logótipo RoadMesh" source={{ uri: LOGO_URL }}
+  return <Image testID={testID} accessibilityLabel="Logótipo RoadMesh" source={require("../../assets/images/roadmesh-logo.png")}
     style={[styles.logo, { width: size, height: size }]} resizeMode="contain" />;
 }
 

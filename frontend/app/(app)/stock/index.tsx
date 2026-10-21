@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useListState } from "@/src/hooks/useListState";
+import React from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -13,8 +14,8 @@ const CATS = ["todos", "Óleos", "Travões", "Filtros", "Baterias", "Pneus"];
 
 export default function Products() {
   const insets = useSafeAreaInsets();
-  const [search, setSearch] = useState("");
-  const [cat, setCat] = useState("todos");
+  const [search, setSearch] = useListState("index-search", "");
+  const [cat, setCat] = useListState("index-cat", "todos");
   const { data = [], refetch, isRefetching } = useQuery({
     queryKey: ["products", search, cat],
     queryFn: () => api.get(`/products?search=${encodeURIComponent(search)}&category=${encodeURIComponent(cat)}`),
@@ -44,7 +45,7 @@ export default function Products() {
       <FlatList
         data={data}
         keyExtractor={(x: any) => x.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: 10, paddingBottom: 100 }}
+        contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 10, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         ListEmptyComponent={<EmptyState icon="📦" title="Stock vazio" message="Adicione o primeiro produto" actionLabel="+ Novo Produto" onAction={() => router.push("/(app)/stock/new")} />}
         renderItem={({ item }) => {

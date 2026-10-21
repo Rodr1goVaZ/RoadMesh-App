@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-10-21T08:35:32.013619+00:00",
+  "published_api": "https://roadmesh-api.vercel.app/api",
+  "existing_admin_preserved": true,
+  "password_rotated": true,
+  "password_change_api_passed": true,
+  "login_passed": true,
+  "identity_passed": true,
+  "dashboard_passed": true,
+  "workshops_list_passed": true,
+  "test_sessions_logged_out": true,
+  "credentials_kept_private": true,
+  "new_account_created": false
+}

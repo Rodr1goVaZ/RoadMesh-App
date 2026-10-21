@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useListState } from "@/src/hooks/useListState";
+import React from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -10,7 +11,7 @@ import { EmptyState } from "@/src/components/EmptyState";
 
 export default function Clientes() {
   const insets = useSafeAreaInsets();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useListState("index-search", "");
   const { data = [], refetch, isRefetching } = useQuery({
     queryKey: ["clients", search],
     queryFn: () => api.get(`/clients?search=${encodeURIComponent(search)}`),
@@ -32,7 +33,7 @@ export default function Clientes() {
       <FlatList
         data={data}
         keyExtractor={(x: any) => x.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: 10, paddingBottom: 100 }}
+        contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 10, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         ListEmptyComponent={<EmptyState icon="👥" title="Nenhum cliente" message="Adicione o primeiro cliente para começar" actionLabel="+ Novo Cliente" onAction={() => router.push("/(app)/clientes/new")} />}
         renderItem={({ item }) => (

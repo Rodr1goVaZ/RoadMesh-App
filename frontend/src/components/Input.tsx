@@ -11,6 +11,7 @@ export function Input({ label, error, style, ...rest }: Props) {
       <TextInput
         placeholderTextColor={colors.muted}
         {...rest}
+        accessibilityLabel={rest.accessibilityLabel || label}
         style={[styles.input, error ? { borderColor: colors.error } : null, style]}
       />
       {error ? <Text testID={rest.testID ? `${rest.testID}-error` : undefined} style={styles.err}>{error}</Text> : null}
@@ -27,7 +28,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.onSurface,
   },
   err: { color: colors.error, fontSize: 12 },

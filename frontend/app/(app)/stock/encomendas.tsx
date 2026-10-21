@@ -1,71 +1,25 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { useListState } from "@/src/hooks/useListState";
+import { YearFilter } from "@/src/components/YearFilter";
+import React from "react";
+import { Text } from "react-native";
 import { router } from "expo-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/api";
-import { Feedback } from "@/src/components/Feedback";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { EmptyState } from "@/src/components/EmptyState";
-import { Fab } from "@/src/components/Fab";
+import { useAuth } from "@/src/auth";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
+import { Button } from "@/src/components/Button";
 import { formatEUR, formatDate } from "@/src/utils/format";
-
+const labels: Record<string, string> = { rascunho: "Rascunho", por_validar: "Por validar", pendente: "Por receber", parcial: "Recebida parcialmente", recebida: "Recebida", cancelada: "Cancelada" };
 export default function Orders() {
-  const qc = useQueryClient();
-  const [operationError, setOperationError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const { data = [] } = useQuery({ queryKey: ["purchase-orders"], queryFn: () => api.get("/purchase-orders") });
-
-  const receive = (id: string) => Alert.alert("Rececionar", "Atualizar stock?", [
-    { text: "Cancelar", style: "cancel" },
-    { text: "Rececionar", onPress: async () => {
-      setBusy(true); setOperationError("");
-      try {
-        await api.post(`/purchase-orders/${id}/receive`, {});
-        await Promise.all(["purchase-orders", "products", "product"].map(key => qc.invalidateQueries({ queryKey: [key] })));
-      } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível receber a encomenda."); }
-      finally { setBusy(false); }
-    }},
-  ]);
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.surface }}>
-      <ScreenHeader title="Encomendas" back />
-      <Feedback testID="purchase-receive-error" message={operationError} error />
-      <FlatList
-        data={data}
-        keyExtractor={(x: any) => x.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: 10, paddingBottom: 100 }}
-        ListEmptyComponent={<EmptyState icon="🚚" title="Sem encomendas" message="Crie a primeira encomenda a fornecedores" />}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={styles.sup}>{item.supplier}</Text>
-              <Text style={[styles.status, { color: item.status === "recebida" ? colors.success : colors.warning }]}>
-                {item.status === "recebida" ? "Recebida" : "Pendente"}
-              </Text>
-            </View>
-            <Text style={styles.mut}>{formatDate(item.created_at)} · {item.items.length} item(s)</Text>
-            <Text style={styles.total}>{formatEUR(item.total)}</Text>
-            {item.status !== "recebida" && (
-              <Pressable testID={`receive-${item.id}`} disabled={busy} onPress={() => receive(item.id)} style={styles.btn}>
-                <Text style={styles.btnTxt}>Rececionar</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-      />
-      <Fab testID="fab-new-order" onPress={() => router.push("/(app)/stock/encomenda-new")} />
-    </View>
-  );
+  const { user, support } = useAuth(); const [year, setYear] = useListState("encomendas-year", "");
+  const query = useQuery({ queryKey: ["purchase-orders", year], queryFn: () => api.get(`/purchase-orders${year.length === 4 ? "?year=" + year : ""}`) });
+  return <AreaPage title="Encomendas" testID="orders"><YearFilter resource="orders" value={year} onChange={setYear} />
+    {(user?.can_manage_workshop || support) && <Button title="Nova encomenda" onPress={() => router.push("/(app)/stock/encomenda-new")} />}
+    <QueryState loading={query.isLoading} error={query.error} retry={query.refetch} testID="orders-query" />
+    {query.data?.length === 0 && <Text style={areaStyles.hint}>Sem encomendas neste período. Pode começar pelo botão Adicionar à encomenda num produto.</Text>}
+    {(query.data || []).map((p: any) => <Panel key={p.id} title={p.supplier} testID={`order-${p.id}`}>
+      <Text style={areaStyles.label}>{labels[p.status] || p.status} · {formatEUR(p.total)}</Text><Text style={areaStyles.hint}>{formatDate(p.created_at)} · {p.items.length} produto(s)</Text>
+      <Button title="Abrir encomenda" variant="secondary" onPress={() => router.push({ pathname: "/(app)/stock/encomenda", params: { id: p.id } })} />
+    </Panel>)}
+  </AreaPage>;
 }
-const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 6, ...shadows.card },
-  sup: { fontWeight: "700", color: colors.onSurface, fontSize: 15 },
-  status: { fontWeight: "700", fontSize: 12 },
-  mut: { color: colors.muted, fontSize: 12 },
-  total: { fontWeight: "800", color: colors.brandPrimary, fontSize: 16, marginTop: 4 },
-  btn: { alignSelf: "flex-start", backgroundColor: colors.brandPrimary, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginTop: 8 },
-  btnTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
-});

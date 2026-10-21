@@ -21,7 +21,7 @@ export default function Workshops() {
     {data.map((workshop: any) => <Panel testID={`admin-workshop-${workshop.id}`} key={workshop.id} title={workshop.name}>
       <Text testID={`admin-workshop-status-${workshop.id}`} style={areaStyles.hint}>{STATUS[workshop.status]} · NIF {workshop.nif || "não indicado"}</Text>
       <Text testID={`admin-workshop-revenue-${workshop.id}`} style={areaStyles.label}>{formatEUR(workshop.metrics.revenue)} de faturação</Text>
-      <Text testID={`admin-workshop-counts-${workshop.id}`} style={areaStyles.hint}>{workshop.metrics.clients} clientes · {workshop.metrics.vehicles} viaturas · {workshop.metrics.work_orders} OS</Text>
+      <Text testID={`admin-workshop-counts-${workshop.id}`} style={areaStyles.hint}>{workshop.metrics.clients} clientes · {workshop.metrics.vehicles} viaturas · {workshop.metrics.work_orders} Ordens de Serviço</Text>
       <Button testID={`admin-workshop-open-${workshop.id}`} title="Ver oficina" variant="secondary" onPress={() => router.push({ pathname: "/(admin)/workshop", params: { id: workshop.id } })} />
     </Panel>)}
   </AreaPage>;

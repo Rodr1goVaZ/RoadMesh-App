@@ -15,7 +15,7 @@ export function ProductPicker({ value, onChange, testID }: { value?: string | nu
       {data.map(product => <Button key={product.id} testID={`${testID}-${product.id}`} title={`${product.name} · stock ${product.stock}`}
         variant={value === product.id ? "primary" : "secondary"} onPress={() => onChange(product)} />)}
     </ScrollView>
-    {!!value && <Text style={{ color: colors.muted, fontSize: 12 }}>O stock é descontado ao guardar a OS ou ao converter o orçamento.</Text>}
+    {!!value && <Text style={{ color: colors.muted, fontSize: 12 }}>O stock é descontado ao guardar a ordem de serviço ou ao converter o orçamento.</Text>}
     <Feedback testID={`${testID}-error`} message={error ? "Não foi possível carregar os produtos. Volte a abrir este ecrã para tentar novamente." : ""} error />
   </View>;
 }

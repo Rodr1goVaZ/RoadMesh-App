@@ -4,13 +4,19 @@ import type { PropsWithChildren } from "react";
 
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="en" style={{ height: "100%" }}>
+    <html lang="pt-PT" style={{ height: "100%" }}>
       <head>
         <meta charSet="utf-8" />
+        <meta name="referrer" content="no-referrer" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#7A1E2B" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <title>RoadMesh · Gestão de oficinas</title>
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         {/*
           Disable body scrolling on web to make ScrollView components work correctly.

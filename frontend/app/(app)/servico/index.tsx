@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import { useListState } from "@/src/hooks/useListState";
+import { YearFilter } from "@/src/components/YearFilter";
+import React from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -20,11 +22,12 @@ const FILTERS = [
 
 export default function OrdensList() {
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState("todos");
-  const [search, setSearch] = useState("");
+  const [year, setYear] = useListState("index-year", "");
+  const [filter, setFilter] = useListState("index-filter", "todos");
+  const [search, setSearch] = useListState("index-search", "");
   const { data = [], refetch, isRefetching } = useQuery({
-    queryKey: ["work-orders", filter, search],
-    queryFn: () => api.get(`/work-orders?status_filter=${filter}&search=${encodeURIComponent(search)}`),
+    queryKey: ["work-orders", filter, search, year],
+    queryFn: () => api.get(`/work-orders?status_filter=${filter}&search=${encodeURIComponent(search)}${year.length === 4 ? "&year=" + year : ""}`),
   });
 
   return (
@@ -41,6 +44,7 @@ export default function OrdensList() {
             style={styles.searchInput}
           />
         </View>
+        <YearFilter resource="services" value={year} onChange={setYear} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
           {FILTERS.map(f => (
             <Pressable
@@ -57,9 +61,9 @@ export default function OrdensList() {
       <FlatList
         data={data}
         keyExtractor={(x: any) => x.id}
-        contentContainerStyle={{ padding: spacing.lg, gap: 10, paddingBottom: 100 }}
+        contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 10, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
-        ListEmptyComponent={<EmptyState icon="📋" title="Nenhuma OS encontrada" message="Crie a sua primeira ordem de serviço" />}
+        ListEmptyComponent={<EmptyState icon="📋" title="Nenhuma Ordem de Serviço encontrada" message="Crie a sua primeira ordem de serviço" />}
         renderItem={({ item }) => (
           <Pressable testID={`wo-item-${item.number}`} onPress={() => router.push(`/(app)/servico/${item.id}`)} style={[styles.card]}>
             <View style={styles.rowTop}>

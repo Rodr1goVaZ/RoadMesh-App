@@ -1,8 +1,9 @@
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
 import { colors, spacing } from "@/src/theme";
@@ -32,7 +33,7 @@ export default function NewVehicle() {
       });
       qc.invalidateQueries({ queryKey: ["client", client_id] });
       qc.invalidateQueries({ queryKey: ["vehicles-all"] });
-      router.back();
+      goBack();
     } catch (e: any) { Alert.alert("Erro", e.message); }
     finally { setLoading(false); }
   };
@@ -41,7 +42,7 @@ export default function NewVehicle() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Nova Viatura" back />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
           <Input label="Matrícula *" value={plate} onChangeText={setPlate} autoCapitalize="characters" testID="v-plate" />
           <Input label="Marca *" value={make} onChangeText={setMake} testID="v-make" />
           <Input label="Modelo *" value={model} onChangeText={setModel} testID="v-model" />

@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-21",
+  "project": "RoadMesh",
+  "migration_003_applied": true,
+  "tables": 27,
+  "duplicate_clients_removed": 1,
+  "removed_client_archived_in_audit": true,
+  "backup_taken_under_lock": true,
+  "role_membership_granted": false,
+  "optional_migration_004_applied": false,
+  "atomic_transaction": true
+}

@@ -14,8 +14,8 @@ export function AreaPage({ title, testID, back = true, children }: { title: stri
     </KeyboardAvoidingView>
   </View>;
 }
-export function Panel({ title, testID, children }: { title?: string; testID: string; children: React.ReactNode }) {
-  return <View testID={testID} style={areaStyles.panel}>{title && <Text testID={`${testID}-title`} style={areaStyles.title}>{title}</Text>}{children}</View>;
+export function Panel({ title, testID, children, accent = false }: { title?: string; testID: string; children: React.ReactNode; accent?: boolean }) {
+  return <View testID={testID} style={[areaStyles.panel, accent && { backgroundColor: colors.brandPrimary }]}>{title && <Text testID={`${testID}-title`} style={[areaStyles.title, accent && { color: "#FFFFFF" }]}>{title}</Text>}{children}</View>;
 }
 export function Metrics({ entries, testID }: { entries: { label: string; value: string | number }[]; testID: string }) {
   const { width } = useWindowDimensions();

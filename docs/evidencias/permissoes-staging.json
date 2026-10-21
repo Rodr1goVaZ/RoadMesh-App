@@ -1,0 +1,26 @@
+{
+  "project": "RoadMesh-Testes",
+  "set_role_granted_to_postgres": false,
+  "permission_grant_authorized": false,
+  "verification": "read-only privilege catalog; actual SET ROLE test not executed",
+  "rights": {
+    "financial_movements": {
+      "SELECT": true,
+      "INSERT": true,
+      "UPDATE": false,
+      "DELETE": false
+    },
+    "order_receipts": {
+      "SELECT": true,
+      "INSERT": true,
+      "UPDATE": false,
+      "DELETE": false
+    },
+    "admin_support_audit": {
+      "SELECT": true,
+      "INSERT": true,
+      "UPDATE": false,
+      "DELETE": false
+    }
+  }
+}

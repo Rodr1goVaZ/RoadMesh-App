@@ -1,0 +1,272 @@
+[
+  {
+    "stage": "dependencies.jsonl",
+    "summary": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 36,
+        "high": 152,
+        "critical": 1
+      },
+      "dependencies": 634,
+      "devDependencies": 0,
+      "optionalDependencies": 0,
+      "totalDependencies": 634
+    },
+    "advisories": [
+      {
+        "package": "decode-uri-component",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-vcc3-ghjq-m6fr",
+        "paths": "expo-router>query-string>decode-uri-component"
+      },
+      {
+        "package": "postcss",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss"
+      },
+      {
+        "package": "postcss",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss"
+      },
+      {
+        "package": "postcss",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss"
+      },
+      {
+        "package": "brace-expansion",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+        "paths": "expo>@expo/fingerprint>minimatch>brace-expansion"
+      },
+      {
+        "package": "brace-expansion",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+        "paths": "expo>@expo/fingerprint>minimatch>brace-expansion"
+      },
+      {
+        "package": "brace-expansion",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+        "paths": "expo>@expo/fingerprint>minimatch>brace-expansion"
+      },
+      {
+        "package": "brace-expansion",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+        "paths": "expo>@expo/fingerprint>minimatch>brace-expansion"
+      },
+      {
+        "package": "brace-expansion",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+        "paths": "expo>@expo/fingerprint>minimatch>brace-expansion"
+      },
+      {
+        "package": "js-yaml",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj",
+        "paths": "expo>@expo/cli>@expo/xcpretty>js-yaml"
+      },
+      {
+        "package": "js-yaml",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-2883-xcg3-v3hh",
+        "paths": "expo>@expo/cli>@expo/xcpretty>js-yaml"
+      },
+      {
+        "package": "nanoid",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss>nanoid"
+      },
+      {
+        "package": "nanoid",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss>nanoid"
+      },
+      {
+        "package": "browserslist",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-c83g-rgw3-j3cx",
+        "paths": "expo>@expo/cli>@expo/metro>metro>metro-config>metro>metro-transform-worker>metro>metro-babel-transformer>@babel/core>@babel/helper-compilation-targets>browserslist"
+      },
+      {
+        "package": "browserslist",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-73wf-gq98-2v4g",
+        "paths": "expo>@expo/cli>@expo/metro>metro>metro-config>metro>metro-transform-worker>metro>metro-babel-transformer>@babel/core>@babel/helper-compilation-targets>browserslist"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-6gmq-8vp8-gcm6",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-6mj3-qw4j-hgrw",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>xcode>simple-plist>plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-g53g-w8rj-fmg7",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>xcode>simple-plist>plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-w2rr-34g9-rvrj",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-4w3w-2rp5-g8jm",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-c7q8-3ch8-vqpv",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-27p8-2357-5qqv",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-3px3-54cx-rmw9",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>xcode>simple-plist>plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-vr34-hp96-76pp",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>xcode>simple-plist>plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-6h8r-xr42-gp59",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-8344-3jmq-59r6",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-965w-775f-mr7g",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-93r5-fhx6-vmg9",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "baseline-browser-mapping",
+        "severity": "moderate",
+        "url": "https://github.com/advisories/GHSA-w5vr-8v7q-w6rv",
+        "paths": "expo>@expo/cli>@expo/metro>metro>metro-config>metro>metro-transform-worker>metro>metro-babel-transformer>@babel/core>@babel/helper-compilation-targets>browserslist>baseline-browser-mapping"
+      },
+      {
+        "package": "image-size",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+        "paths": "react-native>@react-native/community-cli-plugin>metro-config>metro>image-size"
+      },
+      {
+        "package": "image-size",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+        "paths": "react-native>@react-native/community-cli-plugin>metro-config>metro>image-size"
+      },
+      {
+        "package": "source-map-js",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+        "paths": "expo>@expo/cli>@expo/metro-config>postcss>source-map-js"
+      },
+      {
+        "package": "compression",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-vc2v-76pw-4v95",
+        "paths": "expo>@expo/cli>compression"
+      },
+      {
+        "package": "shell-quote",
+        "severity": "critical",
+        "url": "https://github.com/advisories/GHSA-pqg4-j6r4-53mv",
+        "paths": "react-native>react-devtools-core>shell-quote"
+      },
+      {
+        "package": "@xmldom/xmldom",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-x4fp-j954-r2f4",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/config>@expo/config-plugins>@expo/plist>@xmldom/xmldom"
+      },
+      {
+        "package": "node-forge",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+        "paths": "expo>@expo/cli>@expo/code-signing-certificates>node-forge"
+      },
+      {
+        "package": "braces",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+        "paths": "expo>@expo/cli>@expo/metro>metro>metro-config>metro>metro-transform-worker>metro>metro-file-map>micromatch>braces"
+      }
+    ]
+  },
+  {
+    "stage": "dependencies-final.jsonl",
+    "summary": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 10,
+        "critical": 0
+      },
+      "dependencies": 892,
+      "devDependencies": 0,
+      "optionalDependencies": 0,
+      "totalDependencies": 892
+    },
+    "advisories": [
+      {
+        "package": "node-forge",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+        "paths": "expo>@expo/cli>@expo/code-signing-certificates>node-forge"
+      },
+      {
+        "package": "braces",
+        "severity": "high",
+        "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+        "paths": "expo>@expo/cli>@expo/metro-config>@expo/metro>metro>metro-config>metro>metro-config>metro>metro-file-map>micromatch>braces"
+      }
+    ]
+  }
+]

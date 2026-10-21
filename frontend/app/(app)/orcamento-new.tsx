@@ -1,3 +1,5 @@
+import { ClientVehicleFields } from "@/src/components/RelationPicker";
+import { useAuth } from "@/src/auth";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,29 +16,28 @@ import { ProductPicker } from "@/src/components/ProductPicker";
 export default function NewQuote() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const { data: clients = [] } = useQuery({ queryKey: ["clients-all"], queryFn: () => api.get("/clients") });
-  const { data: vehicles = [] } = useQuery({ queryKey: ["vehicles-all"], queryFn: () => api.get("/vehicles") });
+  const { user, support } = useAuth(); const manager = !!user?.can_manage_workshop || !!support;
+  const { data: settings } = useQuery({ queryKey: ["workshop-settings"], queryFn: () => api.get("/workshop/settings") });
   const [clientId, setClientId] = useState(""); const [vehicleId, setVehicleId] = useState("");
   const [items, setItems] = useState([{ item_type: "mao_de_obra", description: "", quantity: "1", unit_price: "0", vat_rate: 23, product_id: null as string | null }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notes, setNotes] = useState("");
-  const filteredV = clientId ? vehicles.filter((v: any) => v.client_id === clientId) : [];
 
   const submit = async () => {
     setError("");
     if (!clientId || !vehicleId) { setError("Escolha cliente e viatura"); return; }
     const number = (text: string) => Number(text.replace(",", "."));
-    if (!items.length || items.some(i => !i.description.trim() || !Number.isFinite(number(i.quantity)) || number(i.quantity) <= 0 || !i.unit_price.trim() || !Number.isFinite(number(i.unit_price)) || number(i.unit_price) < 0)) {
+    if (!items.length || items.some(i => (i.item_type !== "mao_de_obra" && !i.description.trim()) || !Number.isFinite(number(i.quantity)) || number(i.quantity) <= 0 || !i.unit_price.trim() || !Number.isFinite(number(i.unit_price)) || number(i.unit_price) < 0)) {
       setError("Preencha a descrição, uma quantidade positiva e um preço válido em todas as linhas."); return;
     }
     setLoading(true);
     try {
       await api.post("/quotes", {
         client_id: clientId, vehicle_id: vehicleId, notes: notes.trim() || null,
-        items: items.filter(i => i.description).map(i => ({
-          item_type: i.item_type, description: i.description.trim(),
-          quantity: number(i.quantity), unit_price: number(i.unit_price), vat_rate: i.vat_rate, product_id: i.product_id,
+        items: items.map(i => ({
+          item_type: i.item_type, description: i.description.trim() || (i.item_type === "mao_de_obra" ? "Mão de obra" : "Peça"),
+          quantity: number(i.quantity), unit_price: i.item_type === "mao_de_obra" && settings?.configured ? Number(settings.labor_hour_rate) : number(i.unit_price), vat_rate: i.item_type === "mao_de_obra" && settings?.configured ? Number(settings.labor_vat_rate) : i.vat_rate, product_id: i.product_id,
         })),
       });
       qc.invalidateQueries({ queryKey: ["quotes"] });
@@ -49,27 +50,9 @@ export default function NewQuote() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Novo Orçamento" back />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
-            <Text style={styles.label}>Cliente</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
-              {clients.map((c: any) => (
-                <Pressable key={c.id} testID={`quote-pick-client-${c.id}`} onPress={() => { setClientId(c.id); setVehicleId(""); }}
-                           style={[styles.chip, clientId === c.id && styles.chipActive]}>
-                  <Text style={[styles.chipTxt, clientId === c.id && styles.chipTxtActive]}>{c.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            {clientId ? <>
-              <Text style={[styles.label, { marginTop: 8 }]}>Viatura</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
-                {filteredV.map((v: any) => (
-                  <Pressable key={v.id} testID={`quote-pick-vehicle-${v.id}`} onPress={() => setVehicleId(v.id)} style={[styles.chip, vehicleId === v.id && styles.chipActive]}>
-                    <Text style={[styles.chipTxt, vehicleId === v.id && styles.chipTxtActive]}>{v.license_plate}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </> : null}
+            <ClientVehicleFields clientId={clientId} onClient={setClientId} onVehicle={setVehicleId} />
           </View>
 
           <View style={styles.card}>
@@ -82,10 +65,10 @@ export default function NewQuote() {
                   </Pressable>)}
                 </View>
                 {it.item_type === "peca" && <ProductPicker value={it.product_id} testID={`quote-item-product-${idx}`} onChange={product => setItems(prev => prev.map((item, i) => i === idx ? { ...item, product_id: product?.id || null, ...(product ? { description: product.name, unit_price: String(product.sale_price), vat_rate: product.vat_rate } : {}) } : item))} />}
-                <Input testID={`quote-item-description-${idx}`} label="Descrição" maxLength={1000} value={it.description} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, description: t } : x))} />
+                <Input testID={`quote-item-description-${idx}`} label={it.item_type === "mao_de_obra" ? "Descrição (opcional)" : "Descrição"} maxLength={1000} value={it.description} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, description: t } : x))} />
                 <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}><Input testID={`quote-item-quantity-${idx}`} label="Qtd" keyboardType="decimal-pad" value={it.quantity} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: t } : x))} /></View>
-                  <View style={{ flex: 1 }}><Input testID={`quote-item-price-${idx}`} label="Preço (€)" keyboardType="decimal-pad" value={it.unit_price} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, unit_price: t } : x))} /></View>
+                  <View style={{ flex: 1 }}><Input testID={`quote-item-quantity-${idx}`} label={it.item_type === "mao_de_obra" ? "Horas" : "Quantidade"} keyboardType="decimal-pad" value={it.quantity} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: t } : x))} /></View>
+                  <View style={{ flex: 1 }}><Input testID={`quote-item-price-${idx}`} label="Preço (€)" keyboardType="decimal-pad" editable={manager && !(it.item_type === "mao_de_obra" && settings?.configured)} value={it.item_type === "mao_de_obra" && settings?.configured ? String(settings.labor_hour_rate) : it.unit_price} onChangeText={t => setItems(prev => prev.map((x, i) => i === idx ? { ...x, unit_price: t } : x))} /></View>
                 </View>
                 {items.length > 1 && <Button testID={`quote-remove-item-${idx}`} title="Remover linha" variant="ghost" onPress={() => setItems(prev => prev.filter((_, i) => i !== idx))} />}
               </View>
