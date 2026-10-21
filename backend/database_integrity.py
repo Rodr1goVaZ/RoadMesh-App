@@ -54,12 +54,27 @@ async def initialize_integrity(db):
         "damages",
         "appointments",
         "media",
-        "counters",
+        "counters", "suppliers", "financial_movements", "order_receipts", "reorder_needs", "password_resets",
     )
     try:
         for name in collections:
             await db[name].create_index("id", unique=True)
         await db.counters.create_index("id", unique=True)
+        for name, field in (('suppliers','name_key'),('financial_movements','idempotency_key'),
+            ('order_receipts','idempotency_key'),('reorder_needs','product_id')):
+            await db[name].create_index([('workshop_id',1),(field,1)],unique=True)
+        await db.financial_movements.create_index([('workshop_id',1),('work_order_id',1)],unique=True,
+            partialFilterExpression={'kind':'charge'})
+        await db.password_resets.create_index('digest',unique=True)
+        for name, fields in (('clients',('nif_key','identity_key')),('vehicles',('plate_key','vin_key')),
+            ('products',('reference_key','barcode_key'))):
+            for field in fields:
+                await db[name].create_index([('workshop_id',1),(field,1)],unique=True,
+                    partialFilterExpression={field:{'$type':'string'}})
+        await db.purchase_orders.create_index([('workshop_id',1),('request_key',1)],unique=True,partialFilterExpression={'request_key':{'$type':'string'}})
+        await db.purchase_orders.create_index([('workshop_id',1),('supplier_key',1)],unique=True,
+            partialFilterExpression={'status':{'$in':['rascunho','por_validar']},'supplier_key':{'$type':'string'}})
+
         await db.work_orders.create_index(
             [("workshop_id", ASCENDING), ("quote_id", ASCENDING)],
             unique=True,
@@ -81,6 +96,7 @@ async def initialize_integrity(db):
         raise RuntimeError(
             "Cannot create RoadMesh integrity indexes. Check existing duplicate records/index options before restarting; no records were deleted."
         ) from exc
+    await normalize_legacy_identifiers(db)
     # Keep conversion history even when the resulting work order is later deleted.
     async for order in db.work_orders.find(
         {"quote_id": {"$type": "string"}}, {"_id": 0, "id": 1, "quote_id": 1, "workshop_id": 1}
@@ -110,3 +126,32 @@ def revenue_pipeline(scope, since=None):
     if since:
         pipeline.append({"$match": {"first_issued": {"$gte": since}}})
     return [*pipeline, {"$group": {"_id": None, "total": {"$sum": "$amount"}}}, {"$project": {"_id": 0, "total": 1}}]
+
+
+async def normalize_legacy_identifiers(db):
+    """Backfill identifiers only after a no-deletion duplicate preflight."""
+    from collections import Counter
+    from business_rules import normalized_keys, text
+    from operations import ensure_supplier
+    pending=[]
+    for collection in ('clients','vehicles','products'):
+        groups=Counter()
+        docs=await db[collection].find({}, {'_id':0}).to_list(None)
+        for doc in docs:
+            keys=normalized_keys(collection,doc)
+            for field,value in keys.items():
+                if value:
+                    groups[(doc['workshop_id'],field,value)]+=1
+            if any(field not in doc for field in keys):
+                pending.append((collection,doc,keys))
+        conflicts=sum(n>1 for n in groups.values())
+        if conflicts:
+            raise RuntimeError(f'Legacy identifier migration blocked: {collection} has {conflicts} conflicting groups. Review privately; no records were merged or deleted.')
+    async def operation(session):
+        for collection,doc,keys in pending:
+            if collection=='products':
+                keys['supplier_key']=text(doc.get('supplier'))
+                await ensure_supplier(db,{'workshop_id':doc['workshop_id']},doc.get('supplier'),session)
+            await db[collection].update_one({'id':doc['id'],'workshop_id':doc['workshop_id']},{'$set':keys},session=session)
+    if pending:
+        await transact(db,operation)

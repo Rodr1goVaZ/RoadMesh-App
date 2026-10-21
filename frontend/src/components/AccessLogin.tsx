@@ -30,11 +30,7 @@ export function AccessLogin({ kind }: { kind: "staff" | "admin" | "client" }) {
     <Input testID={kind === "staff" ? "login-password" : `${kind}-login-password`} label="Palavra-passe" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
     <Feedback testID={`${kind}-login-error`} error message={error} />
     <Button testID={kind === "staff" ? "login-submit-btn" : `${kind}-login-submit`} title="Entrar" loading={loading} onPress={submit} />
-    {kind === "staff" && <>
-      <Button testID="login-client-access" title="Sou cliente de uma oficina" variant="secondary" onPress={() => router.push("/(auth)/client-login")} />
-      <Button testID="login-admin-access" title="Administrador RoadMesh" variant="ghost" onPress={() => router.push("/(auth)/admin-login")} />
-      <Button testID="login-access-info" title="Ainda não tenho acesso" variant="ghost" onPress={() => router.push("/(auth)/register")} />
-    </>}
+    <Button title="Esqueci-me da palavra-passe" variant="ghost" onPress={() => router.push("/(auth)/forgot-password")} />
   </AreaPage>;
 }
 const styles = StyleSheet.create({

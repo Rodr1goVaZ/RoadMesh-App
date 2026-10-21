@@ -6,7 +6,8 @@ import { queryClient } from "./query-client";
 import { authEvents } from "./auth-events";
 
 export type User = { id: string; workshop_id?: string; workshop_name: string; client_id?: string; name: string; email: string;
-  role: "admin" | "workshop_staff" | "client"; password_change_required: boolean; is_active: boolean };
+  role: "admin" | "workshop_staff" | "client"; password_change_required: boolean; is_active: boolean;
+  can_manage_workshop?: boolean };
 type Support = { id: string; name: string; status: string; token: string };
 type Ctx = { user: User | null; loading: boolean; support: Support | null;
   login: (email: string, password: string, kind?: "staff" | "admin" | "client") => Promise<User>;

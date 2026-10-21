@@ -39,3 +39,26 @@ def test_local_missing_image_returns_404(local_media):
     with pytest.raises(HTTPException) as error:
         storage_request("GET", "roadmesh/uploads/missing.jpg")
     assert error.value.status_code == 404
+
+
+def test_supabase_storage_private_contract(monkeypatch):
+    import requests
+    calls=[]
+    monkeypatch.setenv('STORAGE_DRIVER','supabase')
+    monkeypatch.setenv('SUPABASE_URL','https://storage.example.invalid')
+    monkeypatch.setenv('SUPABASE_SERVICE_ROLE_KEY','test-server-only')
+    monkeypatch.setenv('SUPABASE_STORAGE_BUCKET','roadmesh-media')
+    def request(method,url,**kwargs):
+        calls.append((method,url,kwargs))
+        response=requests.Response();response.status_code=200;response._content=b'private-image'
+        return response
+    monkeypatch.setattr(requests,'request',request)
+    assert init_storage()=='supabase'
+    assert not calls # configuration validation has no remote startup request
+    path='roadmesh/uploads/owner/id.jpg'
+    assert storage_request('PUT',path,data=b'private-image').json()=={'path':path}
+    assert storage_request('GET',path).content==b'private-image'
+    assert calls[0][0]=='POST' and '/public/' not in calls[0][1]
+    assert calls[1][2]['headers']['Authorization']=='Bearer test-server-only'
+    with pytest.raises(HTTPException):
+        storage_request('GET','../other.jpg')

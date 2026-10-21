@@ -1,6 +1,7 @@
 """Regression coverage for transaction rollback, concurrency, roles and sessions."""
 
 import os
+from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
@@ -19,7 +20,7 @@ def workshop(workshop_factory):
 
 def product(session, stock=10):
     return checked(
-        session.post(f"{API}/products", json={"reference": "INTEGRITY", "name": "Integrity part", "stock": stock}), 201
+        session.post(f"{API}/products", json={"reference": "INTEGRITY-" + uuid4().hex, "name": "Integrity part", "stock": stock}), 201
     )
 
 

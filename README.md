@@ -118,3 +118,10 @@ python tests/run_local.py --mongod /caminho/para/mongod -q
 Se `mongod` estiver no PATH, pode omitir `--mongod`. O runner cria um replica set e API temporários, credenciais aleatórias e uma pasta temporária para fotografias. Use `--storage managed` para verificar também o adaptador remoto com um serviço simulado. Executa os testes e termina os processos, eliminando os dados temporários. Não usa a base de dados, as contas ou o armazenamento definidos no `.env` local. O armazenamento externo real e os fluxos nativos de câmara/partilha precisam de validação com as respetivas integrações e dispositivos.
 
 Para testar uma API de teste já preparada, configure `EXPO_PUBLIC_BACKEND_URL`, `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD` e `ROADMESH_TEST_ALLOW_WRITE=1`, e execute `pytest tests -q`. Essa API recebe os dados criados pelos testes; use uma instalação isolada. Os testes de injeção de falhas exigem ainda `ROADMESH_TEST_MONGO_URL` e `ROADMESH_TEST_DB_NAME` com prefixo `roadmesh_test_`.
+
+## Documentação da auditoria
+
+- [Documentação do projeto](docs/PROJETO.md)
+- [Relatório de alterações, testes e condições de publicação](docs/ALTERACOES.md)
+
+Estas alterações estão na branch de auditoria e requerem a migração do esquema versão 3 antes de publicar o novo backend.

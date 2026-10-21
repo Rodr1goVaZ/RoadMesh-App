@@ -135,6 +135,7 @@ class Access:
 
     async def public(self, account):
         result = {key: account.get(key) for key in ["id", "name", "email", "role", "workshop_id", "client_id", "is_manager", "is_active", "password_change_required"]}
+        result["can_manage_workshop"] = await self.is_workshop_manager(account)
         workshop = await self.db.workshops.find_one({"id": account.get("workshop_id")}, {"_id": 0, "name": 1}) if account.get("workshop_id") else None
         result["workshop_name"] = workshop["name"] if workshop else "RoadMesh"
         return result
@@ -173,9 +174,30 @@ class Access:
             raise HTTPException(428, "Altere a palavra-passe temporária para continuar.")
         return account
 
-    async def audit(self, account, action, workshop_id=None, resource=None):
+    async def is_workshop_manager(self, account, session=None):
+        if account.get("role") == "admin":
+            # Support context is verified by workshop() before this flag is set.
+            return account.get("support_mode") is True
+        if account.get("role") != "workshop_staff" or not account.get("workshop_id"):
+            return False
+        workshop = await self.db.workshops.find_one({"id": account["workshop_id"]},
+            {"_id": 0, "manager_id": 1}, session=session)
+        if not workshop:
+            return False
+        if workshop.get("manager_id"):
+            return workshop["manager_id"] == account["id"]
+        # Compatibility with workshops created before manager_id was recorded.
+        current = await self.db.users.find_one({"id": account["id"], "workshop_id": account["workshop_id"],
+            "role": "workshop_staff", "is_active": True}, {"_id": 0, "is_manager": 1}, session=session)
+        return bool(current and current.get("is_manager"))
+
+    async def require_workshop_manager(self, account, session=None):
+        if not await self.is_workshop_manager(account, session):
+            raise HTTPException(403, "Esta operação está reservada ao responsável da oficina.")
+
+    async def audit(self, account, action, workshop_id=None, resource=None, *, details=None, session=None):
         await self.db.admin_support_audit.insert_one({"id": identifier(), "actor_id": account["id"], "action": action,
-                                                     "workshop_id": workshop_id, "resource": resource, "created_at": timestamp()})
+            "workshop_id": workshop_id, "resource": resource, "details": details or {}, "created_at": timestamp()}, session=session)
 
     async def admin(self, token: str = Depends(bearer)):
         account = await self.ready(await self.identity(token))

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-20",
+  "branch": "codex/roadmesh-auditoria-melhorias",
+  "postgres_embedded": {
+    "passed": 89,
+    "skipped": 2
+  },
+  "mongodb": {
+    "passed": 80,
+    "skipped": 11
+  },
+  "node": {
+    "passed": 10
+  },
+  "typescript": "passed",
+  "eslint": "passed",
+  "ruff_E9_F": "passed",
+  "web_export": "passed",
+  "python_runtime_audit": "no known vulnerabilities found",
+  "production_modified": false,
+  "limits": [
+    "PostgreSQL native concurrency not validated",
+    "physical iPhone/PWA/scanner not validated",
+    "SMTP and real Supabase Storage not configured",
+    "existing two-client duplicate group not modified",
+    "two unresolved upstream toolchain advisories"
+  ]
+}

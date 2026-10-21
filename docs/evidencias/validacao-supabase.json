@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-21",
+  "project": "RoadMesh-Testes",
+  "database": "PostgreSQL 17 / Supabase",
+  "connection": "TLS, session pooler IPv4, prepare_threshold=None",
+  "migrations": [
+    "001",
+    "002",
+    "003",
+    "004"
+  ],
+  "tables": 27,
+  "tests": {
+    "passed": 97,
+    "skipped": 2,
+    "role_switch_test_excluded_by_owner_decision": true,
+    "role_switch_test_not_executed": true
+  },
+  "test_data": "synthetic",
+  "production_modified": false,
+  "postgres_runtime_membership_granted": false,
+  "duration_seconds": 863.93,
+  "storage_full_api_smoke": {
+    "passed": 3,
+    "duration_seconds": 87.77,
+    "provider": "private Supabase Storage",
+    "covers": [
+      "upload and authenticated binary download",
+      "cross-workshop denial and invalid file",
+      "oversize rejection"
+    ]
+  },
+  "note": "97 passed and 2 MongoDB-specific skips; role-switch test deselected per explicit owner decision. Runtime permissions checked by read-only catalog queries only.",
+  "storage_transport_roundtrip": "passed"
+}

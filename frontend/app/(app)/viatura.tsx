@@ -33,7 +33,7 @@ export default function VehicleDetail() {
         <Text testID="vehicle-history-heading" style={styles.title}>Histórico de serviços</Text>
         {!data.work_orders?.length && <Text testID="vehicle-history-empty" style={styles.hint}>Esta viatura ainda não tem ordens de serviço.</Text>}
         {data.work_orders?.map((order: any) => <View key={order.id} style={styles.card}>
-          <Text testID={`vehicle-order-summary-${order.id}`} style={styles.hint}>OS {order.number} · {formatDate(order.created_at)} · {formatEUR(order.total)}</Text>
+          <Text testID={`vehicle-order-summary-${order.id}`} style={styles.hint}>Ordem de Serviço {order.number} · {formatDate(order.created_at)} · {formatEUR(order.total)}</Text>
           <Button testID={`vehicle-open-order-${order.id}`} title="Ver serviço" variant="ghost" onPress={() => router.push(`/(app)/servico/${order.id}`)} />
         </View>)}
       </>}

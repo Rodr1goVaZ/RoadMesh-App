@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { View, Text, Platform } from "react-native";
@@ -14,6 +15,7 @@ function Icon({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export default function AppLayout() {
+  const insets = useSafeAreaInsets();
   const { user, loading, support } = useAuth();
   const allowed = user && !user.password_change_required && (user.role === "workshop_staff" || (user.role === "admin" && support));
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function AppLayout() {
   if (!allowed) return null;
 
   return (
-    <View style={{ flex: 1 }}><SupportBanner /><Tabs
+    <View style={{ flex: 1 }}><SupportBanner /><Tabs backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.brandPrimary,
@@ -30,7 +32,7 @@ export default function AppLayout() {
         tabBarStyle: {
           backgroundColor: colors.surfaceSecondary,
           borderTopColor: colors.border,
-          ...(Platform.OS === "web" ? { height: 64 } : {}),
+          ...(Platform.OS === "web" ? { height: 64 + insets.bottom, paddingBottom: Math.max(insets.bottom, 8) } : {}),
         },
         tabBarItemStyle: { alignSelf: "center" },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
@@ -42,6 +44,10 @@ export default function AppLayout() {
       <Tabs.Screen name="stock" options={{ title: "Stock", tabBarIcon: ({ focused }) => <Icon label="▤" focused={focused} /> }} />
       <Tabs.Screen name="mais" options={{ title: "Mais", tabBarIcon: ({ focused }) => <Icon label="⋯" focused={focused} /> }} />
       <Tabs.Screen name="fotos" options={{ href: null }} />
+      <Tabs.Screen name="fornecedores" options={{ href: null }} />
+      <Tabs.Screen name="configuracoes" options={{ href: null }} />
+      <Tabs.Screen name="historicos" options={{ href: null }} />
+      <Tabs.Screen name="financeiro" options={{ href: null }} />
       <Tabs.Screen name="faturacao" options={{ href: null }} />
       <Tabs.Screen name="orcamentos" options={{ href: null }} />
       <Tabs.Screen name="orcamento-new" options={{ href: null }} />

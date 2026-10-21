@@ -51,14 +51,14 @@ export default function WorkshopDetail() {
         <Button testID="admin-staff-cancel" title="Cancelar" variant="ghost" onPress={() => setAdd(false)} />
       </Panel> : data.status !== "archived" && <Button testID="admin-add-staff" title="Adicionar colaborador" variant="secondary" onPress={() => setAdd(true)} />}
       <Feedback testID="admin-workshop-action-error" error message={error} />
-      {data.status !== "archived" && <Panel testID="admin-workshop-state-actions" title="Estado e arquivo">
+      {data.status !== "archived" && <Panel testID="admin-workshop-state-actions" title="Estado e Arquivo" accent>
         {confirm ? <>
-          <Text testID="admin-workshop-confirmation" style={areaStyles.hint}>{confirm === "archive" ? "Arquivar esta oficina? Os dados são preservados, mas todos os acessos da oficina e dos clientes serão bloqueados." : data.status === "active" ? "Desativar a oficina e bloquear os acessos dos seus utilizadores?" : "Reativar os acessos desta oficina?"}</Text>
-          <Button testID="admin-workshop-confirm" title="Confirmar" variant={confirm === "archive" ? "danger" : "primary"} loading={busy} onPress={() => action(confirm)} />
-          <Button testID="admin-workshop-cancel" title="Cancelar" variant="ghost" disabled={busy} onPress={() => setConfirm("")} />
+          <Text testID="admin-workshop-confirmation" style={[areaStyles.hint, { color: "#FFFFFF" }]}>{confirm === "archive" ? "Arquivar esta oficina? Os dados são preservados, mas todos os acessos da oficina e dos clientes serão bloqueados." : data.status === "active" ? "Desativar a oficina e bloquear os acessos dos seus utilizadores?" : "Reativar os acessos desta oficina?"}</Text>
+          <Button contrast testID="admin-workshop-confirm" title="Confirmar" variant={confirm === "archive" ? "danger" : "primary"} loading={busy} onPress={() => action(confirm)} />
+          <Button contrast testID="admin-workshop-cancel" title="Cancelar" variant="ghost" disabled={busy} onPress={() => setConfirm("")} />
         </> : <>
-          <Button testID="admin-workshop-toggle" title={data.status === "active" ? "Desativar oficina" : "Ativar oficina"} variant="secondary" onPress={() => setConfirm("status")} />
-          <Button testID="admin-workshop-archive" title="Eliminar oficina (arquivar)" variant="ghost" onPress={() => setConfirm("archive")} />
+          <Button contrast testID="admin-workshop-toggle" title={data.status === "active" ? "Desativar oficina" : "Ativar oficina"} variant="secondary" onPress={() => setConfirm("status")} />
+          <Button contrast testID="admin-workshop-archive" title="Eliminar oficina (arquivar)" variant="ghost" onPress={() => setConfirm("archive")} />
         </>}
       </Panel>}
     </>}

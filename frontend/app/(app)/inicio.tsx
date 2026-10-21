@@ -10,7 +10,7 @@ import { KpiCard } from "@/src/components/Card";
 import { StatusChip } from "@/src/components/StatusChip";
 import { LogoWithText } from "@/src/components/Logo";
 import { formatEUR, todayLongPT } from "@/src/utils/format";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { DamageQuickActions } from "@/src/components/DamageQuickActions";
 
 export default function Inicio() {
@@ -31,7 +31,7 @@ export default function Inicio() {
           <Text style={styles.userInitials}>{(user?.name || "?").slice(0, 2).toUpperCase()}</Text>
         </Pressable>
       </View>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
+      <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
                   refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
         <View>
           <Text style={styles.hi}>Olá, {user?.name?.split(" ")[0]}!</Text>
@@ -83,7 +83,7 @@ export default function Inicio() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ações rápidas</Text>
           <View style={styles.actionsGrid}>
-            <QuickAction label="Nova OS" onPress={() => router.push("/(app)/servico/new")} testID="qa-new-wo" />
+            <QuickAction label="Nova ordem de serviço" onPress={() => router.push("/(app)/servico/new")} testID="qa-new-wo" />
             <QuickAction label="Novo Cliente" onPress={() => router.push("/(app)/clientes/new")} testID="qa-new-client" />
             <QuickAction label="Novo Produto" onPress={() => router.push("/(app)/stock/new")} testID="qa-new-product" />
             <QuickAction label="Nova Encomenda" onPress={() => router.push("/(app)/stock/encomenda-new")} testID="qa-new-order" />

@@ -91,3 +91,8 @@ android-sdk/
 # Persistent local demonstration environment
 .demo/
 backend/.local-media/
+
+# Private database exports; keep legitimate application CSV files trackable.
+Supabase Snippet*.csv
+roadmesh-backup*.csv
+/backups/

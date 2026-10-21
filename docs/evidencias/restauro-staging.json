@@ -1,0 +1,10 @@
+{
+  "source": "RoadMesh-Testes, private version-3 snapshot",
+  "tables": 27,
+  "rows": 1358,
+  "all_rows_compared": true,
+  "constraints_checked": true,
+  "restore_engine": "disposable local PGlite",
+  "remote_source_modified": false,
+  "media_bytes_included": false
+}

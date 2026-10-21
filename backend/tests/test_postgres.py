@@ -23,12 +23,18 @@ def pg():
     url = os.environ.get('ROADMESH_TEST_POSTGRES_URL')
     if not url or os.environ.get('ROADMESH_TEST_ALLOW_WRITE') != '1':
         pytest.skip('Requires the disposable PostgreSQL test runner')
-    # Never use DATABASE_URL / a live Supabase database in these destructive tests.
+    # Never use DATABASE_URL. Remote writes require the exact, separately confirmed staging project.
     from psycopg.conninfo import conninfo_to_dict
     host = conninfo_to_dict(url).get('host', '')
-    if host != '127.0.0.1' and not host.startswith('/tmp/roadmesh-pg-test-'):
+    options = conninfo_to_dict(url)
+    staging = (os.environ.get('ROADMESH_TEST_STAGING_PROJECT') == 'deozdqnodbmqehkytzms'
+        and host.endswith('.pooler.supabase.com')
+        and options.get('user') == 'postgres.deozdqnodbmqehkytzms'
+        and options.get('dbname') == 'postgres' and options.get('sslmode') == 'require')
+    if host != '127.0.0.1' and not host.startswith('/tmp/roadmesh-pg-test-') and not staging:
         pytest.fail('PostgreSQL tests require an isolated local server')
-    with psycopg.connect(url, autocommit=True, row_factory=dict_row) as conn:
+    with psycopg.connect(url, autocommit=True, row_factory=dict_row, prepare_threshold=None,
+            cursor_factory=psycopg.ClientCursor if os.environ.get('ROADMESH_TEST_EMBEDDED') == '1' else psycopg.Cursor) as conn:
         yield conn
 
 
@@ -39,7 +45,7 @@ def pg_workshop(workshop_factory):
 
 def test_private_tables_are_not_readable_by_supabase_browser_roles(pg):
     tables = pg.execute("SELECT tablename,rowsecurity FROM pg_tables WHERE schemaname='roadmesh'").fetchall()
-    assert len(tables) == 22
+    assert len(tables) == 27
     assert all(t['rowsecurity'] for t in tables)
     for role in ('anon', 'authenticated'):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
@@ -128,3 +134,77 @@ def test_simultaneous_instance_bootstrap_creates_one_admin(pg, monkeypatch):
             await asyncio.gather(*(db.close() for db in databases))
     asyncio.run(start())
     assert pg.execute('SELECT count(*) AS n FROM roadmesh.users WHERE email=%s',(email,)).fetchone()['n'] == 1
+
+
+def test_failed_delete_audit_restores_order_and_stock_in_same_transaction(pg, pg_workshop):
+    from test_integrity import part
+    s = pg_workshop['session']
+    p = product(s,10)
+    body = order_payload(s,[part(p['id'],2)],status='diagnostico')
+    wo = checked(s.post(API+'/work-orders',json=body),201)
+    trigger = 'audit_failure_' + uuid4().hex
+    function = sql.Identifier('roadmesh',trigger)
+    pg.execute(sql.SQL("CREATE FUNCTION {}() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW.metadata->>'resource' = {} AND NEW.action='work_order.deleted' THEN RAISE EXCEPTION 'test audit failure' USING ERRCODE='23514'; END IF; RETURN NEW; END $body$").format(function,sql.Literal(wo['id'])))
+    pg.execute(sql.SQL('CREATE TRIGGER {} BEFORE INSERT ON roadmesh.admin_support_audit FOR EACH ROW EXECUTE FUNCTION {}()').format(sql.Identifier(trigger),function))
+    try:
+        assert s.delete(f'{API}/work-orders/{wo["id"]}').status_code == 422
+        assert checked(s.get(f'{API}/work-orders/{wo["id"]}'))['items'][0]['quantity'] == 2
+        assert checked(s.get(f'{API}/products/{p["id"]}'))['stock'] == 8
+    finally:
+        pg.execute(sql.SQL('DROP TRIGGER {} ON roadmesh.admin_support_audit').format(sql.Identifier(trigger)))
+        pg.execute(sql.SQL('DROP FUNCTION {}()').format(function))
+    checked(s.delete(f'{API}/work-orders/{wo["id"]}'))
+    assert checked(s.get(f'{API}/products/{p["id"]}'))['stock'] == 10
+    audit = pg.execute("SELECT actor_id,details FROM roadmesh.admin_support_audit WHERE action='work_order.deleted' AND metadata->>'resource'=%s",(wo['id'],)).fetchone()
+    assert str(audit['actor_id']) == pg_workshop['user']['id']
+    assert audit['details']['snapshot']['id'] == wo['id']
+    assert audit['details']['previous_status'] == 'diagnostico'
+
+
+def test_recovery_token_single_use_expiry_and_session_revocation(pg,workshop_factory):
+    import hashlib
+    import requests
+    from access_control import identifier
+    s=workshop_factory('TEST_Recovery')['session']
+    user=checked(s.get(API+'/auth/me'))
+    token=secrets.token_urlsafe(48)
+    version=pg.execute('SELECT session_version FROM roadmesh.users WHERE id=%s',(user['id'],)).fetchone()['session_version']
+    for expired in (True,False):
+        pg.execute("INSERT INTO roadmesh.password_resets(id,user_id,workshop_id,digest,expires_at,metadata) VALUES (%s,%s,%s,%s,%s,%s::jsonb)",
+            (identifier(),user['id'],user['workshop_id'],hashlib.sha256(token.encode()).hexdigest(),
+             datetime.now(timezone.utc)+timedelta(minutes=-1 if expired else 20),
+             '{"session_version":'+str(version)+'}'))
+        response=requests.post(API+'/auth/reset-password',json={'token':token,'new_password':'Updated-Test-Password-2026'})
+        if expired:
+            assert response.status_code==400,response.text
+            pg.execute('DELETE FROM roadmesh.password_resets WHERE user_id=%s',(user['id'],))
+        else:
+            checked(response)
+    assert requests.post(API+'/auth/reset-password',json={'token':token,'new_password':'Another-Test-Password-2026'}).status_code==400
+    assert s.get(API+'/auth/me').status_code==401
+    checked(requests.post(API+'/auth/staff/login',json={'email':user['email'],'password':'Updated-Test-Password-2026'}))
+    checked(requests.post(API+'/auth/forgot-password',json={'email':user['email']}))
+    unknown=checked(requests.post(API+'/auth/forgot-password',json={'email':'missing-'+secrets.token_hex(8)+'@example.pt'}))
+    assert 'message' in unknown and 'token' not in unknown
+
+
+def test_financial_and_receipt_history_is_immutable_in_sql(pg,pg_workshop):
+    s=pg_workshop['session']
+    wo=checked(s.post(API+'/work-orders',json=order_payload(s,status='concluido')),201)
+    invoice=checked(s.post(API+'/invoices',json={'work_order_id':wo['id'],'document_type':'fatura'}),201)
+    movement=checked(s.get(API+'/invoices/'+invoice['id']+'/balance'))['movements'][0]
+    for command in ('UPDATE roadmesh.financial_movements SET amount=1 WHERE id=%s',
+                    'DELETE FROM roadmesh.financial_movements WHERE id=%s'):
+        with pytest.raises(psycopg.errors.CheckViolation):
+            pg.execute(command,(movement['id'],))
+
+
+def test_runtime_role_cannot_rewrite_financial_or_audit_history(pg):
+    with pg.transaction():
+        pg.execute('SET LOCAL ROLE roadmesh_runtime')
+        assert pg.execute('SELECT count(*) FROM roadmesh.workshops').fetchone() is not None
+    for table in ('financial_movements','order_receipts','admin_support_audit'):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            with pg.transaction():
+                pg.execute('SET LOCAL ROLE roadmesh_runtime')
+                pg.execute(sql.SQL('DELETE FROM roadmesh.{} WHERE false').format(sql.Identifier(table)))

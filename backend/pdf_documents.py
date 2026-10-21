@@ -58,7 +58,7 @@ def build_invoice_pdf(invoice):
     header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
     story = [header, Spacer(1, 24), p(f"{name} · {invoice['document_number']}", heading),
              p("DOCUMENTO INTERNO · SEM VALIDADE FISCAL", bold),
-             p(f"Data: {date_pt(invoice['created_at'])}     |     OS {snapshot.get('wo_number', '—')}"), Spacer(1, 18)]
+             p(f"Data: {date_pt(invoice['created_at'])}     |     Ordem de Serviço {snapshot.get('wo_number', '—')}"), Spacer(1, 18)]
     client_info = [p("CLIENTE", bold), p(client.get("name")), p(f"NIF: {client.get('nif') or '—'}"),
                    p(client.get("address")), p(client.get("email")), p(client.get("phone"))]
     vehicle_info = [p("VIATURA", bold), p(vehicle.get("license_plate")),

@@ -1,0 +1,16 @@
+{
+  "version3_backup_restored_and_compared": true,
+  "resolution_rollback_verified": true,
+  "source_rows": 406,
+  "source_tables": 22,
+  "target_tables": 27,
+  "duplicate_clients_before": 2,
+  "duplicate_clients_after": 1,
+  "client_rows_removed": 1,
+  "removed_row_preserved_in_audit": true,
+  "all_other_original_table_counts_preserved": true,
+  "existing_duplicate_blocks_migration_atomically": true,
+  "schema_version": 3,
+  "engine": "PGlite local disposable, not Supabase staging",
+  "production_modified": false
+}

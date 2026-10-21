@@ -1,0 +1,11 @@
+{
+  "project": "RoadMesh-Testes",
+  "bucket": "roadmesh-media",
+  "synthetic_image": true,
+  "image_bytes": 633,
+  "authenticated_upload": true,
+  "authenticated_read_identical": true,
+  "unauthenticated_public_read_status": 400,
+  "object_retained_privately": true,
+  "production_modified": false
+}

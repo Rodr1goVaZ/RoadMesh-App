@@ -63,7 +63,7 @@ export default function VehiclePhotos() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Fotos do Veículo" back />
       {vehicle && <Text style={styles.sub}>{vehicle.make} {vehicle.model} · {vehicle.license_plate}</Text>}
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 4 }}>
           {ZONES.map(z => (
             <Pressable key={z.id} testID={`zone-${z.id}`} onPress={() => { setZone(z.id); setSelected(null); }}

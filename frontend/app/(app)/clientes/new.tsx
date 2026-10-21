@@ -1,8 +1,8 @@
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
 import { colors, spacing } from "@/src/theme";
@@ -27,7 +27,7 @@ export default function NewClient() {
       await api.post("/clients", { name: name.trim(), nif, phone, email, address });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["clients-all"] });
-      router.back();
+      goBack();
     } catch (e: any) { Alert.alert("Erro", e.message); }
     finally { setLoading(false); }
   };
@@ -36,7 +36,7 @@ export default function NewClient() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title="Novo Cliente" back testID="new-client-header" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
           <Input label="Nome *" value={name} onChangeText={setName} testID="client-name" />
           <Input label="NIF" value={nif} onChangeText={setNif} keyboardType="number-pad" testID="client-nif" />
           <Input label="Telefone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="client-phone" />

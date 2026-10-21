@@ -28,7 +28,7 @@ from pymongo.errors import DuplicateKeyError
 
 TABLES = frozenset('workshops clients users vehicles products appointments quotes work_orders '
     'work_order_items quote_items purchase_orders purchase_order_items stock_movements '
-    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit'.split())
+    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets'.split())
 CHILDREN = {'work_orders': ('work_order_items', 'work_order_id'),
             'quotes': ('quote_items', 'quote_id'),
             'purchase_orders': ('purchase_order_items', 'purchase_order_id')}
@@ -93,10 +93,33 @@ class PostgresDatabase:
             for row in rows:
                 self.columns.setdefault(row['table_name'], {})[row['column_name']] = row['udt_name']
             if any('metadata' not in self.columns.get(name, {}) for name in TABLES) or self.columns.get('work_orders', {}).get('number') != 'text':
-                raise RuntimeError('Apply backend/sql/001_initial.sql and 002_backend_compatibility.sql before starting PostgreSQL mode.')
+                raise RuntimeError('Apply backend/sql/001_initial.sql 002_backend_compatibility.sql and 003_business_modules.sql before starting PostgreSQL mode.')
             # SQL expiry checks are authoritative. Cleanup is bounded to startup.
             for name in ('revoked_sessions', 'login_limits', 'support_sessions'):
                 await conn.execute(sql.SQL('DELETE FROM roadmesh.{} WHERE expires_at <= now()').format(sql.Identifier(name)))
+
+    async def history_years(self,collection,scope):
+        table=self[collection]
+        condition,args=table.where(scope)
+        async with self.connection() as conn:
+            rows=await (await conn.execute(sql.SQL("SELECT DISTINCT extract(year FROM t.created_at AT TIME ZONE 'Europe/Lisbon')::int AS year FROM {} t WHERE {} ORDER BY year DESC").format(table.table,condition),args)).fetchall()
+            return [r['year'] for r in rows]
+
+    async def finance_summary(self, workshop_id):
+        async with self.connection() as conn:
+            row = await (await conn.execute("""
+                WITH services AS (
+                  SELECT work_order_id,
+                    sum(CASE WHEN kind='charge' THEN amount ELSE 0 END) AS invoiced,
+                    sum(CASE WHEN kind='credit' THEN amount ELSE 0 END) AS credited,
+                    sum(CASE WHEN kind='payment' THEN amount WHEN kind='payment_reversal' THEN -amount ELSE 0 END) AS available
+                  FROM roadmesh.financial_movements WHERE workshop_id=%s GROUP BY work_order_id
+                ) SELECT coalesce(sum(invoiced),0) AS invoiced, coalesce(sum(credited),0) AS credited,
+                  coalesce(sum(available),0) AS available,
+                  coalesce(sum(greatest(invoiced-credited-available,0)),0) AS pending,
+                  coalesce(sum(greatest(available+credited-invoiced,0)),0) AS refund_due FROM services
+            """, (workshop_id,))).fetchone()
+            return {key:float(value) for key,value in row.items()}
 
     async def close(self):
         await self.pool.close()

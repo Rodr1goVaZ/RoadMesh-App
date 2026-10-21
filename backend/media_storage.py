@@ -5,6 +5,7 @@ import os
 import threading
 import uuid
 import tempfile
+from urllib.parse import quote, urlsplit
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -24,12 +25,34 @@ def local_root():
     return Path(os.environ.get("LOCAL_MEDIA_ROOT", Path(__file__).parent / ".local-media")).resolve()
 
 
+def storage_configuration(driver=None):
+    driver = driver or os.environ.get("STORAGE_DRIVER","managed")
+    if driver == "local":
+        local_root().mkdir(parents=True,exist_ok=True)
+    elif driver == "supabase":
+        url = os.environ.get("SUPABASE_URL","").rstrip("/")
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.query or parsed.fragment:
+            raise RuntimeError("Configure a valid HTTPS SUPABASE_URL")
+        if not os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or not os.environ.get("SUPABASE_STORAGE_BUCKET"):
+            raise RuntimeError("Configure private Supabase Storage credentials and bucket")
+    elif driver != "managed":
+        raise RuntimeError("STORAGE_DRIVER must be managed, supabase or local")
+    return driver
+
+
 def init_storage():
     if os.environ.get("STORAGE_DRIVER", "managed") == "local":
         local_root().mkdir(parents=True, exist_ok=True)
         return "local"
+    if storage_configuration() == "supabase":
+        return "supabase"
     if os.environ.get("STORAGE_DRIVER", "managed") != "managed":
         raise RuntimeError("STORAGE_DRIVER must be managed or local")
+    return managed_storage_key()
+
+
+def managed_storage_key():
     global _key
     with _lock:
         if not _key:
@@ -39,19 +62,41 @@ def init_storage():
     return _key
 
 
-def storage_request(method, path, content_type="image/jpeg", **kwargs):
-    if os.environ.get("STORAGE_DRIVER", "managed") == "local":
+def storage_request(method, path, content_type="image/jpeg", provider=None, **kwargs):
+    provider = provider or os.environ.get("STORAGE_DRIVER","managed")
+    if provider == "supabase":
+        return supabase_request(method,path,content_type,**kwargs)
+    if provider == "local":
         return local_request(method, path, content_type, **kwargs)
     global _key
     for attempt in range(2):
         response = requests.request(method, f"{STORAGE_URL}/objects/{path}",
-                                    headers={"X-Storage-Key": init_storage(), "Content-Type": content_type},
+                                    headers={"X-Storage-Key": managed_storage_key(), "Content-Type": content_type},
                                     timeout=60, **kwargs)
         if response.status_code == 503 and attempt == 0:
             _key = None
             continue
         response.raise_for_status()
         return response
+
+
+def supabase_request(method,path,content_type="image/jpeg",**kwargs):
+    if not path or path.startswith('/') or any(p in ('','..','.') for p in path.split('/')):
+        raise HTTPException(422,"Caminho de fotografia inválido.")
+    storage_configuration("supabase")
+    base=os.environ['SUPABASE_URL'].rstrip('/')+'/storage/v1/object/'
+    bucket=quote(os.environ['SUPABASE_STORAGE_BUCKET'],safe='')
+    key=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+    headers={'Authorization':'Bearer '+key,'apikey':key,'Content-Type':content_type}
+    response=requests.request('POST' if method=='PUT' else method,
+        base+bucket+'/'+quote(path,safe='/'),headers=headers,timeout=30,**kwargs)
+    response.raise_for_status()
+    if method=='PUT':
+        # Normalize provider responses; never send its bucket URL or credentials to clients.
+        import json
+        result=requests.Response();result.status_code=200;result._content=json.dumps({'path':path}).encode()
+        return result
+    return response
 
 
 def local_request(method, path, content_type="image/jpeg", **kwargs):
@@ -128,7 +173,7 @@ def register_media_routes(api, db, access):
             raise storage_failure(exc) from exc
         doc = {"id": media_id, "workshop_id": user["workshop_id"], "owner_id": user["id"],
                "storage_path": result.json()["path"], "content_type": "image/jpeg",
-               "size": len(image), "created_at": datetime.now(timezone.utc).isoformat()}
+               "storage_provider":os.environ.get("STORAGE_DRIVER","managed"), "size": len(image), "created_at": datetime.now(timezone.utc).isoformat()}
         await db.media.insert_one(doc)
         return {"id": media_id, "size": len(image)}
 
@@ -150,7 +195,7 @@ def register_media_routes(api, db, access):
         if not doc:
             raise HTTPException(404, "Fotografia não encontrada")
         try:
-            response = await run_in_threadpool(storage_request, "GET", doc["storage_path"])
+            response = await run_in_threadpool(storage_request, "GET", doc["storage_path"], provider=doc.get("storage_provider"))
         except (requests.RequestException, OSError) as exc:
             raise storage_failure(exc) from exc
         return Response(response.content, media_type=doc["content_type"],

@@ -11,9 +11,10 @@ type Props = {
   fullWidth?: boolean;
   testID?: string;
   style?: ViewStyle;
+  contrast?: boolean;
 };
 
-export function Button({ title, onPress, variant = "primary", loading, disabled, fullWidth = true, testID, style }: Props) {
+export function Button({ title, onPress, variant = "primary", loading, disabled, fullWidth = true, testID, style, contrast = false }: Props) {
   const bg =
     variant === "primary" ? colors.brandPrimary :
     variant === "secondary" ? colors.surfaceSecondary :
@@ -31,13 +32,13 @@ export function Button({ title, onPress, variant = "primary", loading, disabled,
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.btn,
-        { backgroundColor: bg, borderColor: border, borderWidth: variant === "secondary" ? 1.5 : 0 },
+        { backgroundColor: contrast ? "transparent" : bg, borderColor: contrast ? "#FFFFFF" : border, borderWidth: contrast || variant === "secondary" ? 1.5 : 0 },
         fullWidth ? { alignSelf: "stretch" } : { alignSelf: "flex-start" },
         (pressed || disabled) && { opacity: 0.75 },
         style,
       ]}
     >
-      {loading ? <ActivityIndicator testID={testID ? `${testID}-loading` : undefined} color={fg} /> : <Text testID={testID ? `${testID}-label` : undefined} style={[styles.txt, { color: fg }]}>{title}</Text>}
+      {loading ? <ActivityIndicator testID={testID ? `${testID}-loading` : undefined} color={fg} /> : <Text testID={testID ? `${testID}-label` : undefined} style={[styles.txt, { color: contrast ? "#FFFFFF" : fg }]}>{title}</Text>}
     </Pressable>
   );
 }

@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "RoadMesh",
+  "short_name": "RoadMesh",
+  "lang": "pt-PT",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#7A1E2B",
+  "icons": [
+    {
+      "src": "/roadmesh-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/roadmesh-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

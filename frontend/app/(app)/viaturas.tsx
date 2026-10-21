@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/api";
@@ -20,7 +20,7 @@ export default function Vehicles() {
     <ScreenHeader title="Pesquisar matrícula" back testID="vehicle-search-header" />
     <View style={styles.search}>
       <Input testID="vehicle-plate-search" label="Matrícula" value={search} onChangeText={setSearch} autoCapitalize="characters" autoCorrect={false} placeholder="Ex.: AA-12-BB ou AA12BB" returnKeyType="search" />
-      <Text testID="vehicle-search-help" style={styles.hint}>Todas as viaturas da sua oficina, mesmo sem OS.</Text>
+      <Text testID="vehicle-search-help" style={styles.hint}>Todas as viaturas da sua oficina, mesmo sem Ordem de Serviço.</Text>
       {search ? <Button testID="vehicle-search-clear" title="Limpar pesquisa" variant="ghost" onPress={() => setSearch("")} /> : null}
       {searching && <ActivityIndicator testID="vehicle-search-loading" color={colors.brandPrimary} />}
       {!searching && !error && <Text testID="vehicle-search-count" style={styles.hint}>{data.length} viatura(s) encontrada(s)</Text>}
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   search: { padding: spacing.lg, gap: 8 },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  list: { padding: spacing.lg, paddingTop: 4, gap: 12, paddingBottom: 40 },
+  list: { width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, paddingTop: 4, gap: 12, paddingBottom: 40 },
   card: { flexDirection: "row", alignItems: "center", gap: 12, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surfaceSecondary, ...shadows.card },
   icon: { padding: 12, borderRadius: radius.md, backgroundColor: colors.brandTertiary },
   info: { flex: 1, gap: 4 },

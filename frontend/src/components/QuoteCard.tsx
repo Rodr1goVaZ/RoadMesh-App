@@ -65,9 +65,9 @@ export function QuoteCard({ quote }: { quote: any }) {
     </View>}
     {!quote.converted_work_order_id && quote.status === "aceite" && (confirm ? <>
       <Text testID={`quote-convert-confirmation-${id}`} style={styles.hint}>Criar uma ordem de serviço a partir deste orçamento?</Text>
-      <Button testID={`quote-convert-confirm-${id}`} title="Criar OS" disabled={!!busy} loading={busy === "convert"} onPress={convert} />
+      <Button testID={`quote-convert-confirm-${id}`} title="Criar Ordem de Serviço" disabled={!!busy} loading={busy === "convert"} onPress={convert} />
       <Button testID={`quote-convert-cancel-${id}`} title="Cancelar" variant="ghost" disabled={!!busy} onPress={() => setConfirm(false)} />
-    </> : <Button testID={`quote-convert-${id}`} title="Converter em OS" disabled={!!busy} onPress={() => setConfirm(true)} />)}
+    </> : <Button testID={`quote-convert-${id}`} title="Converter em Ordem de Serviço" disabled={!!busy} onPress={() => setConfirm(true)} />)}
   </View>;
 }
 const styles = StyleSheet.create({

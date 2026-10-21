@@ -1,3 +1,7 @@
+import { YearFilter } from "@/src/components/YearFilter";
+import { ProductSettings } from "@/src/components/ProductSettings";
+import { useAuth } from "@/src/auth";
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
@@ -15,7 +19,10 @@ export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const { user, support } = useAuth();
   const [operationError, setOperationError] = useState("");
+  const [year, setYear] = useState(""); const [page, setPage] = useState(0);
+  const history = useQuery({ queryKey: ["history", "stock", id, year, page], queryFn: () => api.get(`/history/stock?product_id=${encodeURIComponent(id!)}&skip=${page * 50}&limit=50${year ? "&year=" + year : ""}`), enabled: !!id });
   const { data } = useQuery({ queryKey: ["product", id], queryFn: () => api.get(`/products/${id}`), enabled: !!id });
   if (!data) return <View style={{ flex: 1, backgroundColor: colors.surface }}><ScreenHeader title="Produto" back /></View>;
   const low = data.stock <= data.min_stock;
@@ -27,7 +34,7 @@ export default function ProductDetail() {
       try {
         await api.del(`/products/${id}`);
         await qc.invalidateQueries({ queryKey: ["products"] });
-        router.back();
+        goBack();
       } catch (error) { setOperationError(error instanceof Error ? error.message : "Não foi possível apagar o produto."); }
     }},
   ]);
@@ -36,7 +43,7 @@ export default function ProductDetail() {
     <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <ScreenHeader title={data.name} back />
       <Feedback testID="produto-operation-error" message={operationError} error />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
         <View style={styles.card}>
           <Text style={styles.ref}>{data.reference}</Text>
           <Text style={styles.name}>{data.name}</Text>
@@ -65,8 +72,10 @@ export default function ProductDetail() {
 
         <View style={styles.card}>
           <Text style={styles.section}>Movimentos de Stock</Text>
-          {(data.movements || []).length === 0 && <Text style={styles.mut}>Sem movimentos.</Text>}
-          {(data.movements || []).map((m: any) => (
+          <YearFilter resource="stock" extra={`product_id=${encodeURIComponent(id!)}`} value={year} onChange={v => { setYear(v); setPage(0); }} />
+          <Feedback testID="stock-history-error" error message={history.error?.message} />
+          {(history.data?.items || []).length === 0 && <Text style={styles.mut}>Sem movimentos.</Text>}
+          {(history.data?.items || []).map((m: any) => (
             <View key={m.id} style={styles.mvRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.mvReason}>{m.reason}</Text>
@@ -79,7 +88,18 @@ export default function ProductDetail() {
           ))}
         </View>
 
-        <Button title="Apagar produto" variant="danger" testID="prod-delete" onPress={del} />
+        <Text style={styles.mut}>Página {page + 1} · {history.data?.total || 0} movimentos</Text>
+        <Button title="Movimentos anteriores" variant="secondary" disabled={page === 0} onPress={() => setPage(p => p - 1)} />
+        <Button title="Movimentos seguintes" variant="secondary" disabled={!history.data || (page + 1) * 50 >= history.data.total} onPress={() => setPage(p => p + 1)} />
+        <Text style={styles.mut}>Margem bruta: {data.sale_price > 0 ? ((data.sale_price - data.purchase_price) / data.sale_price * 100).toFixed(2) + "%" : "indisponível (preço de venda zero)"}</Text>
+        <Text style={styles.mut}>Reposição automática: {data.restock_enabled ? "Ativa · propostas por validar" : "Desativada"}</Text>
+        {(user?.can_manage_workshop || support) && <ProductSettings key={id} product={data} />}
+        <Button title="Adicionar à encomenda" onPress={async () => {
+          setOperationError("");
+          try { const draft = await api.post(`/products/${id}/draft-order`, {}); await qc.invalidateQueries({ queryKey: ["purchase-orders"] }); router.push({ pathname: "/(app)/stock/encomenda", params: { id: draft.id } }); }
+          catch (e: any) { setOperationError(e.message); }
+        }} />
+        {(user?.can_manage_workshop || support) && <Button title="Apagar produto" variant="danger" testID="prod-delete" onPress={del} />}
       </ScrollView>
     </View>
   );

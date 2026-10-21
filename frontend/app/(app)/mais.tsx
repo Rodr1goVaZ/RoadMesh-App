@@ -1,3 +1,4 @@
+import { Button } from "@/src/components/Button";
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { AppAlert as Alert } from "@/src/utils/alerts";
@@ -9,7 +10,7 @@ import { LogoWithText } from "@/src/components/Logo";
 
 export default function Mais() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, support } = useAuth();
 
   const logoutConfirm = () => Alert.alert("Sair", "Terminar sessão?", [
     { text: "Cancelar", style: "cancel" },
@@ -25,6 +26,9 @@ export default function Mais() {
     { label: "Novo Cliente", onPress: () => router.push("/(app)/clientes/new"), testID: "mais-new-client" },
     { label: "Novo Produto", onPress: () => router.push("/(app)/stock/new"), testID: "mais-new-prod" },
     { label: "Nova Encomenda", onPress: () => router.push("/(app)/stock/encomenda-new"), testID: "mais-new-po" },
+    { label: "Fornecedores", onPress: () => router.push("/(app)/fornecedores"), testID: "mais-suppliers" },
+    { label: "Configurações da oficina", onPress: () => router.push("/(app)/configuracoes"), testID: "mais-settings" },
+    { label: "Históricos e movimentos", onPress: () => router.push("/(app)/historicos"), testID: "mais-history" },
     { label: "Encomendas", onPress: () => router.push("/(app)/stock/encomendas"), testID: "mais-orders" },
     { label: "Faturação", onPress: () => router.push("/(app)/faturacao"), testID: "mais-invoices" },
     { label: "Orçamentos", onPress: () => router.push("/(app)/orcamentos"), testID: "mais-quotes" },
@@ -43,12 +47,13 @@ export default function Mais() {
           </View>
         </View>
         <Text style={styles.section}>Atalhos</Text>
-        {items.map((it, i) => (
+        {items.filter(it => user?.can_manage_workshop || support || !["mais-new-prod", "mais-new-po"].includes(it.testID)).map((it, i) => (
           <Pressable key={i} testID={it.testID} onPress={it.onPress} style={styles.row}>
             <Text style={styles.rowTxt}>{it.label}</Text>
             <Text style={{ color: colors.muted, fontSize: 18 }}>›</Text>
           </Pressable>
         ))}
+        {(user?.can_manage_workshop || support) && <Button title="Contas e pagamentos" onPress={() => router.push("/(app)/financeiro")} />}
         <Pressable testID="logout-btn" onPress={logoutConfirm} style={[styles.row, { marginTop: 8 }]}>
           <Text style={[styles.rowTxt, { color: colors.error }]}>Sair</Text>
         </Pressable>

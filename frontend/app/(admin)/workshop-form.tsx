@@ -1,3 +1,4 @@
+import { goBack } from "@/src/utils/navigation";
 import React, { useState } from "react";
 import { Image, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -35,7 +36,7 @@ function WorkshopEditor({ id, data }: { id?: string; data?: any }) {
       const payload = { ...form, logo_media_id: mediaId, email: form.email.trim() || null };
       const response = id ? await api.put(`/admin/workshops/${id}`, payload) : await api.post("/admin/workshops", payload);
       await Promise.all(["admin-workshops", "admin-workshop", "admin-dashboard"].map(key => qc.invalidateQueries({ queryKey: [key] })));
-      if (response.credentials) setCredentials(response.credentials); else router.back();
+      if (response.credentials) setCredentials(response.credentials); else goBack();
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   };
