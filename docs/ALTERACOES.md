@@ -1,14 +1,14 @@
 # RoadMesh — relatório das alterações e validação
 
-**Data:** 20 de outubro de 2026. **Branch:** `codex/roadmesh-auditoria-melhorias`. **Base:** `8a55d9d`.
+**Atualizado:** 22 de outubro de 2026. **Branch:** `codex/roadmesh-auditoria-melhorias`. **Commit:** `04d5bac`. **Base original:** `8a55d9d`.
 
-Esta entrega contém alterações locais, testes e documentação. Não foi feito commit, push, deployment nem migração em produção. A versão publicada na Vercel continua a ser a anterior. A documentação de utilização, arquitetura, instalação, email, fotografias e publicação encontra-se em [PROJETO.md](PROJETO.md).
+Esta entrega contém código, testes e documentação. O commit 04d5bac e a referência remota local coincidem. A migração 003 já foi aplicada na produção, com backup e auditoria. O deployment do código mais recente não foi confirmado nesta atualização. As secções datadas seguintes preservam o histórico das etapas anteriores. A documentação de utilização, arquitetura, instalação, email, fotografias e publicação encontra-se em [PROJETO.md](PROJETO.md).
 
 ## 1. Resultado e limites
 
 Foram implementados os módulos pedidos de permissões, configurações, fornecedores, margens, rascunhos/reposição, receção parcial, livro financeiro, seleção por modal, históricos anuais, navegação, recuperação e identidade RoadMesh. Os percursos principais passaram os testes automáticos e uma revisão no navegador com dados fictícios.
 
-**A publicação ainda depende da revisão dos dois clientes duplicados sobre uma cópia atual da produção, da configuração de produção e dos testes físicos. A base Supabase separada e o armazenamento privado já foram validados em testes em 21/10.** Não se apresenta a aplicação como certificada fiscalmente, sem riscos de segurança ou validada em todos os iPhones. A recuperação por email foi implementada; por decisão do utilizador, o serviço SMTP fica por contratar/configurar e o procedimento está documentado.
+**A resolução do duplicado e a migração foram concluídas em produção em 21/10. Falta confirmar a publicação do código recente, a configuração de fotografias na produção e os testes físicos. A base separada e o armazenamento privado foram validados em testes.** Não se apresenta a aplicação como certificada fiscalmente, sem riscos de segurança ou validada em todos os iPhones. A recuperação por email foi implementada; por decisão do utilizador, o serviço SMTP fica por contratar/configurar e o procedimento está documentado.
 
 ## 2. Correspondência com o pedido
 
@@ -228,3 +228,28 @@ Foi preservada a conta admin existente; a palavra-passe foi renovada e guardada 
 Validação: **5 testes de integração aprovados** em PostgreSQL local descartável, cobrindo login comum de admin/oficina/cliente, credenciais inválidas, troca de palavra-passe temporária e recusa de acesso entre perfis; inclui a regressão existente do portal. TypeScript, ESLint, Ruff e exportação web passaram. Inspeção visual da página /login confirmou um único formulário e ausência de título superior. Não foram usadas contas ou dados da produção.
 
 Estas alterações estão apenas no código local; exigem publicação do backend e frontend, por esta ordem. O frontend antigo continua compatível com o novo backend. O novo frontend precisa do novo backend para autenticar admin e cliente pelo endpoint comum.
+
+
+## Estado documental consolidado em 22 de outubro
+
+O código do login único, favicon e cabeçalhos está no commit 04d5bac, coincidente com a referência remota local. O deployment na Vercel exige confirmação independente. A migração 003 e a preparação do admin foram concluídas em 21/10. A conta não tem credenciais expostas nestes documentos. As versões Word consolidadas estão em documentos/.
+
+## 22 de outubro de 2026 Portal responsivo inspirado no Stitch
+
+- Novo início do cliente com cabeçalho pessoal, cartão de histórico, viatura com fotografia, quilometragem, próxima marcação, alertas baseados nas marcações e acessos rápidos.
+- Navegação inferior em mobile e superior em tablet/desktop; duas colunas no painel e grelha responsiva de viaturas.
+- Histórico acessível por viatura, mantendo ficha, despesas, intervenções, orçamentos, fotografias e danos existentes.
+- Nesta primeira etapa o tema foi limitado ao contexto do cliente; foi depois estendido às restantes áreas, conforme a entrada seguinte. A fotografia só usa recorte cover onde é solicitado; o comportamento contain continua por omissão.
+- Agendamento usa o formulário e a API atuais e preenche a viatura a partir do cartão. Mantém todas as ações anteriores.
+- Nenhuma tabela, permissão ou endpoint de produção foi alterado para o redesenho. Não foram acrescentados dados ou funcionalidades fictícias de seguros ou diagnósticos de pneus.
+- Fotografia ilustrativa gerada adicionada, a pedido do titular, exclusivamente à demonstração local isolada, através do upload e da associação autenticados.
+
+Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes de integração de login, portal, isolamento, marcações e propostas aprovados numa base PostgreSQL descartável. No navegador local foi verificado o encaminhamento do cliente para Início, a apresentação em 393×852, 768×1024 e 1440×1000, criação/cancelamento de marcação fictícia, viatura pré-selecionada, acesso ao histórico completo e perfil. A leitura autenticada da nova fotografia foi confirmada pela API do cliente. Não houve teste físico de dispositivos nem publicação na Vercel neste passo.
+
+## 22 de outubro de 2026 — Administração e oficina
+
+- Cabeçalho e navegação partilhados entre cliente, oficina e administração, com adaptação a mobile, tablet e desktop.
+- Painel da oficina redesenhado com indicadores, pesquisa, serviços recentes, danos, atalhos e agenda; menu Mais reorganizado em cartões.
+- Painel administrativo redesenhado, mantendo os oito indicadores e ações existentes; criada uma página de conta com alteração de palavra-passe e saída.
+- Cartões e cores comuns aplicados às áreas operacionais, sem alterações a endpoints, permissões ou dados de produção.
+- Validação local: TypeScript, ESLint e exportação web aprovados; seis testes PostgreSQL de autenticação/permissões e dez testes Node de sessão/preços aprovados. Navegação, lista/detalhe de oficina, formulário de criação, conta, entrada/saída do suporte e formulário de ordem de serviço verificados no navegador. Layouts revistos em 393×852, 768×1024 e 1440×1000. Sem publicação na Vercel nem validação em dispositivos físicos.

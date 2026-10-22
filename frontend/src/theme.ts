@@ -6,7 +6,7 @@ export type ColorScheme = "light" | "dark";
 
 const light = {
   // Surfaces
-  surface: "#EEF3FA",
+  surface: "#F8F9FD",
   onSurface: "#111827",
   surfaceSecondary: "#FFFFFF",
   onSurfaceSecondary: "#111827",
@@ -17,9 +17,9 @@ const light = {
   muted: "#6B7280",
 
   // Brand
-  brand: "#7A1E2B",
+  brand: "#650D0D",
   onBrand: "#FFFFFF",
-  brandPrimary: "#7A1E2B",
+  brandPrimary: "#650D0D",
   onBrandPrimary: "#FFFFFF",
   brandSecondary: "#1E293B",
   onBrandSecondary: "#FFFFFF",
@@ -48,7 +48,7 @@ export const defaultScheme = "light" satisfies ColorScheme;
 export const themes: { light: ThemeColors; dark?: ThemeColors } = { light };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, "2xl": 32, "3xl": 48 };
-export const radius = { sm: 6, md: 8, lg: 12, xl: 16, pill: 999 };
+export const radius = { sm: 6, md: 14, lg: 24, xl: 28, pill: 999 };
 export const shadows = {
   card: {
     shadowColor: "#0F172A",

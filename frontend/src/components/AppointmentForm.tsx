@@ -17,9 +17,9 @@ export function appointmentLocal(date: string, time: string) {
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) throw new Error("Use a data dd/mm/aaaa e a hora hh:mm.");
   return `${date.split("/").reverse().join("-")}T${time}`;
 }
-export function AppointmentForm({ appointment, onClose }: { appointment?: any; onClose: () => void }) {
+export function AppointmentForm({ appointment, initialVehicleId, onClose }: { appointment?: any; initialVehicleId?: string; onClose: () => void }) {
   const qc = useQueryClient(); const initial = localToInputs(appointment?.scheduled_local);
-  const [vehicle, setVehicle] = useState(appointment?.vehicle_id || ""); const [date, setDate] = useState(initial.date); const [time, setTime] = useState(initial.time);
+  const [vehicle, setVehicle] = useState(appointment?.vehicle_id || initialVehicleId || ""); const [date, setDate] = useState(initial.date); const [time, setTime] = useState(initial.time);
   const [description, setDescription] = useState(appointment?.description || ""); const [contact, setContact] = useState(appointment?.contact || "");
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const { data = [], isLoading, error: loadError, refetch } = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
