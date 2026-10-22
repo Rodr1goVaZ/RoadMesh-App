@@ -1,21 +1,25 @@
-import React from "react";
-import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions, ActivityIndicator } from "react-native";
+import React, { useContext } from "react";
+import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions, ActivityIndicator, Pressable, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "./ScreenHeader";
 import { Button } from "./Button";
 import { Feedback } from "./Feedback";
 import { colors, radius, spacing, shadows } from "../theme";
+import { PortalVisualContext, portalColors, portalStyles } from "../portal/theme";
+import { goBack } from "../utils/navigation";
 
-export function AreaPage({ title, testID, back = true, children }: { title: string; testID: string; back?: boolean; children: React.ReactNode }) {
+export function AreaPage({ title, testID, back = true, children, onRefresh, refreshing = false }: { title: string; testID: string; back?: boolean; children: React.ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
   const insets = useSafeAreaInsets();
-  return <View style={areaStyles.screen}><ScreenHeader title={title} back={back} testID={`${testID}-header`} />
+  const portal = useContext(PortalVisualContext); const { width } = useWindowDimensions();
+  return <View style={[areaStyles.screen, portal && { backgroundColor: portalColors.background }]}>{portal ? back && <Pressable testID="back-btn" accessibilityRole="button" accessibilityLabel="Voltar" onPress={goBack} style={{ minHeight: 44, paddingHorizontal: 24, justifyContent: "center" }}><Text style={{ fontSize: 28, color: portalColors.brand }}>‹</Text></Pressable> : <ScreenHeader title={title} back={back} testID={`${testID}-header`} />}
     <KeyboardAvoidingView style={areaStyles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView testID={testID} keyboardShouldPersistTaps="handled" contentContainerStyle={[areaStyles.content, { paddingBottom: insets.bottom + 40 }]}>{children}</ScrollView>
+      <ScrollView testID={testID} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined} contentContainerStyle={[areaStyles.content, portal && { maxWidth: 1264, paddingHorizontal: width < 700 ? 22 : 32, paddingTop: 4, gap: 20 }, { paddingBottom: insets.bottom + 40 }]}>{children}</ScrollView>
     </KeyboardAvoidingView>
   </View>;
 }
 export function Panel({ title, testID, children, accent = false }: { title?: string; testID: string; children: React.ReactNode; accent?: boolean }) {
-  return <View testID={testID} style={[areaStyles.panel, accent && { backgroundColor: colors.brandPrimary }]}>{title && <Text testID={`${testID}-title`} style={[areaStyles.title, accent && { color: "#FFFFFF" }]}>{title}</Text>}{children}</View>;
+  const portal = useContext(PortalVisualContext);
+  return <View testID={testID} style={[areaStyles.panel, portal && portalStyles.card, accent && { backgroundColor: colors.brandPrimary }]}>{title && <Text testID={`${testID}-title`} style={[areaStyles.title, accent && { color: "#FFFFFF" }]}>{title}</Text>}{children}</View>;
 }
 export function Metrics({ entries, testID }: { entries: { label: string; value: string | number }[]; testID: string }) {
   const { width } = useWindowDimensions();

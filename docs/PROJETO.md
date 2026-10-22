@@ -1,7 +1,7 @@
 # RoadMesh — documentação do projeto
 
-**Versão documentada:** branch `codex/roadmesh-auditoria-melhorias`, sobre `8a55d9d`.
-**Data:** 20 de outubro de 2026. **Estado:** versão local validada automaticamente, com condições de publicação pendentes; não corresponde ainda à versão publicada.
+**Versão documentada:** commit `04d5bac`, branch `codex/roadmesh-auditoria-melhorias`.
+**Data:** 22 de outubro de 2026. **Estado:** código com commit e referência remota local coincidentes; migração 003 aplicada na produção em 21/10. A publicação do código mais recente na Vercel não foi confirmada nesta atualização.
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.
 
@@ -108,7 +108,7 @@ Os identificadores são normalizados para comparar diferenças de espaços, capi
 
 Existem validações na API, transações e índices únicos. Conflitos devolvem uma mensagem clara com estado 409. A migração para os índices não elimina nem funde registos existentes.
 
-Foi encontrado um conflito no backup fornecido: dois clientes na mesma oficina. A publicação depende da revisão desse conflito. Ver o plano no relatório de alterações.
+O conflito do backup foi resolvido após autorização: conservou-se o cliente com relações e preservou-se a linha redundante na auditoria. A resolução e a migração 003 foram aplicadas atomicamente na produção em 21/10, após ensaio e backup atualizado.
 
 ### Mão de obra e preços
 
@@ -316,3 +316,26 @@ Estas verificações substituem a pendência de concorrência funcional em Postg
 ### Fotografias pela API — concluído em 21/10
 
 Passaram **3 testes adicionais** com PostgreSQL e Supabase Storage reais: upload/download autenticado, recusa de leitura por outra oficina e ficheiros inválidos/demasiado grandes. Foram usados dados e imagens fictícios. A chave service_role existente foi copiada pelo utilizador diretamente para o ficheiro privado do backend e não foi impressa nem guardada num ficheiro temporário. A produção não foi alterada.
+
+
+## Versões Word atualizadas em 22 de outubro
+
+Ver documentos/RoadMesh_Documentacao_do_Projeto_2026-10-22.docx e documentos/RoadMesh_Relatorio_de_Alteracoes_2026-10-22.docx. As notas datadas anteriores descrevem etapas históricas; o estado consolidado atual distingue migração aplicada, código com commit e deployment ainda por confirmar.
+
+## Portal de cliente com o design Stitch
+
+A área de cliente adota o design fornecido em https://stitch.withgoogle.com/preview/5205754925019495939?node-id=30c71043453547cf97ddb292ec7972ff. O acesso do cliente passa para Início. Em mobile, a navegação Início, Veículos, Histórico e Perfil fica na parte inferior. A partir de 700 px fica no topo; o painel dispõe viatura e alertas/acessos em duas colunas. A listagem de viaturas usa duas colunas a partir de 900 px.
+
+Os cartões usam as viaturas, fotografias, histórico e marcações reais do portal. Não são inventados alertas de pneus, revisões, apólices ou valores financeiros. A data apresentada é a próxima marcação em aberto da viatura, não uma revisão técnica inferida. O ícone de atualizações abre as marcações existentes.
+
+Agendar abre o formulário existente com a viatura selecionada. Continuam disponíveis confirmação pela oficina, propostas de outra data, aceitação, reagendamento, cancelamento com confirmação, despesas, fotografias, danos, perfil e alteração de palavra-passe. As regras de API mantêm-se; a mesma linguagem visual foi entretanto estendida à administração e à oficina, conforme descrito abaixo.
+
+A demonstração visual está isolada em .demo/stitch-preview, servida localmente na porta 8798 e numa instância MongoDB própria. A pedido do titular, foi adicionada uma fotografia ilustrativa gerada de um BMW branco à viatura fictícia AA-12-BB, por upload autenticado e associação normal de fotografia. Esta fotografia não foi carregada na produção nem usada como imagem por omissão para clientes reais.
+
+## Administração e oficina com linguagem visual comum
+
+O cabeçalho pessoal e a navegação responsiva são partilhados pelas três áreas através dos componentes de frontend em src/workspace. Em mobile os separadores ficam na parte inferior; em tablet e computador ficam no topo. A oficina mantém Início, Serviço, Clientes, Stock e Mais. A administração dispõe de Início, Oficinas, Criar e Conta.
+
+Os painéis mantêm os indicadores reais e os acessos existentes. A oficina conserva pesquisa por matrícula, serviços recentes, registo de danos, marcações e atalhos de operação; o menu Mais mantém as restantes ferramentas. A administração conserva os oito indicadores, gestão de oficinas e colaboradores, criação de oficinas, conta e suporte com aviso permanente e saída do modo. Fundos, cartões e botões seguem a paleta comum. Não foi alterado o backend nem a base de dados neste passo.
+
+Validado no navegador local em 393×852, 768×1024 e 1440×1000, com contas fictícias. Verificação de código, exportação web, seis testes de integração de autenticação/permissões e dez testes de sessão/preços aprovados. Publicação na Vercel não executada. As versões Word anteriores ainda não incluem este redesenho.

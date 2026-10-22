@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle } from "react-native";
 import { colors, radius, spacing } from "../theme";
+import { PortalVisualContext, portalColors } from "../portal/theme";
 
 type Props = {
   title: string;
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function Button({ title, onPress, variant = "primary", loading, disabled, fullWidth = true, testID, style, contrast = false }: Props) {
+  const portal = useContext(PortalVisualContext);
   const bg =
     variant === "primary" ? colors.brandPrimary :
     variant === "secondary" ? colors.surfaceSecondary :
@@ -32,7 +34,8 @@ export function Button({ title, onPress, variant = "primary", loading, disabled,
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.btn,
-        { backgroundColor: contrast ? "transparent" : bg, borderColor: contrast ? "#FFFFFF" : border, borderWidth: contrast || variant === "secondary" ? 1.5 : 0 },
+        portal && { borderRadius: 15 },
+        { backgroundColor: contrast ? "transparent" : portal && variant === "primary" ? portalColors.brand : bg, borderColor: contrast ? "#FFFFFF" : portal && variant === "secondary" ? portalColors.line : border, borderWidth: contrast || variant === "secondary" ? 1.5 : 0 },
         fullWidth ? { alignSelf: "stretch" } : { alignSelf: "flex-start" },
         (pressed || disabled) && { opacity: 0.75 },
         style,

@@ -18,7 +18,7 @@ const AuthContext = createContext<Ctx>({} as Ctx);
 export function homeFor(user: User | null): any {
   if (!user) return "/(auth)/login";
   if (user.password_change_required) return "/(auth)/change-password";
-  return user.role === "admin" ? "/(admin)/dashboard" : user.role === "client" ? "/(portal)/marcacoes" : "/(app)/inicio";
+  return user.role === "admin" ? "/(admin)/dashboard" : user.role === "client" ? "/(portal)/inicio" : "/(app)/inicio";
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

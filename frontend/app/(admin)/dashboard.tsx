@@ -1,27 +1,39 @@
 import React from "react";
-import { Text } from "react-native";
+import { Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
-import { AreaPage, Metrics, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { LogoWithText } from "@/src/components/Logo";
+import { AreaPage, Panel, QueryState } from "@/src/components/AreaUI";
 import { Button } from "@/src/components/Button";
 import { formatEUR } from "@/src/utils/format";
+import { DashboardHero, DashboardMetrics, DashboardAction, dashboardStyles as ds } from "@/src/workspace/DashboardUI";
+import { workspaceStyles } from "@/src/workspace/theme";
 export default function AdminDashboard() {
-  const { logout } = useAuth();
+  const { logout } = useAuth(); const wide = useWindowDimensions().width >= 900;
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["admin-dashboard"], queryFn: () => api.get("/admin/dashboard") });
   return <AreaPage title="Administração" testID="admin-dashboard" back={false}>
-    <LogoWithText testID="admin-brand" />
-    <Text testID="admin-dashboard-heading" style={areaStyles.title}>Visão global da plataforma</Text>
-    <Text testID="admin-dashboard-help" style={areaStyles.hint}>Todas as oficinas. Um único centro de gestão.</Text>
+    <DashboardHero title="Todas as oficinas. Uma visão completa." description="Acompanhe a plataforma e mantenha a gestão de cada oficina por perto." button="Consultar oficinas" onPress={() => router.push("/(admin)/workshops")} testID="admin-overview" icon="business-outline" />
     <QueryState loading={isLoading} error={error} retry={refetch} testID="admin-dashboard-query" />
-    {data && <Metrics testID="global-metrics" entries={[{ label: "Oficinas", value: data.workshops }, { label: "Ativas", value: data.active }, { label: "Inativas", value: data.disabled }, { label: "Arquivadas", value: data.archived }, { label: "Clientes", value: data.clients }, { label: "Viaturas", value: data.vehicles }, { label: "Ordens de serviço", value: data.work_orders }, { label: "Faturação global", value: formatEUR(data.revenue) }]} />}
-    <Panel title="Gestão da plataforma" testID="admin-dashboard-actions">
-      <Button testID="admin-open-workshops" title="Consultar oficinas e faturação" onPress={() => router.push("/(admin)/workshops")} />
-      <Button testID="admin-new-workshop" title="Criar oficina" variant="secondary" onPress={() => router.push("/(admin)/workshop-form")} />
-      <Button testID="admin-change-password" title="Alterar palavra-passe" variant="ghost" onPress={() => router.push("/(auth)/change-password")} />
-      <Button testID="admin-logout" title="Terminar sessão" variant="ghost" onPress={() => logout()} />
-    </Panel>
+    {data && <DashboardMetrics entries={[
+      { label: "Oficinas", value: data.workshops, icon: "business-outline", testID: "global-metrics-0-value" },
+      { label: "Ativas", value: data.active, icon: "checkmark-circle-outline", testID: "global-metrics-1-value" },
+      { label: "Inativas", value: data.disabled, icon: "pause-circle-outline", testID: "global-metrics-2-value" },
+      { label: "Arquivadas", value: data.archived, icon: "archive-outline", testID: "global-metrics-3-value" },
+      { label: "Clientes", value: data.clients, icon: "people-outline", testID: "global-metrics-4-value" },
+      { label: "Viaturas", value: data.vehicles, icon: "car-outline", testID: "global-metrics-5-value" },
+      { label: "Ordens de serviço", value: data.work_orders, icon: "construct-outline", testID: "global-metrics-6-value" },
+      { label: "Faturação global", value: formatEUR(data.revenue), icon: "receipt-outline", testID: "global-metrics-7-value" },
+    ]} />}
+    <View style={[ds.columns, wide && { flexDirection: "row" }]}>
+      <View style={ds.main}><Panel title="Gestão da plataforma" testID="admin-dashboard-actions">
+        <DashboardAction testID="admin-open-workshops" icon="business-outline" label="Consultar oficinas e faturação" description="Acessos, atividade, estado e suporte." onPress={() => router.push("/(admin)/workshops")} />
+        <DashboardAction testID="admin-new-workshop" icon="add-circle-outline" label="Criar oficina" description="Adicionar uma oficina e o respetivo responsável." onPress={() => router.push("/(admin)/workshop-form")} />
+      </Panel></View>
+      <View style={ds.side}><Panel title="A sua conta" testID="admin-account-actions"><Text style={workspaceStyles.hint}>Os acessos e as operações de suporte continuam protegidos pelas permissões da administração.</Text>
+        <Button testID="admin-change-password" title="Alterar palavra-passe" variant="secondary" onPress={() => router.push("/(auth)/change-password")} />
+        <Button testID="admin-logout" title="Terminar sessão" variant="ghost" onPress={() => logout()} />
+      </Panel></View>
+    </View>
   </AreaPage>;
 }

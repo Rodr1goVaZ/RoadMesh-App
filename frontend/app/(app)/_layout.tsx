@@ -1,48 +1,31 @@
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
-import { View, Text, Platform } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import { useAuth, homeFor } from "@/src/auth";
 import { SupportBanner } from "@/src/components/SupportBanner";
-import { colors } from "@/src/theme";
-
-function Icon({ label, focused }: { label: string; focused: boolean }) {
-  return (
-    <View style={{ alignItems: "center", justifyContent: "center", width: 28, height: 28 }}>
-      <Text style={{ fontSize: 20, color: focused ? colors.brandPrimary : colors.muted }}>{label}</Text>
-    </View>
-  );
-}
-
+import { WorkspaceVisualContext, workspaceColors } from "@/src/workspace/theme";
+import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/workspace/WorkspaceChrome";
+const items: WorkspaceLink[] = [
+  { label: "Início", href: "/(app)/inicio", icon: "home-outline", activeIcon: "home", testID: "workshop-tab-home", matches: ["(app)/inicio"] },
+  { label: "Serviço", href: "/(app)/servico", icon: "construct-outline", activeIcon: "construct", testID: "workshop-tab-services", matches: ["(app)/servico"] },
+  { label: "Clientes", href: "/(app)/clientes", icon: "people-outline", activeIcon: "people", testID: "workshop-tab-clients", matches: ["(app)/clientes"] },
+  { label: "Stock", href: "/(app)/stock", icon: "cube-outline", activeIcon: "cube", testID: "workshop-tab-stock", matches: ["(app)/stock"] },
+  { label: "Mais", href: "/(app)/mais", icon: "grid-outline", activeIcon: "grid", testID: "workshop-tab-more", matches: ["(app)/mais","(app)/configuracoes","(app)/fornecedores","(app)/historicos","(app)/financeiro","(app)/faturacao","(app)/orcamentos","(app)/orcamento-new","(app)/viaturas","(app)/viatura","(app)/danos","(app)/marcacoes","(app)/fotos"] },
+];
 export default function AppLayout() {
-  const insets = useSafeAreaInsets();
-  const { user, loading, support } = useAuth();
+  const { user, loading, support } = useAuth(); const mobile = useWindowDimensions().width < 700;
   const allowed = user && !user.password_change_required && (user.role === "workshop_staff" || (user.role === "admin" && support));
-  useEffect(() => {
-    if (!loading && !allowed) router.replace(homeFor(user));
-  }, [user, loading, allowed]);
+  useEffect(() => { if (!loading && !allowed) router.replace(homeFor(user)); }, [user, loading, allowed]);
   if (!allowed) return null;
-
-  return (
-    <View style={{ flex: 1 }}><SupportBanner /><Tabs backBehavior="history"
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.brandPrimary,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: {
-          backgroundColor: colors.surfaceSecondary,
-          borderTopColor: colors.border,
-          ...(Platform.OS === "web" ? { height: 64 + insets.bottom, paddingBottom: Math.max(insets.bottom, 8) } : {}),
-        },
-        tabBarItemStyle: { alignSelf: "center" },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-      }}
-    >
-      <Tabs.Screen name="inicio" options={{ title: "Início", tabBarIcon: ({ focused }) => <Icon label="⌂" focused={focused} /> }} />
-      <Tabs.Screen name="servico" options={{ title: "Serviço", tabBarIcon: ({ focused }) => <Icon label="⚙" focused={focused} /> }} />
-      <Tabs.Screen name="clientes" options={{ title: "Clientes", tabBarIcon: ({ focused }) => <Icon label="◉" focused={focused} /> }} />
-      <Tabs.Screen name="stock" options={{ title: "Stock", tabBarIcon: ({ focused }) => <Icon label="▤" focused={focused} /> }} />
-      <Tabs.Screen name="mais" options={{ title: "Mais", tabBarIcon: ({ focused }) => <Icon label="⋯" focused={focused} /> }} />
+  return <WorkspaceVisualContext.Provider value={true}><View style={{ flex: 1, backgroundColor: workspaceColors.background }}>
+    <SupportBanner />
+    <WorkspaceHeader name={user.name} subtitle={support?.name || user.workshop_name || "A sua oficina"} items={items} profileHref="/(app)/mais" actionHref="/(app)/marcacoes" actionLabel="Ver marcações dos clientes" testID="workshop-header" />
+    <Tabs backBehavior="history" tabBar={() => mobile ? <WorkspaceNavigation items={items} mobile /> : null} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: workspaceColors.background } }}>
+      <Tabs.Screen name="inicio" options={{ title: "Início" }} />
+      <Tabs.Screen name="servico" options={{ title: "Serviço" }} />
+      <Tabs.Screen name="clientes" options={{ title: "Clientes" }} />
+      <Tabs.Screen name="stock" options={{ title: "Stock" }} />
+      <Tabs.Screen name="mais" options={{ title: "Mais" }} />
       <Tabs.Screen name="fotos" options={{ href: null }} />
       <Tabs.Screen name="fornecedores" options={{ href: null }} />
       <Tabs.Screen name="configuracoes" options={{ href: null }} />
@@ -55,6 +38,6 @@ export default function AppLayout() {
       <Tabs.Screen name="viatura" options={{ href: null }} />
       <Tabs.Screen name="danos" options={{ href: null }} />
       <Tabs.Screen name="marcacoes" options={{ href: null }} />
-    </Tabs></View>
-  );
+    </Tabs>
+  </View></WorkspaceVisualContext.Provider>;
 }

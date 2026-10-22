@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-22",
+  "scope": "customer portal only",
+  "reference": "Stitch node 30c71043453547cf97ddb292ec7972ff",
+  "breakpoints": {
+    "mobile_max": 699,
+    "top_navigation_min": 700,
+    "vehicle_grid_min": 900
+  },
+  "viewports": [
+    [
+      393,
+      852
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1440,
+      1000
+    ]
+  ],
+  "integration_passed": 7,
+  "typescript": true,
+  "eslint": true,
+  "web_export": true,
+  "browser_verified": [
+    "client_login_home",
+    "schedule_vehicle_prefilled",
+    "appointment_created",
+    "appointment_cancelled_with_confirmation",
+    "vehicle_history_expenses_photos_damages",
+    "profile_actions",
+    "authenticated_vehicle_image"
+  ],
+  "demo_image_scope": "isolated local demo only",
+  "production_modified": false,
+  "deployed": false
+}
