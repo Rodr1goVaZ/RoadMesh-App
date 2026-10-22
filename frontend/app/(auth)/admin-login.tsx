@@ -1,2 +1,2 @@
-import { AccessLogin } from "@/src/components/AccessLogin";
-export default function AdminLogin() { return <AccessLogin kind="admin" />; }
+import { Redirect } from "expo-router";
+export default function LegacyLogin() { return <Redirect href="/(auth)/login" />; }

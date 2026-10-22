@@ -239,7 +239,7 @@ class Access:
 def register_auth_routes(api, access):
     async def login_role(kind, body, request):
         expected = {"staff": "workshop_staff", "client": "client", "admin": "admin"}.get(kind)
-        if not expected:
+        if kind is not None and not expected:
             raise HTTPException(404, "Tipo de acesso inválido")
         email = str(body.email).lower().strip()
         # Persistent, bounded attempts per email/IP/window, across restarts/workers.
@@ -250,8 +250,8 @@ def register_auth_routes(api, access):
             raise HTTPException(429, "Demasiadas tentativas. Aguarde alguns minutos.")
         account = await access.db.users.find_one({"email": email}, {"_id": 0})
         valid = await run_in_threadpool(verify_password, body.password, account["password_hash"] if account else DUMMY_HASH)
-        if not valid or not account or account["role"] != expected:
-            raise HTTPException(401, "Email ou palavra-passe inválidos para esta área.")
+        if not valid or not account or account["role"] not in ROLES or (expected and account["role"] != expected):
+            raise HTTPException(401, "Email ou palavra-passe inválidos.")
         await access.check_account(account)
         await access.db.login_limits.delete_one({"key": digest})
         return {"access_token": access.token(account), "token_type": "bearer", "user": await access.public(account)}
@@ -261,8 +261,8 @@ def register_auth_routes(api, access):
         return await login_role(kind, body, request)
 
     @api.post("/auth/login")
-    async def legacy_staff_login(body: LoginBody, request: Request):
-        return await login_role("staff", body, request)
+    async def unified_login(body: LoginBody, request: Request):
+        return await login_role(None, body, request)
 
     @api.post("/auth/register")
     async def disabled_registration():

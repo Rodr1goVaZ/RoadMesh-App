@@ -15,6 +15,10 @@ A RoadMesh gere oficinas independentes numa plataforma comum. Inclui clientes, v
 | Oficina | Responsável e colaboradores | Clientes, viaturas, marcações, ordens de serviço, orçamentos e inventário, conforme permissões |
 | Cliente | Cliente convidado pela oficina | Consultar os seus carros, marcações e dados disponibilizados pelo portal |
 
+O acesso é único em `/login`: administração RaRo/RoadMesh, oficinas e clientes usam o mesmo formulário de email e palavra-passe. O servidor autentica a conta em `POST /api/auth/login` e devolve o papel guardado em `roadmesh.users`; a aplicação encaminha para administração, oficina ou portal do cliente. O papel não é deduzido do domínio do email nem escolhido pelo utilizador. Os endereços antigos `/admin-login` e `/client-login` encaminham para `/login`. As permissões da API e a troca obrigatória de palavra-passe temporária continuam aplicáveis.
+
+Os cabeçalhos partilhados não apresentam títulos centrados no topo; mantêm navegação e ações. O favicon web usa `roadmesh-favicon.png`, com fundo branco; o logótipo apresentado na aplicação mantém o seu ficheiro original.
+
 Não existe registo público livre. Uma oficina é criada pela administração. Os acessos de cliente e colaborador são provisionados por um operador autorizado. As credenciais temporárias têm de ser alteradas no primeiro acesso.
 
 ## 2. Arquitetura

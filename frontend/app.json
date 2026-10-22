@@ -29,7 +29,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/roadmesh-logo.png",
+      "favicon": "./assets/images/roadmesh-favicon.png",
       "lang": "pt-PT",
       "themeColor": "#7A1E2B",
       "description": "RoadMesh · Gestão de oficinas"

@@ -9,27 +9,26 @@ import { Button } from "./Button";
 import { Feedback } from "./Feedback";
 import { colors } from "../theme";
 
-export function AccessLogin({ kind }: { kind: "staff" | "admin" | "client" }) {
+export function AccessLogin() {
   const { login } = useAuth();
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false); const [error, setError] = useState("");
-  const title = kind === "admin" ? "Administração RoadMesh" : kind === "client" ? "Área de cliente" : "Acesso da oficina";
   const submit = async () => {
     setError(""); if (!email.trim() || !password) { setError("Preencha o email e a palavra-passe."); return; }
     setLoading(true);
-    try { router.replace(homeFor(await login(email.trim(), password, kind))); }
+    try { router.replace(homeFor(await login(email.trim(), password))); }
     catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   };
-  return <AreaPage title={title} testID={`${kind}-login-screen`} back={kind !== "staff"}>
-    <View style={styles.brand}><Logo size={110} testID={kind === "staff" ? "login-logo" : `${kind}-login-logo`} />
-      <Text testID={`${kind}-login-brand`} style={styles.name}>RoadMesh</Text>
-      <Text testID={`${kind}-login-help`} style={styles.help}>{kind === "admin" ? "Gestão global da plataforma" : kind === "client" ? "As suas marcações e os seus carros" : "Gestão inteligente para oficinas"}</Text>
+  return <AreaPage title="Entrar" testID="login-screen" back={false}>
+    <View style={styles.brand}><Logo size={110} testID="login-logo" />
+      <Text testID="login-brand" style={styles.name}>RoadMesh</Text>
+      <Text testID="login-help" style={styles.help}>Gestão inteligente para oficinas</Text>
     </View>
-    <Input testID={kind === "staff" ? "login-email" : `${kind}-login-email`} label="Email" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
-    <Input testID={kind === "staff" ? "login-password" : `${kind}-login-password`} label="Palavra-passe" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
-    <Feedback testID={`${kind}-login-error`} error message={error} />
-    <Button testID={kind === "staff" ? "login-submit-btn" : `${kind}-login-submit`} title="Entrar" loading={loading} onPress={submit} />
+    <Input testID="login-email" label="Email" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
+    <Input testID="login-password" label="Palavra-passe" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
+    <Feedback testID="login-error" error message={error} />
+    <Button testID="login-submit-btn" title="Entrar" loading={loading} onPress={submit} />
     <Button title="Esqueci-me da palavra-passe" variant="ghost" onPress={() => router.push("/(auth)/forgot-password")} />
   </AreaPage>;
 }

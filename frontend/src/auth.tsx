@@ -10,7 +10,7 @@ export type User = { id: string; workshop_id?: string; workshop_name: string; cl
   can_manage_workshop?: boolean };
 type Support = { id: string; name: string; status: string; token: string };
 type Ctx = { user: User | null; loading: boolean; support: Support | null;
-  login: (email: string, password: string, kind?: "staff" | "admin" | "client") => Promise<User>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>; changePassword: (current: string, next: string) => Promise<User>;
   startSupport: (id: string) => Promise<void>; endSupport: () => Promise<void> };
 const AuthContext = createContext<Ctx>({} as Ctx);
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await session.clearSupport(); queryClient.clear(); setSupport(null); setUser(response.user);
     return response.user as User;
   };
-  const login = async (email: string, password: string, kind: "staff" | "admin" | "client" = "staff") => accept(await api.post(`/auth/${kind}/login`, { email, password }));
+  const login = async (email: string, password: string) => accept(await api.post("/auth/login", { email, password }));
   const changePassword = async (current: string, next: string) => accept(await api.post("/auth/change-password", { current_password: current, new_password: next }));
   const logout = async () => { try { await api.post("/auth/logout", {}); } finally { await clear(); } };
   const startSupport = async (id: string) => {
