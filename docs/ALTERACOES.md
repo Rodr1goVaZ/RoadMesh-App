@@ -214,3 +214,17 @@ Passaram **3 testes adicionais** com PostgreSQL e Supabase Storage reais: upload
 Após autorização explícita do titular, o backup atual de produção (22 tabelas / 407 registos) foi restaurado e comparado integralmente. A resolução do duplicado e a migração foram ensaiadas nessa cópia, incluindo rollback e restauro das 27 tabelas. Em seguida foram aplicadas atomicamente na produção, com backup adicional sob bloqueio e preservação integral do cliente redundante na auditoria. Não houve concessão de papel.
 
 Foi preservada a conta admin existente; a palavra-passe foi renovada e guardada exclusivamente num ficheiro privado local. A API publicada passou login, alteração de palavra-passe, identidade, dashboard e lista de oficinas. Sessões de teste encerradas. Ver `PUBLICAR.md`, `evidencias/migracao-producao.json` e `evidencias/acesso-admin.json`. Isto não representa deploy do código novo: a branch de auditoria continua por publicar.
+
+
+## 22/10/2026 — favicon, cabeçalhos e acesso único
+
+- Criado favicon próprio com fundo branco e configurado no Expo web. O ficheiro original do logótipo da aplicação foi preservado.
+- Retirado o título centrado do componente partilhado ScreenHeader, abrangendo as páginas de administração, oficina, cliente e autenticação que o utilizam. Mantidos voltar, estados e ações.
+- Formulário único em /login e identificação do papel no servidor por POST /api/auth/login. Os endereços antigos de login encaminham para a página comum. As rotas específicas da API continuam disponíveis para compatibilidade e exigem o papel correspondente.
+- Destinos preservados: administrador → administração; oficina → início da oficina; cliente → marcações no portal. A mudança obrigatória de palavra-passe temporária tem prioridade.
+- As permissões não dependem do formulário, do email ou do encaminhamento. Continuam verificadas no servidor.
+- O executor PostgreSQL local passou a respeitar TMPDIR, permitindo correr testes em pastas temporárias autorizadas.
+
+Validação: **5 testes de integração aprovados** em PostgreSQL local descartável, cobrindo login comum de admin/oficina/cliente, credenciais inválidas, troca de palavra-passe temporária e recusa de acesso entre perfis; inclui a regressão existente do portal. TypeScript, ESLint, Ruff e exportação web passaram. Inspeção visual da página /login confirmou um único formulário e ausência de título superior. Não foram usadas contas ou dados da produção.
+
+Estas alterações estão apenas no código local; exigem publicação do backend e frontend, por esta ordem. O frontend antigo continua compatível com o novo backend. O novo frontend precisa do novo backend para autenticar admin e cliente pelo endpoint comum.

@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-22",
+  "integration_tests_passed": 5,
+  "engine": "disposable local PostgreSQL/PGlite",
+  "unified_roles": [
+    "admin",
+    "workshop_staff",
+    "client"
+  ],
+  "checks": [
+    "invalid_credentials",
+    "temporary_password_change",
+    "cross_role_access_denied",
+    "legacy_role_endpoint_rejects_wrong_role",
+    "portal_regression"
+  ],
+  "typescript": true,
+  "eslint": true,
+  "ruff": true,
+  "web_export": true,
+  "login_visual_checked": true,
+  "production_used": false,
+  "deployed": false
+}

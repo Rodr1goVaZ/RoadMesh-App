@@ -24,7 +24,7 @@ def main():
     args, pytest_args = parser.parse_known_args()
     process = None
     embedded = None
-    with tempfile.TemporaryDirectory(prefix='roadmesh-pg-test-', dir='/tmp') as directory:
+    with tempfile.TemporaryDirectory(prefix='roadmesh-pg-test-') as directory:
         temp = Path(directory)
         data = temp / 'postgres'
         if args.pglite_runtime:

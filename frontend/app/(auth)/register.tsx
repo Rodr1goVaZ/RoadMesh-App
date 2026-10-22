@@ -9,7 +9,7 @@ export default function RegisterInfo() {
     <Text testID="register-help" style={areaStyles.title}>Uma conta, o acesso certo</Text>
     <Text testID="register-workshop-info" style={areaStyles.hint}>As contas de oficina são criadas pela administração RoadMesh. Se é gerente ou colaborador, utilize os dados fornecidos pelo responsável.</Text>
     <Text testID="register-client-info" style={areaStyles.hint}>É cliente? Peça à sua oficina que ative o seu acesso. Os seus carros e o histórico ficam associados automaticamente.</Text>
-    <Button title="Entrar como cliente" testID="register-client-login" onPress={() => router.replace("/(auth)/client-login")} />
+    <Button title="Entrar" testID="register-client-login" onPress={() => router.replace("/(auth)/login")} />
     <Button title="Entrar como oficina" testID="register-staff-login" variant="secondary" onPress={() => router.replace("/(auth)/login")} />
   </AreaPage>;
 }
