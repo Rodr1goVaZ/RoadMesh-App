@@ -34,17 +34,17 @@ def main():
         if args.initialize_empty:
             if exists:
                 raise ValueError('O esquema já existe; não será substituído.')
-            for filename in ('001_initial.sql','002_backend_compatibility.sql','003_business_modules.sql','004_runtime_role.sql'):
+            for filename in ('001_initial.sql','002_backend_compatibility.sql','003_business_modules.sql','004_runtime_role.sql','005_company_modules_stand.sql'):
                 migration = (ROOT/'backend/sql'/filename).read_text()
                 migration = '\n'.join(line for line in migration.splitlines() if line.strip() not in ('BEGIN;','COMMIT;'))
                 conn.execute(migration, prepare=False)
-            print('Migrações 001–004 preparadas no projeto de testes.', flush=True)
+            print('Migrações 001–005 preparadas no projeto de testes.', flush=True)
         elif not exists:
             raise ValueError('Falta inicializar explicitamente a base vazia.')
         tables = conn.execute("SELECT count(*) FROM pg_tables WHERE schemaname='roadmesh'").fetchone()[0]
-        if tables != 27:
+        if tables != 30:
             raise ValueError('Esquema inesperado; parar e rever migrações.')
-    print('Esquema de 27 tabelas confirmado e transação gravada.',flush=True)
+    print('Esquema de 30 tabelas confirmado e transação gravada.',flush=True)
     if not args.run_tests:
         return 0
     credentials=ROOT/'.demo/staging-test-credentials.env'

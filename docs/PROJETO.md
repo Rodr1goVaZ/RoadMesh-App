@@ -339,3 +339,9 @@ O cabeçalho pessoal e a navegação responsiva são partilhados pelas três ár
 Os painéis mantêm os indicadores reais e os acessos existentes. A oficina conserva pesquisa por matrícula, serviços recentes, registo de danos, marcações e atalhos de operação; o menu Mais mantém as restantes ferramentas. A administração conserva os oito indicadores, gestão de oficinas e colaboradores, criação de oficinas, conta e suporte com aviso permanente e saída do modo. Fundos, cartões e botões seguem a paleta comum. Não foi alterado o backend nem a base de dados neste passo.
 
 Validado no navegador local em 393×852, 768×1024 e 1440×1000, com contas fictícias. Verificação de código, exportação web, seis testes de integração de autenticação/permissões e dez testes de sessão/preços aprovados. Publicação na Vercel não executada. As versões Word anteriores ainda não incluem este redesenho.
+
+## 24 de outubro de 2026 — Empresas com Oficina e Stand
+
+A aplicação suporta Oficina, Stand ou ambos na mesma empresa e sessão. A administração seleciona os módulos na criação/edição. A nova área Stand inclui inventário, estados, clientes partilhados, contactos comerciais, vendas transacionais e histórico. O menu Mais mantém-se e a alternância só aparece com ambos os módulos ativos. Os dados existentes são preservados como Oficina.
+
+A versão requer a migração aditiva 005_company_modules_stand.sql, com três novas tabelas e configuração modules na empresa. A produção e o staging remoto não foram migrados nesta etapa. Consultar MODULOS-STAND.md antes de publicar; a migração deve preceder o novo backend.

@@ -96,3 +96,6 @@ backend/.local-media/
 Supabase Snippet*.csv
 roadmesh-backup*.csv
 /backups/
+
+# Retired Emergent environment metadata
+.emergent/

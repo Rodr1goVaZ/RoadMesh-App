@@ -7,19 +7,13 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
-  "theme_color": "#7A1E2B",
+  "theme_color": "#650D0D",
   "icons": [
     {
-      "src": "/roadmesh-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/roadmesh-icon-v2.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/roadmesh-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
     }
   ]
 }

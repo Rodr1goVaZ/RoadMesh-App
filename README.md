@@ -42,7 +42,7 @@ Requisitos: Python 3.12, Node.js 22.13+, Yarn 1 e PostgreSQL/Supabase (ver SUPAB
    python3.12 -c 'import secrets; print(secrets.token_urlsafe(48))'
    ```
 
-   Configure `BOOTSTRAP_ADMIN_EMAIL`, `MONGO_URL` e `DB_NAME`. `EMERGENT_LLM_KEY` é necessário para fotografias no armazenamento gerido. Sem essa integração, os restantes módulos podem arrancar, mas carregar/obter fotografias falha com uma mensagem de indisponibilidade.
+   Configure `BOOTSTRAP_ADMIN_EMAIL`, `MONGO_URL` e `DB_NAME` (ou `DATABASE_URL` para PostgreSQL). Para fotografias locais use `STORAGE_DRIVER=local`; na Vercel configure `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_STORAGE_BUCKET`. O adaptador managed antigo permanece apenas para compatibilidade com instalações que ainda o utilizem.
 
    No frontend, defina `EXPO_PUBLIC_BACKEND_URL=http://SEU_IP:8000`. Num telemóvel, use o IP local do computador. Em `CORS_ORIGINS`, indique as origens web autorizadas, separadas por vírgulas; por exemplo `http://localhost:8081,http://192.168.1.20:8081`.
 
@@ -125,3 +125,7 @@ Para testar uma API de teste já preparada, configure `EXPO_PUBLIC_BACKEND_URL`,
 - [Relatório de alterações, testes e condições de publicação](docs/ALTERACOES.md)
 
 Estas alterações estão na branch de auditoria e requerem a migração do esquema versão 3 antes de publicar o novo backend.
+
+## Empresas com Oficina e Stand
+
+A empresa pode usar Oficina, Stand ou ambos com um único login. Os módulos são configurados pela administração. A implementação PostgreSQL requer `backend/sql/005_company_modules_stand.sql` após 001–003 (004 continua opcional). **Aplicar e validar a migração antes de publicar este backend**. Empresas existentes mantêm Oficina por omissão. Ver [módulos, publicação e limites](docs/MODULOS-STAND.md).

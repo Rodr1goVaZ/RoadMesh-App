@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { CompanyModule, companyHome } from "./company-modules";
 import { session } from "./session";
 import { AppState } from "react-native";
 import { api } from "./api";
@@ -7,18 +8,18 @@ import { authEvents } from "./auth-events";
 
 export type User = { id: string; workshop_id?: string; workshop_name: string; client_id?: string; name: string; email: string;
   role: "admin" | "workshop_staff" | "client"; password_change_required: boolean; is_active: boolean;
-  can_manage_workshop?: boolean };
-type Support = { id: string; name: string; status: string; token: string };
+  can_manage_workshop?: boolean; modules?: CompanyModule[] };
+type Support = { id: string; name: string; status: string; token: string; modules?: CompanyModule[] };
 type Ctx = { user: User | null; loading: boolean; support: Support | null;
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>; changePassword: (current: string, next: string) => Promise<User>;
-  startSupport: (id: string) => Promise<void>; endSupport: () => Promise<void> };
+  startSupport: (id: string) => Promise<Support>; endSupport: () => Promise<void> };
 const AuthContext = createContext<Ctx>({} as Ctx);
 
 export function homeFor(user: User | null): any {
   if (!user) return "/(auth)/login";
   if (user.password_change_required) return "/(auth)/change-password";
-  return user.role === "admin" ? "/(admin)/dashboard" : user.role === "client" ? "/(portal)/inicio" : "/(app)/inicio";
+  return user.role === "admin" ? "/(admin)/dashboard" : user.role === "client" ? "/(portal)/inicio" : companyHome(user);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const startSupport = async (id: string) => {
     const response = await api.post(`/admin/workshops/${id}/support`, { reason: "Assistência administrativa à oficina" });
     const context = { ...response.workshop, token: response.support_token };
-    await session.saveSupport(context); queryClient.clear(); setSupport(context);
+    await session.saveSupport(context); queryClient.clear(); setSupport(context); return context;
   };
   const endSupport = async () => {
     try { await api.del("/admin/support"); } finally { await session.clearSupport(); queryClient.clear(); setSupport(null); }

@@ -45,7 +45,7 @@ def pg_workshop(workshop_factory):
 
 def test_private_tables_are_not_readable_by_supabase_browser_roles(pg):
     tables = pg.execute("SELECT tablename,rowsecurity FROM pg_tables WHERE schemaname='roadmesh'").fetchall()
-    assert len(tables) == 27
+    assert len(tables) == 30
     assert all(t['rowsecurity'] for t in tables)
     for role in ('anon', 'authenticated'):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):

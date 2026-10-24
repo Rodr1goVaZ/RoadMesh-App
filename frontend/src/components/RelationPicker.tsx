@@ -8,7 +8,7 @@ import { Input } from "./Input";
 import { QueryState, areaStyles } from "./AreaUI";
 import { colors } from "../theme";
 
-function SearchPicker({ title, endpoint, label, selected, onSelect, disabled }: {
+export function SearchPicker({ title, endpoint, label, selected, onSelect, disabled }: {
   title: string; endpoint: string; label: (r: any) => string; selected?: string; onSelect: (r: any) => void; disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const insets = useSafeAreaInsets();
