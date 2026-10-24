@@ -279,3 +279,11 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Migração 005 aditiva, três tabelas, unicidade/FK/RLS e proteção de UPDATE/DELETE de vendas. Ferramentas de backup/restauro adaptadas para versões 3 e 5.
 - Validação final: PostgreSQL local descartável 126 aprovados e 2 excluídos específicos de MongoDB; MongoDB isolado 115 aprovados e 13 excluídos específicos de PostgreSQL; 17 testes Node aprovados; TypeScript, ESLint e exportação web aprovados. Snapshot de 30 tabelas restaurado localmente com comparação integral dos registos.
 - Demonstração local com dados fictícios; nenhum deployment, migração remota ou alteração de conta de produção. Detalhes, ficheiros e limites em MODULOS-STAND.md.
+
+## 24 de outubro de 2026 — Restabelecer login em produção
+
+- Sintoma no iPhone: «Load failed». A API devolvia HTTP 500 sem os cabeçalhos CORS porque falhava antes de concluir o arranque; não era uma rejeição da palavra-passe.
+- Causa confirmada nos logs da Vercel: o backend publicado exigia a migração 005, mas o Supabase ainda estava na versão 3. As invocações seguintes reutilizavam a instância que tinha terminado com erro.
+- Guardados snapshots privados consistentes de testes e produção. Aplicada a migração 005 primeiro no RoadMesh-Testes e depois em produção, numa transação; confirmadas 30 tabelas e preservadas as contagens de todas as tabelas anteriores na produção. Não foram alteradas contas ou palavras-passe.
+- Republicada a API com o mesmo código de main (897edb5). Verificação remota: `/api/` 200, login da conta RaRo 200, painel de administração 200 e cabeçalho CORS correto para o frontend publicado.
+- Melhoradas localmente as mensagens da API: falha de rede e indisponibilidade do servidor em português; erros de credenciais continuam específicos. Cinco testes do cliente HTTP, TypeScript, ESLint e verificação do diff aprovados. Esta melhoria das mensagens ainda necessita de commit e publicação do frontend.
