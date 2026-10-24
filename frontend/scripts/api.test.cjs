@@ -42,3 +42,15 @@ test('private requests continue to use the authenticated account and support sco
     });
   await api.get('/dashboard');
 });
+
+test('network failure shows an actionable message without exposing browser internals', async () => {
+  const api = client({}, async () => { throw new TypeError('Load failed'); });
+  await assert.rejects(api.post('/auth/login', {}), /Não foi possível contactar o servidor/);
+});
+
+test('server failure is distinguished from invalid login credentials', async () => {
+  const api = client({}, async () => ({ ok: false, status: 500, text: async () => 'FUNCTION_INVOCATION_FAILED' }));
+  await assert.rejects(api.post('/auth/login', {}), /servidor está temporariamente indisponível/);
+  const invalid = client({}, async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ detail: 'Credenciais inválidas' }) }));
+  await assert.rejects(invalid.post('/auth/login', {}), /Credenciais inválidas/);
+});
