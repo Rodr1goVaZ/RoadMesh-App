@@ -253,3 +253,29 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Painel administrativo redesenhado, mantendo os oito indicadores e ações existentes; criada uma página de conta com alteração de palavra-passe e saída.
 - Cartões e cores comuns aplicados às áreas operacionais, sem alterações a endpoints, permissões ou dados de produção.
 - Validação local: TypeScript, ESLint e exportação web aprovados; seis testes PostgreSQL de autenticação/permissões e dez testes Node de sessão/preços aprovados. Navegação, lista/detalhe de oficina, formulário de criação, conta, entrada/saída do suporte e formulário de ordem de serviço verificados no navegador. Layouts revistos em 393×852, 768×1024 e 1440×1000. Sem publicação na Vercel nem validação em dispositivos físicos.
+
+## 22 de outubro de 2026 — Limpeza da origem e ícones no Mac
+
+- Removida a pasta .emergent com os scripts e marcadores da infraestrutura antiga; acrescentada ao .gitignore para impedir a sua reintrodução. Não é utilizada pelos deployments Vercel.
+- Substituídos os ícones genéricos de origem pelos recursos RoadMesh com fundo branco; ícone de aplicação e Android usam agora o recurso quadrado próprio.
+- Uniformizados os HTML web, apple-touch-icon e manifest com uma imagem PNG RoadMesh de nome novo para evitar reutilizar o endereço do ícone anterior. Mantidos os endereços Apple antigos com o mesmo recurso para compatibilidade.
+- Mantida a integração managed de fotografias e os identificadores nativos existentes: remover a infraestrutura antiga não requer alterar o acesso a fotografias nem a identidade de aplicações móveis já configuradas.
+- A alteração é local e requer commit/push e novo deployment. Uma aplicação já adicionada ao Dock pode conservar o ícone escolhido na instalação; o utilizador pode alterá-lo nas definições dessa aplicação, usando a imagem RoadMesh.
+
+## 22 de outubro de 2026 — Palavra-passe visível e recuperação por email
+
+- Controlo mostrar/ocultar em todos os campos protegidos do componente Input, incluindo login, alteração e reposição de palavra-passe.
+- Pedido de recuperação diretamente pelo email preenchido no login, com alternativa de formulário quando está vazio.
+- Página de reposição com confirmação, indicação de link incompleto/inválido e ação para pedir outro link.
+- Pedidos públicos de recuperação não tentam renovar sessões expiradas nem enviam credenciais de suporte.
+- Mantido o backend com link de uso único, validade de 20 minutos e invalidação das sessões anteriores. Sete testes backend e nove testes frontend de API/sessão aprovados. Envio SMTP testado com transporte simulado; entrega real depende da configuração do fornecedor e não foi validada.
+- Procedimento em EMAIL-RECUPERACAO.md; não foram alteradas credenciais nem configurações da Vercel neste passo.
+
+## 24 de outubro de 2026 — Módulos Oficina e Stand
+
+- Mesma empresa, contas e sessão; configuração Oficina, Stand ou ambos pela administração. Compatibilidade Oficina por omissão e preservação da configuração em pedidos antigos de edição.
+- Contexto comum para clientes/viaturas; verificação dos módulos específicos na API e nas rotas. Menu Mais preservado e alternância destacada responsiva.
+- Inventário Stand, estados, contactos comerciais, clientes comuns, vendas idempotentes/transacionais, custos limitados ao responsável e histórico imutável de vendas.
+- Migração 005 aditiva, três tabelas, unicidade/FK/RLS e proteção de UPDATE/DELETE de vendas. Ferramentas de backup/restauro adaptadas para versões 3 e 5.
+- Validação final: PostgreSQL local descartável 126 aprovados e 2 excluídos específicos de MongoDB; MongoDB isolado 115 aprovados e 13 excluídos específicos de PostgreSQL; 17 testes Node aprovados; TypeScript, ESLint e exportação web aprovados. Snapshot de 30 tabelas restaurado localmente com comparação integral dos registos.
+- Demonstração local com dados fictícios; nenhum deployment, migração remota ou alteração de conta de produção. Detalhes, ficheiros e limites em MODULOS-STAND.md.

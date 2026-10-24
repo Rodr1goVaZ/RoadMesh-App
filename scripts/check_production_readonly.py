@@ -41,7 +41,8 @@ def main():
         assert conn.execute('SHOW transaction_read_only').fetchone()[0]=='on'
         version=conn.execute("SELECT obj_description('roadmesh'::regnamespace,'pg_namespace')").fetchone()[0]
         versions={'RoadMesh PostgreSQL schema version 2; private server access':BASE,
-            'RoadMesh PostgreSQL schema version 3; private server access':BASE+EXTRA}
+            'RoadMesh PostgreSQL schema version 3; private server access':BASE+EXTRA,
+            'RoadMesh PostgreSQL schema version 5; private server access':BASE+EXTRA+'stand_inventory stand_leads stand_sales'.split()}
         if version not in versions:raise ValueError('Versão não suportada; nenhuma alteração executada.')
         tables=versions[version]
         actual={r[0] for r in conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='roadmesh'")}

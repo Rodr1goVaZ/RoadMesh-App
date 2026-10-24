@@ -10,6 +10,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from company_modules import active_modules, require_module
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
@@ -79,6 +80,7 @@ class Access:
         for key, value in {"is_active": True, "password_change_required": False, "session_version": 0}.items():
             await self.db.users.update_many({key: {"$exists": False}}, {"$set": {key: value}})
         await self.db.workshops.update_many({"status": {"$exists": False}}, {"$set": {"status": "active"}})
+        await self.db.workshops.update_many({"modules": {"$exists": False}}, {"$set": {"modules": ["workshop"]}})
         await self.db.users.create_index("email", unique=True)
         await self.db.users.create_index([("workshop_id", 1), ("role", 1)])
         await self.db.users.create_index([("workshop_id", 1), ("client_id", 1)], unique=True, partialFilterExpression={"role": "client"})
@@ -136,8 +138,9 @@ class Access:
     async def public(self, account):
         result = {key: account.get(key) for key in ["id", "name", "email", "role", "workshop_id", "client_id", "is_manager", "is_active", "password_change_required"]}
         result["can_manage_workshop"] = await self.is_workshop_manager(account)
-        workshop = await self.db.workshops.find_one({"id": account.get("workshop_id")}, {"_id": 0, "name": 1}) if account.get("workshop_id") else None
+        workshop = await self.db.workshops.find_one({"id": account.get("workshop_id")}, {"_id": 0, "name": 1, "modules": 1}) if account.get("workshop_id") else None
         result["workshop_name"] = workshop["name"] if workshop else "RoadMesh"
+        result["modules"] = active_modules(workshop) if workshop else []
         return result
 
     async def check_account(self, account):
@@ -209,30 +212,42 @@ class Access:
         account = await self.ready(await self.identity(token))
         if account["role"] != "client":
             raise HTTPException(403, "Acesso exclusivo da área de cliente.")
+        await require_module(self.db, account, "workshop")
         return account
 
-    async def workshop(self, request: Request, token: str = Depends(bearer)):
+    async def company(self, request: Request, token: str = Depends(bearer)):
         account = await self.ready(await self.identity(token))
         if account["role"] == "workshop_staff":
             if request.headers.get("X-Support-Token"):
                 raise HTTPException(403, "Modo de suporte indisponível.")
-            return account
+            company = await self.db.workshops.find_one({"id": account["workshop_id"]}, {"_id": 0, "modules": 1})
+            return {**account, "modules": active_modules(company)}
         if account["role"] != "admin":
             raise HTTPException(403, "Não tem acesso à área da oficina.")
         support = request.headers.get("X-Support-Token", "")
         context = await self.db.support_sessions.find_one({"digest": hashlib.sha256(support.encode()).hexdigest(), "actor_id": account["id"], "expires_at": {"$gt": now()}}, {"_id": 0})
         if not context:
             raise HTTPException(403, "Selecione uma oficina no painel de administração.")
-        workshop = await self.db.workshops.find_one({"id": context["workshop_id"]}, {"_id": 0, "id": 1})
+        workshop = await self.db.workshops.find_one({"id": context["workshop_id"]}, {"_id": 0, "id": 1, "modules": 1})
         if not workshop:
             raise HTTPException(404, "Oficina não encontrada")
         await self.audit(account, f"support:{request.method}", workshop["id"], request.url.path)
-        return {**account, "workshop_id": workshop["id"], "support_mode": True}
+        return {**account, "workshop_id": workshop["id"], "support_mode": True, "modules": active_modules(workshop)}
+
+    async def workshop(self, request: Request, token: str = Depends(bearer)):
+        account = await self.company(request, token)
+        await require_module(self.db, account, "workshop")
+        return account
+
+    async def stand(self, request: Request, token: str = Depends(bearer)):
+        account = await self.company(request, token)
+        await require_module(self.db, account, "stand")
+        return account
 
     async def media_actor(self, request: Request, token: str = Depends(bearer)):
         account = await self.ready(await self.identity(token))
         if account["role"] == "admin" and request.headers.get("X-Support-Token"):
-            return await self.workshop(request, token)
+            return await self.company(request, token)
         return account
 
 

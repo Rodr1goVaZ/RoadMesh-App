@@ -28,6 +28,7 @@ from portal_routes import register_portal_routes
 from request_logging import RequestDiagnostics
 from history_routes import register_history
 from password_recovery import register_recovery
+from stand_routes import register_stand_routes
 from business_rules import prevent_duplicate, validate_prices, text, year_scope, fingerprint, sale_from_margin
 from operations import register_operations, ensure_charge, consider_restock, receive_order, Receipt, ensure_supplier
 
@@ -57,6 +58,7 @@ def new_id() -> str:
 
 
 CurrentUser = Annotated[dict, Depends(access.workshop)]
+CompanyUser = Annotated[dict, Depends(access.company)]
 
 
 def tenant_filter(user: dict, extra: dict | None = None) -> dict:
@@ -190,7 +192,7 @@ register_auth_routes(api, access)
 
 # ----------------------------- clients -----------------------------
 @api.get("/clients")
-async def list_clients(user: CurrentUser, search: str = "", skip: int = 0, limit: int = 1000):
+async def list_clients(user: CompanyUser, search: str = "", skip: int = 0, limit: int = 1000):
     if skip < 0 or not 1 <= limit <= 1000:
         raise HTTPException(422,"Paginação inválida.")
     q = tenant_filter(user)
@@ -211,7 +213,7 @@ async def list_clients(user: CurrentUser, search: str = "", skip: int = 0, limit
 
 
 @api.post("/clients", status_code=201)
-async def create_client(data: ClientIn, user: CurrentUser):
+async def create_client(data: ClientIn, user: CompanyUser):
     doc = {"id": new_id(), "workshop_id": user["workshop_id"], **data.model_dump(),
            "created_at": now_iso(), "updated_at": now_iso()}
     async def operation(session):
@@ -224,19 +226,19 @@ async def create_client(data: ClientIn, user: CurrentUser):
 
 
 @api.get("/clients/{client_id}")
-async def get_client(client_id: str, user: CurrentUser):
+async def get_client(client_id: str, user: CompanyUser):
     doc = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0})
     if not doc:
         raise HTTPException(404, "Cliente não encontrado")
     doc["vehicles"] = await db.vehicles.find(tenant_filter(user, {"client_id": client_id}), {"_id": 0}).to_list(500)
     doc["work_orders"] = await db.work_orders.find(
         tenant_filter(user, {"client_id": client_id}), {"_id": 0}
-    ).sort("created_at", -1).to_list(500)
+    ).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
     return doc
 
 
 @api.put("/clients/{client_id}")
-async def update_client(client_id: str, data: ClientIn, user: CurrentUser):
+async def update_client(client_id: str, data: ClientIn, user: CompanyUser):
     async def operation(session):
         await db.workshops.update_one({'id':user['workshop_id']},{'$inc':{'identity_revision':1}},session=session)
         upd = {**data.model_dump(), 'workshop_id':user['workshop_id'], 'updated_at':now_iso()}
@@ -249,7 +251,7 @@ async def update_client(client_id: str, data: ClientIn, user: CurrentUser):
 
 
 @api.delete("/clients/{client_id}")
-async def delete_client(client_id: str, user: CurrentUser):
+async def delete_client(client_id: str, user: CompanyUser):
     async def operation(session):
         client = await db.clients.find_one(tenant_filter(user, {"id": client_id}), {"_id": 0, "id": 1}, session=session)
         if not client:
@@ -262,7 +264,7 @@ async def delete_client(client_id: str, user: CurrentUser):
             raise HTTPException(
                 409, "Não é possível apagar um cliente com viaturas ou histórico. Arquive-o em vez disso."
             )
-        for collection in ("quotes", "appointments", "users"):
+        for collection in ("quotes", "appointments", "users", "stand_leads", "stand_sales"):
             if await db[collection].find_one(
                 tenant_filter(user, {"client_id": client_id}), {"_id": 0, "id": 1}, session=session
             ):
@@ -275,7 +277,7 @@ async def delete_client(client_id: str, user: CurrentUser):
 
 # ----------------------------- vehicles -----------------------------
 @api.get("/vehicles")
-async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None, search: str = "", skip: int = 0, limit: int = 1000):
+async def list_vehicles(user: CompanyUser, client_id: Optional[str] = None, search: str = "", skip: int = 0, limit: int = 1000):
     if skip < 0 or not 1 <= limit <= 1000:
         raise HTTPException(422,"Paginação inválida.")
     q = tenant_filter(user)
@@ -295,7 +297,7 @@ async def list_vehicles(user: CurrentUser, client_id: Optional[str] = None, sear
 
 
 @api.post("/vehicles", status_code=201)
-async def create_vehicle(data: VehicleIn, user: CurrentUser):
+async def create_vehicle(data: VehicleIn, user: CompanyUser):
     async def operation(session):
         if not await db.clients.find_one_and_update(
             tenant_filter(user, {"id": data.client_id}),
@@ -320,25 +322,25 @@ async def create_vehicle(data: VehicleIn, user: CurrentUser):
 
 
 @api.get("/vehicles/{vehicle_id}")
-async def get_vehicle(vehicle_id: str, user: CurrentUser):
+async def get_vehicle(vehicle_id: str, user: CompanyUser):
     doc = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0})
     if not doc:
         raise HTTPException(404, "Viatura não encontrada")
-    doc["photos"] = await db.photos.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
-    doc["damages"] = await db.damages.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
+    doc["photos"] = await db.photos.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
+    doc["damages"] = await db.damages.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
     doc["client"] = await db.clients.find_one(tenant_filter(user, {"id": doc["client_id"]}), {"_id": 0})
-    doc["work_orders"] = await db.work_orders.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500)
+    doc["work_orders"] = await db.work_orders.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
     return doc
 
 
 @api.put("/vehicles/{vehicle_id}")
-async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CurrentUser):
+async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CompanyUser):
     async def operation(session):
         existing = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0}, session=session)
         if not existing:
             raise HTTPException(404, "Viatura não encontrada")
         if existing["client_id"] != data.client_id:
-            for collection in ("work_orders", "quotes", "appointments"):
+            for collection in ("work_orders", "quotes", "appointments", "stand_sales"):
                 if await db[collection].find_one(
                     tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0, "id": 1}, session=session
                 ):
@@ -365,12 +367,12 @@ async def update_vehicle(vehicle_id: str, data: VehicleIn, user: CurrentUser):
 
 
 @api.delete("/vehicles/{vehicle_id}")
-async def delete_vehicle(vehicle_id: str, user: CurrentUser):
+async def delete_vehicle(vehicle_id: str, user: CompanyUser):
     async def operation(session):
         scope = tenant_filter(user, {"id": vehicle_id})
         if not await db.vehicles.find_one(scope, {"_id": 0, "id": 1}, session=session):
             raise HTTPException(404, "Viatura não encontrada")
-        for collection in ("work_orders", "quotes", "photos", "damages", "appointments"):
+        for collection in ("work_orders", "quotes", "photos", "damages", "appointments", "stand_inventory", "stand_sales"):
             if await db[collection].find_one(
                 tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0, "id": 1}, session=session
             ):
@@ -1363,6 +1365,7 @@ register_media_routes(api, db, access)
 register_operations(api, db, access)
 register_history(api, db, access)
 register_recovery(api, access)
+register_stand_routes(api, db, access)
 app.include_router(api)
 app.add_middleware(RequestDiagnostics)
 app.add_middleware(

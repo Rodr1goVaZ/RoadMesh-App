@@ -6,8 +6,9 @@ import { API_BASE } from "./config";
 export { API_BASE } from "./config";
 
 async function request(path: string, options: RequestInit = {}) {
-  const token = path.endsWith("/login") ? null : await session.getFreshToken();
-  const support = await session.getSupport();
+  const publicAuth = path.endsWith("/login") || path === "/auth/forgot-password" || path === "/auth/reset-password";
+  const token = publicAuth ? null : await session.getFreshToken();
+  const support = publicAuth ? null : await session.getSupport();
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     ...options,
@@ -22,7 +23,7 @@ async function request(path: string, options: RequestInit = {}) {
   let body: any = null;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
   if (!res.ok) {
-    if (!path.includes("login") && (res.status === 401 || res.status === 428)) authEvents.emit(res.status);
+    if (!publicAuth && (res.status === 401 || res.status === 428)) authEvents.emit(res.status);
     const msg = body?.detail || body?.message || `Erro ${res.status}`;
     throw new Error(typeof msg === "string" ? msg : "Erro na API");
   }

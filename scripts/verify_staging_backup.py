@@ -18,16 +18,17 @@ sys.path.insert(0,str(ROOT/'backend/tests'))
 from run_local import available_port  # noqa: E402
 
 
-def verify(snapshot_path,runtime):
+def verify(snapshot_path,runtime,report_path=None):
     raw=snapshot_path.read_text()
     data=json.loads(raw)
-    if data.get('format')!='roadmesh-snapshot-v1' or data.get('schema_version')!='RoadMesh PostgreSQL schema version 3; private server access':
+    if data.get('format')!='roadmesh-snapshot-v1' or data.get('schema_version') not in ('RoadMesh PostgreSQL schema version 3; private server access','RoadMesh PostgreSQL schema version 5; private server access'):
         raise ValueError('Unrecognized snapshot version')
-    if set(data.get('tables',{}))!=set(TABLES) or set(data.get('counts',{}))!=set(TABLES):
+    tables = TABLES + ('stand_inventory stand_leads stand_sales'.split() if 'version 5;' in data['schema_version'] else [])
+    if set(data.get('tables',{}))!=set(tables) or set(data.get('counts',{}))!=set(tables):
         raise ValueError('Incomplete table set')
-    if any(len(data['tables'][t])!=data['counts'][t] for t in TABLES):
+    if any(len(data['tables'][t])!=data['counts'][t] for t in tables):
         raise ValueError('Incomplete snapshot')
-    with tempfile.TemporaryDirectory(prefix='roadmesh-backup-check-',dir='/tmp') as directory:
+    with tempfile.TemporaryDirectory(prefix='roadmesh-backup-check-',dir=None) as directory:
         temp=Path(directory);port=available_port()
         modules=runtime.resolve()/'node_modules/@electric-sql'
         script=temp/'embedded.mjs'
@@ -48,9 +49,11 @@ def verify(snapshot_path,runtime):
                         conn.execute(sql.SQL('CREATE ROLE {} NOLOGIN').format(sql.Identifier(role)))
                     for name in ('001_initial.sql','002_backend_compatibility.sql','003_business_modules.sql','004_runtime_role.sql'):
                         conn.execute((ROOT/'backend/sql'/name).read_text(),prepare=False)
+                    if 'version 5;' in data['schema_version']:
+                        conn.execute((ROOT/'backend/sql/005_company_modules_stand.sql').read_text(),prepare=False)
                     with conn.transaction():
                         conn.execute("SELECT set_config('TimeZone',%s,true)",(data.get('timezone','UTC'),))
-                        for name in TABLES:
+                        for name in tables:
                             table=sql.Identifier('roadmesh',name)
                             record=sql.SQL("value || '{\"logo_media_id\":null}'::jsonb") if name=='workshops' else sql.SQL('value')
                             conn.execute(sql.SQL("INSERT INTO {} SELECT (jsonb_populate_record(NULL::{},{})).* FROM jsonb_array_elements(%s::jsonb->'tables'->%s)").format(table,table,record),(raw,name))
@@ -59,15 +62,16 @@ def verify(snapshot_path,runtime):
                         conn.execute("UPDATE roadmesh.workshops w SET logo_media_id=(v->>'logo_media_id')::uuid FROM jsonb_array_elements(%s::jsonb->'tables'->'workshops') v WHERE w.id=(v->>'id')::uuid",(raw,))
                         conn.execute('ALTER TABLE roadmesh.workshops ENABLE TRIGGER touch_updated_at')
                         conn.execute('SET CONSTRAINTS ALL IMMEDIATE')
-                        for name in TABLES:
+                        for name in tables:
                             table=sql.Identifier('roadmesh',name)
                             same=conn.execute(sql.SQL("SELECT NOT EXISTS((SELECT to_jsonb(t) FROM {} t EXCEPT ALL SELECT value FROM jsonb_array_elements(%s::jsonb->'tables'->%s)) UNION ALL (SELECT value FROM jsonb_array_elements(%s::jsonb->'tables'->%s) EXCEPT ALL SELECT to_jsonb(t) FROM {} t))").format(table,table),(raw,name,raw,name)).fetchone()[0]
                             if not same:raise ValueError('Restored data does not match: '+name)
-                report={'source':'RoadMesh-Testes, private version-3 snapshot','tables':27,
+                report={'source':'private supplied snapshot','tables':len(tables),
                     'rows':sum(data['counts'].values()),'all_rows_compared':True,
                     'constraints_checked':True,'restore_engine':'disposable local PGlite',
                     'remote_source_modified':False,'media_bytes_included':False}
-                (ROOT/'docs/evidencias/restauro-staging.json').write_text(json.dumps(report,indent=2)+'\n')
+                target = report_path or ROOT/'docs/evidencias/restauro-staging.json'
+                target.write_text(json.dumps(report,indent=2)+'\n')
                 print(json.dumps(report,ensure_ascii=False))
                 return 0
             finally:

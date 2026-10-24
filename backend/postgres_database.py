@@ -28,7 +28,7 @@ from pymongo.errors import DuplicateKeyError
 
 TABLES = frozenset('workshops clients users vehicles products appointments quotes work_orders '
     'work_order_items quote_items purchase_orders purchase_order_items stock_movements '
-    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets'.split())
+    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets stand_inventory stand_leads stand_sales'.split())
 CHILDREN = {'work_orders': ('work_order_items', 'work_order_id'),
             'quotes': ('quote_items', 'quote_id'),
             'purchase_orders': ('purchase_order_items', 'purchase_order_id')}
@@ -93,7 +93,7 @@ class PostgresDatabase:
             for row in rows:
                 self.columns.setdefault(row['table_name'], {})[row['column_name']] = row['udt_name']
             if any('metadata' not in self.columns.get(name, {}) for name in TABLES) or self.columns.get('work_orders', {}).get('number') != 'text':
-                raise RuntimeError('Apply backend/sql/001_initial.sql 002_backend_compatibility.sql and 003_business_modules.sql before starting PostgreSQL mode.')
+                raise RuntimeError('Apply backend/sql/001_initial.sql 002_backend_compatibility.sql 003_business_modules.sql and 005_company_modules_stand.sql before starting PostgreSQL mode.')
             # SQL expiry checks are authoritative. Cleanup is bounded to startup.
             for name in ('revoked_sessions', 'login_limits', 'support_sessions'):
                 await conn.execute(sql.SQL('DELETE FROM roadmesh.{} WHERE expires_at <= now()').format(sql.Identifier(name)))

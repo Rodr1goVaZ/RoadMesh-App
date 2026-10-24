@@ -13,10 +13,10 @@ export default function AdminDashboard() {
   const { logout } = useAuth(); const wide = useWindowDimensions().width >= 900;
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["admin-dashboard"], queryFn: () => api.get("/admin/dashboard") });
   return <AreaPage title="Administração" testID="admin-dashboard" back={false}>
-    <DashboardHero title="Todas as oficinas. Uma visão completa." description="Acompanhe a plataforma e mantenha a gestão de cada oficina por perto." button="Consultar oficinas" onPress={() => router.push("/(admin)/workshops")} testID="admin-overview" icon="business-outline" />
+    <DashboardHero title="Todas as empresas. Uma visão completa." description="Acompanhe a plataforma e mantenha a gestão de cada empresa por perto." button="Consultar empresas" onPress={() => router.push("/(admin)/workshops")} testID="admin-overview" icon="business-outline" />
     <QueryState loading={isLoading} error={error} retry={refetch} testID="admin-dashboard-query" />
     {data && <DashboardMetrics entries={[
-      { label: "Oficinas", value: data.workshops, icon: "business-outline", testID: "global-metrics-0-value" },
+      { label: "Empresas", value: data.workshops, icon: "business-outline", testID: "global-metrics-0-value" },
       { label: "Ativas", value: data.active, icon: "checkmark-circle-outline", testID: "global-metrics-1-value" },
       { label: "Inativas", value: data.disabled, icon: "pause-circle-outline", testID: "global-metrics-2-value" },
       { label: "Arquivadas", value: data.archived, icon: "archive-outline", testID: "global-metrics-3-value" },
@@ -27,8 +27,8 @@ export default function AdminDashboard() {
     ]} />}
     <View style={[ds.columns, wide && { flexDirection: "row" }]}>
       <View style={ds.main}><Panel title="Gestão da plataforma" testID="admin-dashboard-actions">
-        <DashboardAction testID="admin-open-workshops" icon="business-outline" label="Consultar oficinas e faturação" description="Acessos, atividade, estado e suporte." onPress={() => router.push("/(admin)/workshops")} />
-        <DashboardAction testID="admin-new-workshop" icon="add-circle-outline" label="Criar oficina" description="Adicionar uma oficina e o respetivo responsável." onPress={() => router.push("/(admin)/workshop-form")} />
+        <DashboardAction testID="admin-open-workshops" icon="business-outline" label="Consultar empresas e faturação" description="Acessos, atividade, estado e suporte." onPress={() => router.push("/(admin)/workshops")} />
+        <DashboardAction testID="admin-new-workshop" icon="add-circle-outline" label="Criar empresa" description="Adicionar uma empresa e o respetivo responsável." onPress={() => router.push("/(admin)/workshop-form")} />
       </Panel></View>
       <View style={ds.side}><Panel title="A sua conta" testID="admin-account-actions"><Text style={workspaceStyles.hint}>Os acessos e as operações de suporte continuam protegidos pelas permissões da administração.</Text>
         <Button testID="admin-change-password" title="Alterar palavra-passe" variant="secondary" onPress={() => router.push("/(auth)/change-password")} />

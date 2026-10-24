@@ -60,7 +60,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
                     conn.execute('CREATE DATABASE roadmesh_test')
             url = base_url if embedded else f'postgresql://postgres@/roadmesh_test?host={temp}'
             with psycopg.connect(url) as conn:
-                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql'):
+                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql', '005_company_modules_stand.sql'):
                     conn.execute((ROOT / 'sql' / name).read_text(), prepare=False)
             env = {**os.environ, 'DATABASE_URL':url, 'DATABASE_POOL_SIZE':'4',
                 'JWT_SECRET':secrets.token_urlsafe(48),
@@ -69,6 +69,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
                 'STORAGE_DRIVER':'local', 'LOCAL_MEDIA_ROOT':str(temp / 'media'),
                 'ROADMESH_TEST_ALLOW_WRITE':'1', 'ROADMESH_TEST_POSTGRES_URL':url,
                 'ROADMESH_TEST_EMBEDDED':'1' if embedded else '0',
+                'ROADMESH_TEST_PGLITE_RUNTIME':str(args.pglite_runtime.resolve()) if embedded else '',
                 'ROADMESH_TEST_MONGO_URL':'', 'ROADMESH_TEST_DB_NAME':'',
                 'EXPO_PUBLIC_BACKEND_URL':f'http://127.0.0.1:{available_port()}'}
             port = env['EXPO_PUBLIC_BACKEND_URL'].rsplit(':', 1)[1]

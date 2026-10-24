@@ -9,9 +9,9 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta name="referrer" content="no-referrer" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#7A1E2B" />
+        <meta name="theme-color" content="#650D0D" />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/roadmesh-icon-v2.png" />
         <title>RoadMesh · Gestão de oficinas</title>
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta

@@ -4,7 +4,7 @@
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/roadmesh-logo.png",
+    "icon": "./assets/images/roadmesh-favicon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -21,7 +21,7 @@
         "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/roadmesh-logo.png",
+        "foregroundImage": "./assets/images/roadmesh-favicon.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.emergent.meshworkshop.v4s3w1"
@@ -31,7 +31,7 @@
       "output": "single",
       "favicon": "./assets/images/roadmesh-favicon.png",
       "lang": "pt-PT",
-      "themeColor": "#7A1E2B",
+      "themeColor": "#650D0D",
       "description": "RoadMesh · Gestão de oficinas"
     },
     "plugins": [

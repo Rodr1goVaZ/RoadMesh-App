@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-24",
+  "scope": "isolated local tests and demonstration",
+  "production_modified": false,
+  "remote_staging_modified": false,
+  "postgres": {
+    "engine": "local PGlite",
+    "passed": 126,
+    "skipped": 2,
+    "skip_reason": "MongoDB-only fault injection"
+  },
+  "mongodb": {
+    "engine": "isolated local replica set",
+    "passed": 115,
+    "skipped": 13,
+    "skip_reason": "PostgreSQL-only tests"
+  },
+  "node": {
+    "passed": 17
+  },
+  "typecheck": "passed",
+  "eslint": "passed",
+  "web_export": "passed",
+  "migration": "005_company_modules_stand.sql",
+  "tables_after_migration": 30,
+  "snapshot_restore": {
+    "all_30_tables": true,
+    "all_rows_compared": true,
+    "constraints_checked": true,
+    "media_bytes_included": false
+  },
+  "browser": {
+    "viewports": [
+      [
+        393,
+        852
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        1440,
+        1000
+      ]
+    ],
+    "single_module_entry": true,
+    "single_module_no_switch": true,
+    "inactive_url_redirect": true,
+    "combined_module_switch_without_login": true,
+    "shared_client_and_lead_created": true
+  },
+  "limitations": [
+    "No remote Supabase migration or deployment",
+    "No physical device certification",
+    "PostgreSQL production concurrency requires remote rehearsal",
+    "Ownership transfer with prior history and sales returns require a separate future workflow"
+  ]
+}

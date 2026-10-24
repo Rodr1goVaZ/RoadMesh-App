@@ -3,6 +3,7 @@ import { Text, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/api";
+import { companyHome, companyModules } from "@/src/company-modules";
 import { useAuth } from "@/src/auth";
 import { AreaPage, Metrics, Panel, QueryState, areaStyles, CredentialsNotice } from "@/src/components/AreaUI";
 import { Button } from "@/src/components/Button";
@@ -19,7 +20,7 @@ export default function WorkshopDetail() {
   const action = async (kind: string) => {
     setBusy(true); setError("");
     try {
-      if (kind === "support") { await startSupport(id); router.replace("/(app)/inicio"); return; }
+      if (kind === "support") { const context = await startSupport(id); router.replace(companyHome(context)); return; }
       if (kind === "archive") await api.del(`/admin/workshops/${id}`);
       if (kind === "status") await api.post(`/admin/workshops/${id}/status`, { status: data.status === "active" ? "disabled" : "active" });
       if (kind === "staff") { const result = await api.post(`/admin/workshops/${id}/staff`, { name, email }); setCredentials(result.credentials); setAdd(false); setName(""); setEmail(""); }
@@ -32,14 +33,15 @@ export default function WorkshopDetail() {
     {data && <>
       <Panel testID="admin-workshop-contact" title={data.name}>
         {data.logo_media_id && <Photo mediaId={data.logo_media_id} testID="admin-workshop-logo" style={styles.logo} />}
+        <Text style={areaStyles.label}>{companyModules(data).map(m => m === "stand" ? "Stand" : "Oficina").join(" + ")}</Text>
         <Text testID="admin-workshop-state" style={areaStyles.label}>{({ active: "Ativa", disabled: "Inativa", archived: "Arquivada" } as any)[data.status]}</Text>
         <Text testID="admin-workshop-contact-details" style={areaStyles.hint}>NIF: {data.nif || "—"}{"\n"}{data.address || "Morada não indicada"}{"\n"}{data.email || "Email da oficina não indicado"}</Text>
-        <Button testID="admin-workshop-edit" title="Editar dados da oficina" variant="secondary" onPress={() => router.push({ pathname: "/(admin)/workshop-form", params: { id } })} />
+        <Button testID="admin-workshop-edit" title="Editar dados da empresa" variant="secondary" onPress={() => router.push({ pathname: "/(admin)/workshop-form", params: { id } })} />
       </Panel>
       <Metrics testID="workshop-metrics" entries={[{ label: "Clientes", value: data.metrics.clients }, { label: "Viaturas", value: data.metrics.vehicles }, { label: "Ordens de serviço", value: data.metrics.work_orders }, { label: "Faturação", value: formatEUR(data.metrics.revenue) }]} />
-      <Panel testID="admin-support-panel" title="Consultar dados da oficina">
-        <Text testID="admin-support-help" style={areaStyles.hint}>Clientes, viaturas, serviços, stock, encomendas, orçamentos e faturação. A visualização de suporte mostra um aviso permanente e fica registada.</Text>
-        <Button testID="admin-enter-support" title="Entrar na oficina · Modo ADMIN" loading={busy} onPress={() => action("support")} />
+      <Panel testID="admin-support-panel" title="Consultar dados da empresa">
+        <Text testID="admin-support-help" style={areaStyles.hint}>Dados da empresa e dos módulos ativos. A visualização de suporte mostra um aviso permanente e fica registada.</Text>
+        <Button testID="admin-enter-support" title="Entrar na empresa · Modo ADMIN" loading={busy} onPress={() => action("support")} />
       </Panel>
       {credentials && <CredentialsNotice credentials={credentials} onClose={() => setCredentials(null)} />}
       <Text testID="admin-users-title" style={areaStyles.title}>Utilizadores e colaboradores</Text>

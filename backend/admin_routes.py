@@ -5,7 +5,8 @@ from datetime import timedelta
 from typing import Literal, Optional
 
 from fastapi import Depends, HTTPException
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, field_validator
+from company_modules import active_modules
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
 from access_control import StrictModel, identifier, now, password_hash, timestamp
@@ -13,6 +14,15 @@ from database_integrity import revenue_pipeline, transact
 
 
 class WorkshopBody(StrictModel):
+    modules: list[Literal["workshop","stand"]] = Field(default_factory=lambda: ["workshop"], min_length=1, max_length=2)
+
+    @field_validator("modules")
+    @classmethod
+    def validate_modules(cls, value):
+        if len(set(value)) != len(value):
+            raise ValueError("Escolha cada módulo apenas uma vez.")
+        return [name for name in ("workshop","stand") if name in value]
+
     name: str = Field(min_length=2, max_length=100)
     nif: str = Field(default="", max_length=30)
     address: str = Field(default="", max_length=300)
@@ -73,12 +83,14 @@ def register_admin_routes(api, db, access):
             scope["$or"] = [{key: match} for key in ["name", "email", "nif", "manager_name", "manager_email"]]
         docs = await db.workshops.find(scope, {"_id": 0}).sort("name", 1).to_list(2000)
         for doc in docs:
+            doc["modules"] = active_modules(doc)
             doc["metrics"] = await metrics(doc["id"])
         return docs
 
     @api.get("/admin/workshops/{wid}")
     async def workshop_detail(wid: str, account=Depends(access.admin)):
         doc = await workshop_doc(wid)
+        doc["modules"] = active_modules(doc)
         doc["metrics"] = await metrics(wid)
         users = await db.users.find({"workshop_id": wid}, {"_id": 0, "password_hash": 0}).sort("name", 1).to_list(2000)
         doc["users"] = [{key: user.get(key) for key in ["id", "name", "email", "role", "client_id", "is_active", "is_manager", "password_change_required"]} for user in users]
@@ -114,6 +126,8 @@ def register_admin_routes(api, db, access):
             except DuplicateKeyError as exc:
                 raise HTTPException(409, "O email do gerente já está em uso.") from exc
         update = {**body.model_dump(), "updated_at": timestamp()}
+        if "modules" not in body.model_fields_set:
+            update.pop("modules", None)
         if manager:
             update["manager_id"] = manager["id"]
         await db.workshops.update_one({"id": wid}, {"$set": update})
@@ -178,7 +192,7 @@ def register_admin_routes(api, db, access):
         await db.support_sessions.insert_one({"id": identifier(), "actor_id": account["id"], "workshop_id": wid, "reason": body.reason,
                                               "digest": hashlib.sha256(secret.encode()).hexdigest(), "expires_at": now() + timedelta(hours=1)})
         await access.audit(account, "begin_support", wid, body.reason)
-        return {"support_token": secret, "workshop": {"id": wid, "name": workshop["name"], "status": workshop["status"]}}
+        return {"support_token": secret, "workshop": {"id": wid, "name": workshop["name"], "status": workshop["status"], "modules": active_modules(workshop)}}
 
     @api.delete("/admin/support")
     async def end_support(account=Depends(access.admin)):
