@@ -6,20 +6,22 @@ O email contém um link de uso único, válido durante 20 minutos, para definir 
 
 ## Ativar o envio na Vercel
 
-O transporte SMTP já está implementado no backend. É necessário um serviço de envio com remetente autorizado; não foi contratado ou configurado um fornecedor nesta alteração. Os ficheiros privados locais consultados ainda não contêm estes valores. Esta aplicação usa contas próprias RoadMesh: configurar apenas os emails do Supabase Auth não ativa este transporte.
+O SMTP foi configurado em produção em 26 de outubro de 2026, no projeto Vercel `roadmesh-api`. A palavra-passe foi introduzida pelo proprietário diretamente na Vercel como Secret e não foi copiada para o código ou para ficheiros locais. Esta aplicação usa contas próprias RoadMesh: configurar apenas os emails do Supabase Auth não ativa este transporte.
 
 No projeto **roadmesh-api**, adicionar as variáveis em Environment Variables, no ambiente Production:
 
 ```dotenv
 PASSWORD_RESET_URL=https://roadmesh-app-frontend.vercel.app/reset-password
-SMTP_HOST=<servidor indicado pelo fornecedor>
-SMTP_PORT=587
-SMTP_USERNAME=<utilizador SMTP>
-SMTP_PASSWORD=<credencial SMTP>
-SMTP_FROM=RoadMesh <endereco-remetente-autorizado>
+SMTP_HOST=webdomain02.dnscpanel.com
+SMTP_PORT=465
+SMTP_USERNAME=geral@raro-solutions.pt
+SMTP_PASSWORD=<palavra-passe da caixa, guardada apenas como Secret na Vercel>
+SMTP_FROM=RoadMesh <geral@raro-solutions.pt>
 ```
 
 Usar a porta indicada pelo fornecedor: 587 ativa STARTTLS; 465 usa TLS desde o início. Configurar a verificação do remetente/domínio conforme o fornecedor. Guardar as credenciais apenas na Vercel ou num .env privado, nunca no Git.
+
+O nome `webdomain02.dnscpanel.com` foi confirmado por DNS, resposta SMTP e certificado TLS válido na porta 465. O alias `mail.raro-solutions.pt` não correspondia ao certificado apresentado; foi utilizado o nome canónico, mantendo a validação do certificado ativa. `SMTP_PASSWORD` é a credencial da caixa de correio, não a palavra-passe da conta RoadMesh.
 
 Publicar o código de frontend e backend e voltar a fazer deploy do backend depois de guardar as variáveis. Para Preview/Staging usar remetente e base de testes próprios e uma PASSWORD_RESET_URL correspondente a esse frontend.
 
@@ -34,4 +36,8 @@ Sem SMTP configurado, ou se o fornecedor recusar o envio, a mensagem genérica d
 
 ## Validação desta alteração
 
-Sete testes backend aprovados: ligação SMTP simulada com TLS/STARTTLS, destinatário e URL, configuração inválida e integração PostgreSQL com expiração, uso único e invalidação de sessão. Nove testes frontend de API/sessão aprovados, incluindo recuperação independente de uma sessão expirada. O transporte simulado não comprova entrega num fornecedor real. Interface de mostrar/ocultar e pedido pelo email preenchido verificados na demonstração local. Não houve envio de emails reais nem alteração das contas de produção nesta implementação.
+Na implementação original, sete testes backend aprovaram ligação SMTP simulada com TLS/STARTTLS, destinatário e URL, configuração inválida e integração PostgreSQL com expiração, uso único e invalidação de sessão. Os testes originais não comprovavam entrega real.
+
+Em 26/10, a API foi republicada em produção com as seis variáveis SMTP/recuperação. Foi enviado, com autorização explícita, um único pedido de recuperação para `geral@raro-solutions.pt`. A API devolveu HTTP 200 e o registo de recuperação permaneceu válido após o pedido terminar; no fluxo implementado, uma falha SMTP remove esse registo. Isto confirma aceitação SMTP inferida a partir da conclusão do envio, mas não comprova chegada à caixa de entrada. O destinatário confirmou a chegada à caixa de entrada em 26/10/2026, concluindo a validação real da entrega. A palavra-passe RoadMesh não foi alterada e o link não foi aberto pelo agente.
+
+Publicação: `E5WCdDjeCBGtejG72Rtc9pCjS64C`, código `ffbafa0acb403acd78600597e0517a01489c3dca`. Evidência sem credenciais ou tokens em [smtp-20261026.json](evidencias/smtp-20261026.json).

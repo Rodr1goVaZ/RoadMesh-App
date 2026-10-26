@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-26",
+  "environment": "production",
+  "project": "roadmesh-api",
+  "deployment": "E5WCdDjeCBGtejG72Rtc9pCjS64C",
+  "source_commit": "ffbafa0acb403acd78600597e0517a01489c3dca",
+  "smtp_host": "webdomain02.dnscpanel.com",
+  "smtp_port": 465,
+  "transport": "TLS with certificate verification",
+  "credential": "Entered by owner directly in Vercel as Secret; not read or copied by agent",
+  "scope": "One recovery email explicitly authorized to geral@raro-solutions.pt",
+  "test": {
+    "recovery_request_http": 200,
+    "request_id": "42dde0ae7c194578aec5c5024b07b9be",
+    "fresh_valid_recovery_record_retained_after_response": true,
+    "smtp_acceptance": "Inferred from completed request and retained record; SMTP exceptions delete the record",
+    "inbox_delivery": "Confirmed by recipient: received in inbox on 2026-10-26",
+    "password_changed": false,
+    "raw_token_read_or_saved_by_agent": false,
+    "password_reset_link_consumed_by_agent": false
+  }
+}

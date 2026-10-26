@@ -299,3 +299,12 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Documentação operacional e histórica organizada em docs; README do frontend substituído pela descrição da aplicação real. Exclusões de build/uploads atualizadas para caches, dependências e dados privados.
 - Validação final: PostgreSQL local/PGlite 126 aprovados e 2 excluídos específicos de MongoDB; MongoDB isolado 115 aprovados e 13 excluídos específicos de PostgreSQL; 24 testes frontend aprovados; TypeScript, ESLint, exportação web e links da documentação aprovados.
 - Sem alteração de dados, credenciais, bases remotas ou publicação. Rotas legadas da oficina mantêm-se em backend/server.py; a organização não pretende ser uma reescrita integral da API. Estrutura e regras em [ESTRUTURA.md](architecture/ESTRUTURA.md); evidência em evidencias/reestruturacao-20261026.json.
+
+
+## 26 de outubro de 2026 — SMTP em produção
+
+- Configuradas as variáveis de recuperação e SMTP no projeto roadmesh-api, apenas em Production. SMTP_PASSWORD introduzida pelo proprietário como Secret, sem leitura pelo agente nem cópia para o repositório.
+- Servidor canónico webdomain02.dnscpanel.com, porta 465, TLS com certificado validado. Remetente RoadMesh <geral@raro-solutions.pt>.
+- API republicada com o código existente; nenhuma alteração de código ou migração SQL.
+- Um email de recuperação de teste autorizado para geral@raro-solutions.pt: HTTP 200 e registo válido preservado após conclusão do envio indicam aceitação SMTP. Destinatário confirmou a receção na caixa de entrada em 26/10/2026; palavra-passe RoadMesh preservada.
+- Detalhes em EMAIL-RECUPERACAO.md e evidencias/smtp-20261026.json.
