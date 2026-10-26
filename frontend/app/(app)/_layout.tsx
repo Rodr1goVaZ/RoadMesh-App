@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { View, useWindowDimensions } from "react-native";
-import { ModuleSwitch } from "@/src/workspace/ModuleSwitch";
-import { companyModules, companyHome } from "@/src/company-modules";
-import { useAuth, homeFor } from "@/src/auth";
-import { SupportBanner } from "@/src/components/SupportBanner";
-import { WorkspaceVisualContext, workspaceColors } from "@/src/workspace/theme";
-import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/workspace/WorkspaceChrome";
+import { ModuleSwitch } from "@/src/shared/layout/ModuleSwitch";
+import { companyModules, companyHome } from "@/src/core/auth/company-modules";
+import { useAuth, homeFor } from "@/src/core/auth/AuthProvider";
+import { SupportBanner } from "@/src/shared/layout/SupportBanner";
+import { WorkspaceVisualContext, workspaceColors } from "@/src/shared/theme/workspace";
+import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/shared/layout/WorkspaceChrome";
 const items: WorkspaceLink[] = [
   { label: "Início", href: "/(app)/inicio", icon: "home-outline", activeIcon: "home", testID: "workshop-tab-home", matches: ["(app)/inicio"] },
   { label: "Serviço", href: "/(app)/servico", icon: "construct-outline", activeIcon: "construct", testID: "workshop-tab-services", matches: ["(app)/servico"] },

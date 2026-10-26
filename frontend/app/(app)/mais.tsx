@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, useWindowDimensions } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { router } from "expo-router";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, areaStyles } from "@/src/components/AreaUI";
-import { Button } from "@/src/components/Button";
-import { DashboardAction } from "@/src/workspace/DashboardUI";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Button } from "@/src/shared/ui/Button";
+import { DashboardAction } from "@/src/shared/layout/DashboardUI";
 import Ionicons from "@expo/vector-icons/Ionicons";
 export default function Mais() {
   const { user, logout, support } = useAuth(); const wide = useWindowDimensions().width >= 900;

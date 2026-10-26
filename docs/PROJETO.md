@@ -1,7 +1,7 @@
 # RoadMesh — documentação do projeto
 
-**Versão documentada:** commit `04d5bac`, branch `codex/roadmesh-auditoria-melhorias`.
-**Data:** 22 de outubro de 2026. **Estado:** código com commit e referência remota local coincidentes; migração 003 aplicada na produção em 21/10. A publicação do código mais recente na Vercel não foi confirmada nesta atualização.
+**Atualização estrutural:** 26 de outubro de 2026, alterações locais por publicar.
+A arquitetura funcional e as regras abaixo mantêm-se; a organização atual está em [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.
 
@@ -54,26 +54,27 @@ As versões exatas estão em `backend/requirements*.txt`, `frontend/package.json
 
 | Caminho | Responsabilidade |
 |---|---|
-| `backend/server.py` | Aplicação, modelos e rotas de negócio existentes |
-| `backend/access_control.py` | Autenticação, sessões, funções, contexto de suporte e auditoria |
-| `backend/admin_routes.py`, `portal_routes.py` | Administração e portal do cliente |
-| `backend/business_rules.py` | Normalização, duplicados, dinheiro, margens, preços e anos civis |
-| `backend/operations.py` | Configurações, fornecedores, rascunhos, reposição, receções e livro financeiro |
-| `backend/history_routes.py` | Históricos paginados e anos com registos |
-| `backend/postgres_database.py` | Adaptação do repositório existente a SQL parametrizado e tabelas relacionais |
-| `backend/database_integrity.py` | Transações e índices; compatibilidade de identificadores MongoDB |
-| `backend/media_storage.py` | Validação, carregamento e leitura autorizada de fotografias |
-| `backend/password_recovery.py` | Tokens de uso único e transporte SMTP |
-| `backend/request_logging.py` | Diagnóstico estruturado de pedidos |
+| `backend/server.py` | Entrada ASGI e rotas de negócio existentes |
+| `backend/roadmesh/api/schemas.py` | Modelos dos pedidos de negócio |
+| `backend/roadmesh/core/access_control.py` | Autenticação, sessões, funções, contexto de suporte e auditoria |
+| `backend/roadmesh/modules/administration/` e `backend/roadmesh/modules/portal/` | Administração e portal do cliente |
+| `backend/roadmesh/domain/business_rules.py` | Normalização, duplicados, dinheiro, margens, preços e anos civis |
+| `backend/roadmesh/modules/operations/service.py` | Configurações, fornecedores, rascunhos, reposição, receções e livro financeiro |
+| `backend/roadmesh/modules/history/routes.py` | Históricos paginados e anos com registos |
+| `backend/roadmesh/infrastructure/database/postgres.py` | Adaptação do repositório existente a SQL parametrizado e tabelas relacionais |
+| `backend/roadmesh/infrastructure/database/integrity.py` | Transações e índices; compatibilidade de identificadores MongoDB |
+| `backend/roadmesh/infrastructure/media/storage.py` | Validação, carregamento e leitura autorizada de fotografias |
+| `backend/roadmesh/modules/auth/recovery.py` | Tokens de uso único e transporte SMTP |
+| `backend/roadmesh/core/request_logging.py` | Diagnóstico estruturado de pedidos |
 | `backend/sql/` | Migrações e verificações prévias |
 | `frontend/app/` | Páginas agrupadas por administração, oficina e autenticação/portal |
-| `frontend/src/components/` | Formulários, modais, históricos, cartões e componentes comuns |
-| `frontend/src/api.ts`, `auth.tsx`, `session.ts` | Pedidos, contexto e ciclo de sessão |
-| `frontend/src/utils/pricing.ts` | Cálculo decimal da margem no frontend |
+| `frontend/src/shared/` e `frontend/src/features/` | Formulários, modais, históricos, cartões e componentes comuns |
+| `frontend/src/core/http/` e `frontend/src/core/auth/` | Pedidos, contexto e ciclo de sessão |
+| `frontend/src/features/finance/pricing.ts` | Cálculo decimal da margem no frontend |
 | `scripts/` | Preparação de demonstração e verificações de migração |
 | `docs/` | Documentação e evidências com dados fictícios |
 
-A pasta `frontend/RoadMesh/` é um projeto de exemplo separado, preexistente e não incluído no build principal. Não deve ser confundida com o frontend em `frontend/`.
+O projeto Expo de exemplo foi arquivado fora do repositório em 26/10. A única aplicação ativa está em `frontend/`; os novos caminhos e regras de reutilização constam de [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 ## 3. Permissões e isolamento
 
@@ -222,7 +223,7 @@ O arranque valida configuração sem chamar o armazenamento externo em cada cold
 
 ### Demonstração local
 
-Seguir `TESTAR.md`. Os iniciadores `dev.sh` e `Iniciar-Testes.command` usam a demonstração local. Os dados de demonstração ficam em `.demo/`, separados dos dados de produção. `--lan` permite acesso na rede local; não publica na Internet.
+Seguir [o guia de testes](guides/TESTAR.md). Os iniciadores `dev.sh` e `Iniciar-Testes.command` usam a demonstração local. Os dados de demonstração ficam em `.demo/`, separados dos dados de produção. `--lan` permite acesso na rede local; não publica na Internet.
 
 ### Desenvolvimento
 

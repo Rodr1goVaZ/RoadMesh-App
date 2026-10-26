@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import password_recovery as recovery
+import roadmesh.modules.auth.recovery as recovery
 
 
 @pytest.fixture

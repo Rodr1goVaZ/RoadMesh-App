@@ -2,12 +2,18 @@
 
 Aplicação móvel, web e tablet para oficinas automóveis. Expo/React Native no frontend, FastAPI e PostgreSQL/Supabase ou MongoDB no backend.
 
-Para publicar na Vercel com Supabase, siga [SUPABASE.md](SUPABASE.md). Quando `DATABASE_URL` está preenchido, todos os registos da API usam as tabelas relacionais do esquema `roadmesh`. Sem essa variável, mantém-se o modo MongoDB. O ambiente `./dev.sh` continua isolado em MongoDB local.
+Para publicar na Vercel com Supabase, siga [guia Supabase](docs/guides/SUPABASE.md). Quando `DATABASE_URL` está preenchido, todos os registos da API usam as tabelas relacionais do esquema `roadmesh`. Sem essa variável, mantém-se o modo MongoDB. O ambiente `./dev.sh` continua isolado em MongoDB local.
 
 ## Estrutura
 
 - `frontend/`: aplicação RoadMesh principal, com áreas de administração, oficina e cliente.
-- `frontend/RoadMesh/`: projeto Expo de exemplo independente. Não pertence à app principal e está excluído do TypeScript e ESLint desta.
+- `frontend/src/core/`: API, sessão, permissões de navegação e configuração.
+- `frontend/src/shared/`: componentes, estilos, hooks e utilitários reutilizáveis.
+- `frontend/src/features/`: funcionalidades de clientes, Oficina, Stand, portal e administração.
+- `backend/roadmesh/`: módulos, regras partilhadas e adaptadores de infraestrutura.
+- `docs/architecture/`: estrutura e regras de dependência; `docs/guides/`: instalação e testes.
+
+O exemplo independente foi retirado da árvore ativa e arquivado fora do repositório. Veja [estrutura e reutilização](docs/architecture/ESTRUTURA.md).
 - `backend/`: API, controlo de acessos, fotografias e PDFs.
 - `backend/tests/`: regressão da API e testes de concorrência/rollback.
 
@@ -15,11 +21,11 @@ Para publicar na Vercel com Supabase, siga [SUPABASE.md](SUPABASE.md). Quando `D
 
 Neste Mac, execute `./dev.sh` ou abra `Iniciar-Testes.command`. A aplicação fica em **http://localhost:8765**, com contas de oficina, cliente e administração, dados fictícios e fotografias locais persistentes. O ambiente é separado da configuração e dos dados existentes.
 
-Veja [TESTAR.md](TESTAR.md) para os acessos, percurso de teste e arranque no browser de um telemóvel.
+Veja [guia de testes](docs/guides/TESTAR.md) para os acessos, percurso de teste e arranque no browser de um telemóvel.
 
 ## Arranque local
 
-Requisitos: Python 3.12, Node.js 22.13+, Yarn 1 e PostgreSQL/Supabase (ver SUPABASE.md) ou MongoDB com **replica set** ou MongoDB Atlas. Um MongoDB standalone não suporta as transações usadas pelo stock e pelos documentos; a API verifica esta condição no arranque.
+Requisitos: Python 3.12, Node.js 22.13+, Yarn 1 e PostgreSQL/Supabase (ver docs/guides/SUPABASE.md) ou MongoDB com **replica set** ou MongoDB Atlas. Um MongoDB standalone não suporta as transações usadas pelo stock e pelos documentos; a API verifica esta condição no arranque.
 
 1. Se precisar de MongoDB local e tiver Docker, execute na raiz:
 
@@ -104,7 +110,7 @@ Frontend, a partir de `frontend/`:
 ```bash
 yarn typecheck
 yarn lint
-yarn test:session
+yarn test
 yarn expo export --platform web
 ```
 
@@ -124,7 +130,7 @@ Para testar uma API de teste já preparada, configure `EXPO_PUBLIC_BACKEND_URL`,
 - [Documentação do projeto](docs/PROJETO.md)
 - [Relatório de alterações, testes e condições de publicação](docs/ALTERACOES.md)
 
-Estas alterações estão na branch de auditoria e requerem a migração do esquema versão 3 antes de publicar o novo backend.
+A estrutura usa os mesmos projetos Vercel, com raízes backend/ e frontend/. A versão funcional com Stand exige o esquema 5 (migração 005); esta reestruturação não adiciona migrações.
 
 ## Empresas com Oficina e Stand
 

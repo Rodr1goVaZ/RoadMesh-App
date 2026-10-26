@@ -87,6 +87,10 @@ android-sdk/
 .metro-cache/
 .pytest_cache/
 .ruff_cache/
+.expo/
+
+# Retired independent example; archived outside the active project.
+/frontend/RoadMesh/
 
 # Persistent local demonstration environment
 .demo/

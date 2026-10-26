@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { AreaPage } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { api } from "@/src/api";
+import { AreaPage } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { api } from "@/src/core/http/api";
 
 export default function ResetPassword() {
   const { token } = useLocalSearchParams<{ token: string }>();

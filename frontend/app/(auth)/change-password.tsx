@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Text } from "react-native";
 import { Redirect, router } from "expo-router";
-import { homeFor, useAuth } from "@/src/auth";
-import { AreaPage, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
+import { homeFor, useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
 export default function ChangePassword() {
   const { user, loading: authLoading, changePassword, logout } = useAuth();
   const [current, setCurrent] = useState(""); const [next, setNext] = useState(""); const [confirm, setConfirm] = useState("");

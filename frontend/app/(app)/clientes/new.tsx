@@ -1,30 +1,26 @@
-import { goBack } from "@/src/utils/navigation";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing } from "@/src/theme";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { api } from "@/src/core/http/api";
+import { colors, spacing } from "@/src/shared/theme/legacy";
+import { ClientFields } from "@/src/features/clients/components/ClientFields";
+import { Button } from "@/src/shared/ui/Button";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 
 export default function NewClient() {
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [nif, setNif] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
+  const [client, setClient] = useState({ name: "", nif: "", phone: "", email: "", address: "" });
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
-    if (!name.trim()) { Alert.alert("Erro", "Nome é obrigatório"); return; }
+    if (!client.name.trim()) { Alert.alert("Erro", "Nome é obrigatório"); return; }
     setLoading(true);
     try {
-      await api.post("/clients", { name: name.trim(), nif, phone, email, address });
+      await api.post("/clients", { ...client, name: client.name.trim() });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["clients-all"] });
       goBack();
@@ -37,11 +33,7 @@ export default function NewClient() {
       <ScreenHeader title="Novo Cliente" back testID="new-client-header" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 12, paddingBottom: insets.bottom + 100 }} keyboardShouldPersistTaps="handled">
-          <Input label="Nome *" value={name} onChangeText={setName} testID="client-name" />
-          <Input label="NIF" value={nif} onChangeText={setNif} keyboardType="number-pad" testID="client-nif" />
-          <Input label="Telefone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="client-phone" />
-          <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" testID="client-email" />
-          <Input label="Morada" value={address} onChangeText={setAddress} multiline numberOfLines={2} testID="client-address" />
+          <ClientFields value={client} onChange={setClient} />
           <Button title="Guardar" onPress={submit} loading={loading} testID="client-save" />
         </ScrollView>
       </KeyboardAvoidingView>

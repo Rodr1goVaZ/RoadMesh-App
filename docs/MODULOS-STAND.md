@@ -80,13 +80,13 @@ Na demonstração local foram preparados exemplos fictícios Oficina, Stand e Of
 
 ## Ficheiros criados
 
-- `backend/company_modules.py`
-- `backend/stand_routes.py`
+- `backend/roadmesh/core/company_modules.py`
+- `backend/roadmesh/modules/stand/routes.py`
 - `backend/sql/005_company_modules_stand.sql`
 - `backend/tests/test_company_stand.py`
-- `frontend/src/company-modules.ts`
-- `frontend/src/workspace/ModuleSwitch.tsx`
-- `frontend/src/stand/StandScreens.tsx`
+- `frontend/src/core/auth/company-modules.ts`
+- `frontend/src/shared/layout/ModuleSwitch.tsx`
+- `frontend/src/features/stand/StandScreens.tsx`
 - `frontend/app/(stand)/_layout.tsx` e sete rotas `stand-inicio`, `stand-viaturas`, `stand-viatura`, `stand-clientes`, `stand-vendas`, `stand-historico`, `stand-mais`
 - `frontend/scripts/modules.test.cjs`
 - Este documento e `docs/evidencias/modulos-stand.json`

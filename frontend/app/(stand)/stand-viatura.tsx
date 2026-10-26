@@ -1,1 +1,1 @@
-export { StandVehicle as default } from "@/src/stand/StandScreens";
+export { StandVehicle as default } from "@/src/features/stand/StandScreens";

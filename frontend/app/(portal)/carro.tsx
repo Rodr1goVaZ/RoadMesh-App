@@ -2,11 +2,11 @@ import React from "react";
 import { Text, StyleSheet } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Photo } from "@/src/components/Photo";
-import { formatDate, formatEUR } from "@/src/utils/format";
-import { colors, radius } from "@/src/theme";
+import { api } from "@/src/core/http/api";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Photo } from "@/src/shared/media/Photo";
+import { formatDate, formatEUR } from "@/src/shared/utils/format";
+import { colors, radius } from "@/src/shared/theme/legacy";
 export default function ClientCar() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicle", id], queryFn: () => api.get(`/portal/vehicles/${id}`) });

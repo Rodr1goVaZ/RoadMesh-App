@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { api } from "@/src/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
+import { api } from "@/src/core/http/api";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
 
 export default function Suppliers() {
   const [search, setSearch] = useState(""); const [selected, setSelected] = useState<any>(null);

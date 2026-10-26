@@ -120,8 +120,8 @@ def test_fractional_stock_and_unit_price_are_not_rounded_before_totals(pg, pg_wo
 
 
 def test_simultaneous_instance_bootstrap_creates_one_admin(pg, monkeypatch):
-    from postgres_database import PostgresDatabase
-    from access_control import Access
+    from roadmesh.infrastructure.database.postgres import PostgresDatabase
+    from roadmesh.core.access_control import Access
     email = f'bootstrap_{uuid4().hex}@test.pt'
     monkeypatch.setenv('BOOTSTRAP_ADMIN_EMAIL', email)
     monkeypatch.setenv('BOOTSTRAP_ADMIN_PASSWORD', secrets.token_urlsafe(24))
@@ -164,7 +164,7 @@ def test_failed_delete_audit_restores_order_and_stock_in_same_transaction(pg, pg
 def test_recovery_token_single_use_expiry_and_session_revocation(pg,workshop_factory):
     import hashlib
     import requests
-    from access_control import identifier
+    from roadmesh.core.access_control import identifier
     s=workshop_factory('TEST_Recovery')['session']
     user=checked(s.get(API+'/auth/me'))
     token=secrets.token_urlsafe(48)

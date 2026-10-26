@@ -3,10 +3,10 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
-import { ErrorBoundary } from "@/src/components/error-boundary";
-import { queryClient } from "@/src/query-client";
-import { AuthProvider } from "@/src/auth";
-import { AlertHost } from "@/src/components/AlertHost";
+import { ErrorBoundary } from "@/src/shared/ui/error-boundary";
+import { queryClient } from "@/src/core/query-client";
+import { AuthProvider } from "@/src/core/auth/AuthProvider";
+import { AlertHost } from "@/src/shared/ui/AlertHost";
 
 
 export default function RootLayout() {

@@ -1,9 +1,10 @@
+import { isValidEmail } from "@/src/shared/utils/validation";
 import React, { useState } from "react";
-import { AreaPage, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { api } from "@/src/api";
+import { AreaPage, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { api } from "@/src/core/http/api";
 import { Text } from "react-native";
 
 export default function ForgotPassword() {
@@ -11,7 +12,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (busy) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Introduza um email válido."); return; }
+    if (!isValidEmail(email.trim())) { setError("Introduza um email válido."); return; }
     setError(""); setBusy(true);
     try { setMessage((await api.post("/auth/forgot-password", { email: email.trim() })).message); }
     catch (e: any) { setError(e.message); } finally { setBusy(false); }

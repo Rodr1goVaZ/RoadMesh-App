@@ -1,16 +1,16 @@
-import { useListState } from "@/src/hooks/useListState";
-import { YearFilter } from "@/src/components/YearFilter";
+import { useListState } from "@/src/shared/hooks/useListState";
+import { YearFilter } from "@/src/shared/ui/YearFilter";
 import React from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing } from "@/src/theme";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Feedback } from "@/src/components/Feedback";
-import { Button } from "@/src/components/Button";
-import { Fab } from "@/src/components/Fab";
-import { QuoteCard } from "@/src/components/QuoteCard";
+import { api } from "@/src/core/http/api";
+import { colors, spacing } from "@/src/shared/theme/legacy";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { Button } from "@/src/shared/ui/Button";
+import { Fab } from "@/src/shared/ui/Fab";
+import { QuoteCard } from "@/src/features/finance/components/QuoteCard";
 
 export default function Quotes() {
   const [year, setYear] = useListState("orcamentos-year", "");

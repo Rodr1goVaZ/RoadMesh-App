@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { YearFilter } from "@/src/components/YearFilter";
-import { Button } from "@/src/components/Button";
-import { formatDateTime, formatEUR } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { YearFilter } from "@/src/shared/ui/YearFilter";
+import { Button } from "@/src/shared/ui/Button";
+import { formatDateTime, formatEUR } from "@/src/shared/utils/format";
 
 export default function Histories() {
   const { user, support } = useAuth(); const [resource, setResource] = useState("stock");

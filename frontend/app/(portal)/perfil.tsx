@@ -2,10 +2,10 @@ import React from "react";
 import { Text } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Button } from "@/src/components/Button";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Button } from "@/src/shared/ui/Button";
 export default function ClientProfile() {
   const { logout } = useAuth();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["portal-profile"], queryFn: () => api.get("/portal/profile") });

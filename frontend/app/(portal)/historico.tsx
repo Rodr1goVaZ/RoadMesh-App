@@ -2,9 +2,9 @@ import React from "react";
 import { View, Text, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { api } from "@/src/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Button } from "@/src/components/Button";
+import { api } from "@/src/core/http/api";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Button } from "@/src/shared/ui/Button";
 export default function ClientHistory() {
   const { data = [], error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const wide = useWindowDimensions().width >= 700;

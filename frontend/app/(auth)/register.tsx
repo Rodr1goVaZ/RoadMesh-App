@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { AreaPage, areaStyles } from "@/src/components/AreaUI";
-import { Logo } from "@/src/components/Logo";
-import { Button } from "@/src/components/Button";
+import { AreaPage, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Logo } from "@/src/shared/ui/Logo";
+import { Button } from "@/src/shared/ui/Button";
 export default function RegisterInfo() {
   return <AreaPage title="Obter acesso" testID="register-screen"><View style={styles.brand}><Logo size={110} testID="register-logo" /></View>
     <Text testID="register-help" style={areaStyles.title}>Uma conta, o acesso certo</Text>

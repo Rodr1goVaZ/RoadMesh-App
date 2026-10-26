@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
-from business_rules import identity, text  # noqa: E402
+from roadmesh.domain.business_rules import identity, text  # noqa: E402
 
 
 def inspect(path):

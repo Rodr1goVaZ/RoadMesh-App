@@ -1,15 +1,15 @@
-import { goBack } from "@/src/utils/navigation";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing } from "@/src/theme";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { api } from "@/src/core/http/api";
+import { colors, spacing } from "@/src/shared/theme/legacy";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 
 export default function NewVehicle() {
   const insets = useSafeAreaInsets();

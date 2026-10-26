@@ -2,13 +2,13 @@ import React from "react";
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { api } from "@/src/api";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { DamageQuickActions } from "@/src/components/DamageQuickActions";
-import { colors, radius, spacing, shadows } from "@/src/theme";
-import { formatDate, formatEUR } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
+import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { formatDate, formatEUR } from "@/src/shared/utils/format";
 
 export default function VehicleDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();

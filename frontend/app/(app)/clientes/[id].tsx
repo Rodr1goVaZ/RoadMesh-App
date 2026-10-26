@@ -1,19 +1,19 @@
-import { goBack } from "@/src/utils/navigation";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { Feedback } from "@/src/components/Feedback";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { StatusChip } from "@/src/components/StatusChip";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Button } from "@/src/components/Button";
-import { formatEUR, formatDate } from "@/src/utils/format";
-import { ClientContactEditor } from "@/src/components/ClientContactEditor";
-import { ClientAccess } from "@/src/components/ClientAccess";
+import { api } from "@/src/core/http/api";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { StatusChip } from "@/src/shared/ui/StatusChip";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Button } from "@/src/shared/ui/Button";
+import { formatEUR, formatDate } from "@/src/shared/utils/format";
+import { ClientContactEditor } from "@/src/features/clients/components/ClientContactEditor";
+import { ClientAccess } from "@/src/features/clients/components/ClientAccess";
 
 const TABS = ["contactos", "viaturas", "historico"] as const;
 

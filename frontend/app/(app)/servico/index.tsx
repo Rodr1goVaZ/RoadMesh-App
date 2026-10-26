@@ -1,16 +1,16 @@
-import { useListState } from "@/src/hooks/useListState";
-import { YearFilter } from "@/src/components/YearFilter";
+import { useListState } from "@/src/shared/hooks/useListState";
+import { YearFilter } from "@/src/shared/ui/YearFilter";
 import React from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { StatusChip } from "@/src/components/StatusChip";
-import { Fab } from "@/src/components/Fab";
-import { EmptyState } from "@/src/components/EmptyState";
-import { formatEUR, formatDate } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { StatusChip } from "@/src/shared/ui/StatusChip";
+import { Fab } from "@/src/shared/ui/Fab";
+import { EmptyState } from "@/src/shared/ui/EmptyState";
+import { formatEUR, formatDate } from "@/src/shared/utils/format";
 
 const FILTERS = [
   { id: "todos", label: "Todos" },

@@ -1,19 +1,19 @@
-import { YearFilter } from "@/src/components/YearFilter";
-import { ProductSettings } from "@/src/components/ProductSettings";
-import { useAuth } from "@/src/auth";
-import { goBack } from "@/src/utils/navigation";
+import { YearFilter } from "@/src/shared/ui/YearFilter";
+import { ProductSettings } from "@/src/features/inventory/components/ProductSettings";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { Feedback } from "@/src/components/Feedback";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Button } from "@/src/components/Button";
-import { formatEUR, formatDateTime } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Button } from "@/src/shared/ui/Button";
+import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();

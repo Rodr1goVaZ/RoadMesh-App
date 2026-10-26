@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT))
-from media_storage import storage_request  # noqa: E402
+from roadmesh.infrastructure.media.storage import storage_request  # noqa: E402
 
 
 def prepare():

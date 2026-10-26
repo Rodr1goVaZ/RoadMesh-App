@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Keyboar
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { Input } from "@/src/components/Input";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Feedback } from "@/src/components/Feedback";
-import { Button } from "@/src/components/Button";
-import { colors, radius, spacing, shadows } from "@/src/theme";
+import { api } from "@/src/core/http/api";
+import { Input } from "@/src/shared/ui/Input";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { Button } from "@/src/shared/ui/Button";
+import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
 
 export default function Vehicles() {
   const [search, setSearch] = useState("");

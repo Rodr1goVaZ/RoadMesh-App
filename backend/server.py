@@ -5,38 +5,38 @@ from __future__ import annotations
 import logging
 import os
 import re
-import uuid
 from datetime import datetime, timezone
+from roadmesh.core.identifiers import identifier as new_id, timestamp as now_iso
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from typing import Annotated, List, Optional, Literal
+from typing import Annotated, Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from roadmesh.api.schemas import ClientIn, VehicleIn, WorkOrderItemIn, WorkOrderIn, ProductIn, ProductUpdateIn, OrderItemIn, PurchaseOrderIn, QuoteIn, InvoiceIn, PhotoIn, DamageIn
 from pymongo import ReturnDocument
-from database_integrity import initialize_integrity, transact, revenue_pipeline
+from roadmesh.infrastructure.database.integrity import initialize_integrity, transact, revenue_pipeline
 from starlette.concurrency import run_in_threadpool
-from media_storage import storage_configuration, register_media_routes
-from pdf_documents import build_invoice_pdf
-from access_control import Access, register_auth_routes
-from admin_routes import register_admin_routes
-from portal_routes import register_portal_routes
-from request_logging import RequestDiagnostics
-from history_routes import register_history
-from password_recovery import register_recovery
-from stand_routes import register_stand_routes
-from business_rules import prevent_duplicate, validate_prices, text, year_scope, fingerprint, sale_from_margin
-from operations import register_operations, ensure_charge, consider_restock, receive_order, Receipt, ensure_supplier
+from roadmesh.infrastructure.media.storage import storage_configuration, register_media_routes
+from roadmesh.infrastructure.documents.pdf import build_invoice_pdf
+from roadmesh.core.access_control import Access, register_auth_routes
+from roadmesh.modules.administration.routes import register_admin_routes
+from roadmesh.modules.portal.routes import register_portal_routes
+from roadmesh.core.request_logging import RequestDiagnostics
+from roadmesh.modules.history.routes import register_history
+from roadmesh.modules.auth.recovery import register_recovery
+from roadmesh.modules.stand.routes import register_stand_routes
+from roadmesh.domain.business_rules import prevent_duplicate, validate_prices, text, year_scope, fingerprint, sale_from_margin
+from roadmesh.modules.operations.service import register_operations, ensure_charge, consider_restock, receive_order, Receipt, ensure_supplier
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 if os.environ.get("DATABASE_URL", "").strip():
-    from postgres_database import PostgresDatabase
+    from roadmesh.infrastructure.database.postgres import PostgresDatabase
     db = PostgresDatabase(os.environ["DATABASE_URL"].strip())
     client = None
 else:
@@ -49,14 +49,6 @@ api = APIRouter(prefix="/api")
 
 
 # ----------------------------- helpers -----------------------------
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def new_id() -> str:
-    return str(uuid.uuid4())
-
-
 CurrentUser = Annotated[dict, Depends(access.workshop)]
 CompanyUser = Annotated[dict, Depends(access.company)]
 
@@ -69,121 +61,32 @@ def tenant_filter(user: dict, extra: dict | None = None) -> dict:
 
 
 # ----------------------------- models -----------------------------
-class RegisterIn(BaseModel):
-    workshop_name: str = Field(min_length=2, max_length=100)
-    name: str = Field(min_length=2, max_length=100)
-    email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
 
 
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
 
 
-class ClientIn(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-    name: str = Field(min_length=1,max_length=200)
-    nif: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
 
 
-class VehicleIn(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-    client_id: str
-    license_plate: str = Field(min_length=1,max_length=30)
-    make: str
-    model: str
-    year: Optional[int] = None
-    vin: Optional[str] = None
-    fuel: Optional[str] = None
-    mileage: Optional[int] = None
 
 
-class WorkOrderItemIn(BaseModel):
-    item_type: Literal["peca", "mao_de_obra"]
-    description: str = Field(default="", max_length=1000)
-    quantity: float = Field(default=1, gt=0, le=1000000, allow_inf_nan=False)
-    unit_price: float = Field(default=0, ge=0, allow_inf_nan=False)
-    vat_rate: float = Field(default=23, ge=0, le=100, allow_inf_nan=False)
-    product_id: Optional[str] = None
 
 
-class WorkOrderIn(BaseModel):
-    client_id: str
-    vehicle_id: str
-    mechanic: Optional[str] = None
-    complaint: Optional[str] = None
-    notes: Optional[str] = None
-    mileage_in: Optional[int] = None
-    status: Literal["entrada", "diagnostico", "aguardando_pecas", "concluido"] = "entrada"
-    items: List[WorkOrderItemIn] = []
 
 
-class ProductIn(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-    reference: str = Field(min_length=1, max_length=150)
-    name: str = Field(min_length=1, max_length=200)
-    barcode: Optional[str] = None
-    restock_enabled: bool = False
-    supplier: Optional[str] = None
-    category: Optional[str] = None
-    stock: float = Field(default=0, ge=0, le=1000000000, allow_inf_nan=False)
-    min_stock: float = Field(default=0, ge=0, allow_inf_nan=False)
-    profit_margin: Optional[Decimal] = Field(default=None,ge=0,lt=100,max_digits=4,decimal_places=2)
-    purchase_price: float = Field(default=0, ge=0, allow_inf_nan=False)
-    sale_price: float = Field(default=0, ge=0, allow_inf_nan=False)
-    vat_rate: float = Field(default=23, ge=0, le=100, allow_inf_nan=False)
 
 
-class ProductUpdateIn(ProductIn):
-    stock: Optional[float] = Field(default=None, ge=0, le=1000000000, allow_inf_nan=False)
 
 
-class OrderItemIn(BaseModel):
-    product_id: str
-    quantity: int = Field(gt=0)
-    unit_price: float = Field(ge=0, allow_inf_nan=False)
 
 
-class PurchaseOrderIn(BaseModel):
-    idempotency_key: str | None = Field(default=None,min_length=8,max_length=150)
-    model_config = ConfigDict(str_strip_whitespace=True)
-    supplier: str = Field(min_length=1,max_length=200)
-    items: List[OrderItemIn] = Field(min_length=1)
-    notes: Optional[str] = None
 
 
-class QuoteIn(BaseModel):
-    client_id: str
-    vehicle_id: str
-    items: List[WorkOrderItemIn]
-    notes: Optional[str] = None
 
 
-class InvoiceIn(BaseModel):
-    work_order_id: str
-    document_type: Literal["orcamento", "fatura", "fatura_recibo"]
 
 
-class PhotoIn(BaseModel):
-    vehicle_id: str
-    work_order_id: Optional[str] = None
-    zone: str  # exterior_360 | interior | pneus_rodas | pintura | chassis_inferior
-    media_id: str
-    caption: Optional[str] = None
 
 
-class DamageIn(BaseModel):
-    vehicle_id: str
-    photo_id: Optional[str] = None
-    category: Literal["ferrugem", "dano_estrutural", "fuga", "desgaste_pneu", "risco", "amolgadela", "outro"]
-    severity: Literal["baixo", "medio", "critico"]
-    description: str = Field(default="", max_length=1000)
-    location: str = Field(default="", max_length=150)
-    media_id: str
 
 
 # ----------------------------- auth -----------------------------
@@ -722,7 +625,7 @@ async def delete_wo(wo_id: str, user: CurrentUser):
 async def list_products(user: CurrentUser, search: str = "", category: Optional[str] = None, barcode: str | None = None):
     q = tenant_filter(user)
     if barcode is not None:
-        from business_rules import identity
+        from roadmesh.domain.business_rules import identity
         q["barcode_key"] = identity(barcode)
     if category and category != "todos":
         q["category"] = category
@@ -1235,113 +1138,6 @@ async def dashboard(user: CurrentUser):
 
 
 # ----------------------------- seed demo -----------------------------
-async def seed_demo_data(workshop_id: str, user_id: str):
-    ts = now_iso()
-
-    def wid(d): return {**d, "workshop_id": workshop_id, "created_at": ts, "updated_at": ts}
-
-    clients = [
-        wid({"id": new_id(), "name": "João Silva", "nif": "234567890", "phone": "912 345 678",
-             "email": "joao@email.pt", "address": "Rua das Flores, 210, 1200-100 Lisboa"}),
-        wid({"id": new_id(), "name": "Ana Costa", "nif": "212345678", "phone": "913 222 111",
-             "email": "ana.costa@email.pt", "address": "Av. República, 45, Porto"}),
-        wid({"id": new_id(), "name": "Pedro Alves", "nif": "220456789", "phone": "914 555 222",
-             "email": "pedro@email.pt", "address": "Rua Nova, 12, Braga"}),
-        wid({"id": new_id(), "name": "Marta Lopes", "nif": "224789123", "phone": "915 666 333",
-             "email": "marta@email.pt", "address": "Rua do Sol, 88, Coimbra"}),
-        wid({"id": new_id(), "name": "Carlos Ferreira", "nif": "228112233", "phone": "916 777 444",
-             "email": "carlos@email.pt", "address": "Rua Central, 3, Setúbal"}),
-    ]
-    await db.clients.insert_many(clients)
-
-    vehicles = [
-        wid({"id": new_id(), "client_id": clients[0]["id"], "license_plate": "AA-12-BB",
-             "make": "BMW", "model": "320d", "year": 2019, "fuel": "Diesel", "mileage": 84500, "vin": "WBA5A7C50FD001234"}),
-        wid({"id": new_id(), "client_id": clients[1]["id"], "license_plate": "22-CD-44",
-             "make": "VW", "model": "Golf", "year": 2017, "fuel": "Gasolina", "mileage": 105000, "vin": "WVWZZZ1KZ7W123456"}),
-        wid({"id": new_id(), "client_id": clients[2]["id"], "license_plate": "55-CD-99",
-             "make": "Audi", "model": "A4", "year": 2018, "fuel": "Diesel", "mileage": 92000, "vin": "WAUZZZ8K5JA111222"}),
-        wid({"id": new_id(), "client_id": clients[3]["id"], "license_plate": "11-GG-22",
-             "make": "Renault", "model": "Clio", "year": 2020, "fuel": "Gasolina", "mileage": 45000, "vin": "VF1CB0A0H12345678"}),
-        wid({"id": new_id(), "client_id": clients[4]["id"], "license_plate": "77-JK-11",
-             "make": "Peugeot", "model": "308", "year": 2016, "fuel": "Diesel", "mileage": 132000, "vin": "VF3LBHZTZFS123456"}),
-    ]
-    await db.vehicles.insert_many(vehicles)
-
-    products = [
-        wid({"id": new_id(), "reference": "OL-SW30", "name": "Óleo Motor SW30 5L",
-             "supplier": "Fornecedor X", "category": "Óleos", "stock": 24, "min_stock": 10,
-             "purchase_price": 32.00, "sale_price": 42.50, "vat_rate": 23}),
-        wid({"id": new_id(), "reference": "PB-001", "name": "Pastilhas Travão BMW",
-             "supplier": "Bosch", "category": "Travões", "stock": 3, "min_stock": 5,
-             "purchase_price": 55.00, "sale_price": 85.00, "vat_rate": 23}),
-        wid({"id": new_id(), "reference": "FL-001", "name": "Filtro de Óleo",
-             "supplier": "Mann", "category": "Filtros", "stock": 42, "min_stock": 15,
-             "purchase_price": 6.50, "sale_price": 12.50, "vat_rate": 23}),
-        wid({"id": new_id(), "reference": "BAT-001", "name": "Bateria 12V 70Ah",
-             "supplier": "Varta", "category": "Baterias", "stock": 8, "min_stock": 4,
-             "purchase_price": 85.00, "sale_price": 130.00, "vat_rate": 23}),
-        wid({"id": new_id(), "reference": "PN-205", "name": "Pneu 205/55 R16",
-             "supplier": "Michelin", "category": "Pneus", "stock": 16, "min_stock": 8,
-             "purchase_price": 62.00, "sale_price": 95.00, "vat_rate": 23}),
-    ]
-    await db.products.insert_many(products)
-
-    # work orders
-    def item(t, desc, qty, price, rate=23):
-        return {"id": new_id(), "item_type": t, "description": desc, "quantity": qty,
-                "unit_price": price, "vat_rate": rate, "product_id": None}
-
-    wos = []
-    wo1_items = [item("mao_de_obra", "Mudança de óleo", 1, 80),
-                 item("peca", "Pastilhas de travão", 1, 120),
-                 item("mao_de_obra", "Mão de obra", 2, 45)]
-    totals1 = compute_totals(wo1_items)
-    wos.append(wid({"id": new_id(), "number": "#1024", "client_id": clients[0]["id"],
-                    "vehicle_id": vehicles[0]["id"], "mechanic": "Rodrigo Ricardo",
-                    "complaint": "Ruído nos travões",
-                    "notes": "Substituídas pastilhas dianteiras.", "mileage_in": 84500,
-                    "status": "diagnostico", "items": wo1_items, **totals1, "completed_at": None}))
-
-    wo2_items = [item("mao_de_obra", "Revisão geral", 3, 40),
-                 item("peca", "Filtro de óleo", 1, 12.50)]
-    totals2 = compute_totals(wo2_items)
-    wos.append(wid({"id": new_id(), "number": "#1023", "client_id": clients[1]["id"],
-                    "vehicle_id": vehicles[1]["id"], "mechanic": "Rodrigo Ricardo",
-                    "complaint": "Revisão anual", "notes": "", "mileage_in": 105000,
-                    "status": "entrada", "items": wo2_items, **totals2, "completed_at": None}))
-
-    wo3_items = [item("mao_de_obra", "Substituição correia", 2, 60),
-                 item("peca", "Correia distribuição", 1, 380)]
-    totals3 = compute_totals(wo3_items)
-    wos.append(wid({"id": new_id(), "number": "#1022", "client_id": clients[2]["id"],
-                    "vehicle_id": vehicles[2]["id"], "mechanic": "Rodrigo Ricardo",
-                    "complaint": "Barulho no motor", "notes": "Correia trocada, tudo ok.",
-                    "mileage_in": 92000, "status": "concluido", "items": wo3_items, **totals3,
-                    "completed_at": ts}))
-
-    wo4_items = [item("mao_de_obra", "Diagnóstico", 1, 30),
-                 item("peca", "Sensor", 1, 60)]
-    totals4 = compute_totals(wo4_items)
-    wos.append(wid({"id": new_id(), "number": "#1021", "client_id": clients[3]["id"],
-                    "vehicle_id": vehicles[3]["id"], "mechanic": "Rodrigo Ricardo",
-                    "complaint": "Luz avaria no painel", "notes": "", "mileage_in": 45000,
-                    "status": "aguardando_pecas", "items": wo4_items, **totals4, "completed_at": None}))
-
-    await db.work_orders.insert_many(wos)
-
-    # one invoice
-    concluded = [w for w in wos if w["status"] == "concluido"][0]
-    inv = wid({
-        "id": new_id(), "work_order_id": concluded["id"],
-        "document_type": "fatura", "document_number": f"FT{datetime.now().year}/001",
-        "total_labor": 120.0, "total_parts": 380.0,
-        "subtotal": concluded["subtotal"], "vat": concluded["vat"], "grand_total": concluded["total"],
-        "external_invoice_id": None,
-    })
-    inv.pop("workshop_id", None)  # re-add cleanly
-    inv["workshop_id"] = workshop_id
-    await db.invoices.insert_one(inv)
 
 
 # ----------------------------- health -----------------------------

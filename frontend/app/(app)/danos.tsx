@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { VehiclePicker } from "@/src/components/VehiclePicker";
-import { DamageForm } from "@/src/components/DamageForm";
-import { DamageHistory } from "@/src/components/DamageHistory";
-import { colors, radius, spacing, shadows } from "@/src/theme";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { VehiclePicker } from "@/src/shared/pickers/VehiclePicker";
+import { DamageForm } from "@/src/features/inspections/components/DamageForm";
+import { DamageHistory } from "@/src/features/inspections/components/DamageHistory";
+import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
 
 export default function Damages() {
   const { vehicle_id, category } = useLocalSearchParams<{ vehicle_id?: string; category?: string }>();

@@ -1,13 +1,7 @@
+const { loadTypeScript } = require('./test-helpers.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-const exportsForTest = {};
-vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve('../src/company-modules.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText, { exports: exportsForTest });
-const { companyModules, companyHome } = exportsForTest;
+const { companyModules, companyHome } = loadTypeScript('../src/core/auth/company-modules.ts');
 test('existing companies keep the workshop entry point', () => {
   assert.equal(companyHome({}), '/(app)/inicio');
   assert.equal(companyModules({}).join(), 'workshop');

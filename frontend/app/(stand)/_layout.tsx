@@ -1,12 +1,12 @@
 import React from "react";
 import { Stack, Redirect } from "expo-router";
 import { View, useWindowDimensions } from "react-native";
-import { useAuth, homeFor } from "@/src/auth";
-import { companyHome, companyModules } from "@/src/company-modules";
-import { SupportBanner } from "@/src/components/SupportBanner";
-import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/workspace/WorkspaceChrome";
-import { WorkspaceVisualContext, workspaceColors as c } from "@/src/workspace/theme";
-import { ModuleSwitch } from "@/src/workspace/ModuleSwitch";
+import { useAuth, homeFor } from "@/src/core/auth/AuthProvider";
+import { companyHome, companyModules } from "@/src/core/auth/company-modules";
+import { SupportBanner } from "@/src/shared/layout/SupportBanner";
+import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/shared/layout/WorkspaceChrome";
+import { WorkspaceVisualContext, workspaceColors as c } from "@/src/shared/theme/workspace";
+import { ModuleSwitch } from "@/src/shared/layout/ModuleSwitch";
 const items: WorkspaceLink[] = [
   { label: "Início", href: "/(stand)/stand-inicio", icon: "home-outline", activeIcon: "home", testID: "stand-tab-home", matches: ["(stand)/stand-inicio"] },
   { label: "Viaturas", href: "/(stand)/stand-viaturas", icon: "car-sport-outline", testID: "stand-tab-vehicles", matches: ["(stand)/stand-viaturas","(stand)/stand-viatura"] },

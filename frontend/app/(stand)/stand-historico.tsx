@@ -1,1 +1,1 @@
-export { StandHistory as default } from "@/src/stand/StandScreens";
+export { StandHistory as default } from "@/src/features/stand/StandScreens";
