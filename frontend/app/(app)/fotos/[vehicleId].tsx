@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Button } from "@/src/components/Button";
-import { Photo } from "@/src/components/Photo";
-import { pickPhoto, uploadPhoto } from "@/src/utils/media";
-import { Feedback } from "@/src/components/Feedback";
-import { DamageQuickActions } from "@/src/components/DamageQuickActions";
+import { api } from "@/src/core/http/api";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Button } from "@/src/shared/ui/Button";
+import { Photo } from "@/src/shared/media/Photo";
+import { pickPhoto, uploadPhoto } from "@/src/shared/media/helpers";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
 
 const ZONES = [
   { id: "exterior_360", label: "Exterior 360º" },

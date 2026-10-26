@@ -1,10 +1,10 @@
 import React from "react";
 import { Stack } from "expo-router";
 import { View, useWindowDimensions } from "react-native";
-import { RoleGate } from "@/src/components/RoleGate";
-import { useAuth } from "@/src/auth";
-import { WorkspaceVisualContext, workspaceColors } from "@/src/workspace/theme";
-import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/workspace/WorkspaceChrome";
+import { RoleGate } from "@/src/features/auth/components/RoleGate";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { WorkspaceVisualContext, workspaceColors } from "@/src/shared/theme/workspace";
+import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/shared/layout/WorkspaceChrome";
 const items: WorkspaceLink[] = [
   { label: "Início", href: "/(admin)/dashboard", icon: "home-outline", activeIcon: "home", testID: "admin-tab-home", matches: ["(admin)/dashboard"] },
   { label: "Empresas", href: "/(admin)/workshops", icon: "business-outline", activeIcon: "business", testID: "admin-tab-workshops", matches: ["(admin)/workshops","(admin)/workshop"] },

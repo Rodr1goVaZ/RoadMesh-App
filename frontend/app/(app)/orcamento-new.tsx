@@ -1,17 +1,17 @@
-import { ClientVehicleFields } from "@/src/components/RelationPicker";
-import { useAuth } from "@/src/auth";
+import { ClientVehicleFields } from "@/src/shared/pickers/RelationPicker";
+import { useAuth } from "@/src/core/auth/AuthProvider";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Feedback } from "@/src/components/Feedback";
-import { ProductPicker } from "@/src/components/ProductPicker";
+import { api } from "@/src/core/http/api";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { ProductPicker } from "@/src/features/inventory/components/ProductPicker";
 
 export default function NewQuote() {
   const insets = useSafeAreaInsets();

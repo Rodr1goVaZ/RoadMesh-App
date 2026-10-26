@@ -1,17 +1,17 @@
-import { goBack } from "@/src/utils/navigation";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { AreaPage, CredentialsNotice, Panel, QueryState } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { Photo } from "@/src/components/Photo";
-import { pickPhoto, uploadPhoto } from "@/src/utils/media";
-import { CompanyModule, companyModules } from "@/src/company-modules";
-import { colors } from "@/src/theme";
+import { api } from "@/src/core/http/api";
+import { AreaPage, CredentialsNotice, Panel, QueryState } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { Photo } from "@/src/shared/media/Photo";
+import { pickPhoto, uploadPhoto } from "@/src/shared/media/helpers";
+import { CompanyModule, companyModules } from "@/src/core/auth/company-modules";
+import { colors } from "@/src/shared/theme/legacy";
 const EMPTY = { modules: ["workshop"] as CompanyModule[], name: "", nif: "", address: "", email: "", manager_name: "", manager_email: "", logo_media_id: null as string | null };
 export default function WorkshopForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();

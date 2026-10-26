@@ -1,13 +1,13 @@
-import { useListState } from "@/src/hooks/useListState";
+import { useListState } from "@/src/shared/hooks/useListState";
 import React from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { Fab } from "@/src/components/Fab";
-import { EmptyState } from "@/src/components/EmptyState";
+import { api } from "@/src/core/http/api";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { Fab } from "@/src/shared/ui/Fab";
+import { EmptyState } from "@/src/shared/ui/EmptyState";
 
 export default function Clientes() {
   const insets = useSafeAreaInsets();

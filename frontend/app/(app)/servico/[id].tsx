@@ -1,19 +1,19 @@
-import { goBack } from "@/src/utils/navigation";
+import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
-import { AppAlert as Alert } from "@/src/utils/alerts";
+import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { colors, spacing, radius, shadows } from "@/src/theme";
-import { StatusChip } from "@/src/components/StatusChip";
-import { Button } from "@/src/components/Button";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { formatEUR, formatDateTime, OS_STATUS_LABELS } from "@/src/utils/format";
-import { DamageQuickActions } from "@/src/components/DamageQuickActions";
-import { Feedback } from "@/src/components/Feedback";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { StatusChip } from "@/src/shared/ui/StatusChip";
+import { Button } from "@/src/shared/ui/Button";
+import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
+import { formatEUR, formatDateTime, OS_STATUS_LABELS } from "@/src/shared/utils/format";
+import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
+import { Feedback } from "@/src/shared/ui/Feedback";
 
 const STATUSES = ["entrada", "diagnostico", "aguardando_pecas", "concluido"];
 

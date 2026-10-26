@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-26",
+  "scope": "local source organization; no production deployment or database changes",
+  "archive": {
+    "example_path": "/Users/rodrigovaz/Documents/RoadMesh/Arquivo-RoadMesh/2026-10-26/expo-example",
+    "tracked_files_verified_unchanged": 53,
+    "source_backup": "/Users/rodrigovaz/Documents/RoadMesh/Arquivo-RoadMesh/2026-10-26/source-backup/source-before.tar",
+    "disk_space_note": "Moved outside active tree, not deleted from disk"
+  },
+  "languages": {
+    "frontend": "TypeScript/TSX",
+    "backend": "Python",
+    "tooling": "JavaScript/CommonJS, JSON, SQL and YAML retained where required"
+  },
+  "validation": {
+    "postgresql": {
+      "passed": 126,
+      "skipped": 2,
+      "runtime": "isolated PGlite; Mongo-only tests skipped"
+    },
+    "mongodb": {
+      "passed": 115,
+      "skipped": 13,
+      "runtime": "isolated replica set; SQL-only tests skipped"
+    },
+    "frontend_unit": {
+      "passed": 24
+    },
+    "typescript": "passed",
+    "eslint": "passed",
+    "web_export": "passed; single JS bundle approximately 1.6 MB",
+    "documentation_links": "passed",
+    "git_diff_check": "passed"
+  },
+  "dependencies_removed": [
+    "date-fns",
+    "dayjs",
+    "react-native-dotenv",
+    "expo-blur",
+    "expo-haptics",
+    "expo-linear-gradient"
+  ],
+  "remaining_limits": [
+    "Existing workshop routes remain in backend/server.py; no claim of a complete pure-layer rewrite",
+    "PGlite does not certify concurrency on a remote real PostgreSQL server",
+    "Production and physical mobile devices not tested in this operation"
+  ],
+  "status": "uncommitted; not deployed"
+}

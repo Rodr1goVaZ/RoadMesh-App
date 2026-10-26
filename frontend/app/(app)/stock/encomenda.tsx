@@ -1,16 +1,17 @@
-import { AppAlert } from "@/src/utils/alerts";
-import { BarcodeCamera } from "@/src/components/BarcodeCamera";
+import { normalizeIdentifier as normalize } from "@/src/shared/utils/validation";
+import { AppAlert } from "@/src/shared/utils/alerts";
+import { BarcodeCamera } from "@/src/shared/media/BarcodeCamera";
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { formatEUR, formatDateTime } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>(); const { user, support } = useAuth();
@@ -66,6 +67,6 @@ export default function OrderDetail() {
     </Panel></>}
   </AreaPage>;
 }
-const normalize = (value?: string) => (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
 const labels: Record<string, string> = { rascunho: "Rascunho", por_validar: "Por validar", pendente: "Por receber", parcial: "Recebida parcialmente", recebida: "Recebida", cancelada: "Cancelada" };
 function newKey() { return `receipt-${Date.now()}-${Math.random().toString(36).slice(2)}`; }

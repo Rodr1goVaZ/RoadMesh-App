@@ -1,2 +1,2 @@
-import { AccessLogin } from "@/src/components/AccessLogin";
+import { AccessLogin } from "@/src/features/auth/components/AccessLogin";
 export default function Login() { return <AccessLogin />; }

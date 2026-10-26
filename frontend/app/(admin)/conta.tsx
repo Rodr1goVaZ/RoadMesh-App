@@ -1,9 +1,9 @@
 import React from "react";
 import { Text } from "react-native";
 import { router } from "expo-router";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, areaStyles } from "@/src/components/AreaUI";
-import { Button } from "@/src/components/Button";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Button } from "@/src/shared/ui/Button";
 export default function AdminAccount() {
   const { user, logout } = useAuth();
   return <AreaPage title="A minha conta" testID="admin-account" back={false}>

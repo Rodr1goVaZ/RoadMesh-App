@@ -1,2 +1,2 @@
-import { Appointments } from "@/src/components/Appointments";
+import { Appointments } from "@/src/features/appointments/components/Appointments";
 export default function WorkshopAppointments() { return <Appointments portal={false} />; }

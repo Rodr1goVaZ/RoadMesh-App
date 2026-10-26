@@ -1,50 +1,18 @@
-# Welcome to your Expo app 👋
+# RoadMesh — frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicação Expo/React Native em TypeScript para web, telemóvel e tablet.
 
-## Get started
+- `app/`: rotas e composição das páginas; URLs existentes preservados.
+- `src/core/`: configuração, cliente HTTP, autenticação, sessões e armazenamento.
+- `src/shared/`: componentes visuais, navegação, temas, hooks e funções comuns.
+- `src/features/`: componentes e regras específicas de cada funcionalidade.
+- `scripts/`: ferramentas e testes locais; os ficheiros `.cjs` são infraestrutura do Node.
+- `assets/` e `public/`: imagens e recursos estáticos.
 
-1. Install dependencies
+Instalar com `yarn install --frozen-lockfile`. Iniciar com `yarn web`, `yarn ios` ou `yarn android`.
 
-   ```bash
-   npm install
-   ```
+Verificar com `yarn typecheck`, `yarn lint`, `yarn test` e `yarn expo export --platform web`.
 
-2. Start the app
+Apenas `frontend/yarn.lock` gere as dependências desta aplicação. O projeto de exemplo independente foi arquivado fora da árvore ativa; não há um segundo frontend a instalar.
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Regras de reutilização e estrutura completa: [arquitetura](../docs/architecture/ESTRUTURA.md). Configuração e operação: [README principal](../README.md).

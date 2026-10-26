@@ -1,1 +1,1 @@
-export { StandInventory as default } from "@/src/stand/StandScreens";
+export { StandInventory as default } from "@/src/features/stand/StandScreens";

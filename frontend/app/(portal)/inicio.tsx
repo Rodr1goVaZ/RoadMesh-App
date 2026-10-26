@@ -3,11 +3,11 @@ import { View, Text, Pressable, StyleSheet, useWindowDimensions } from "react-na
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { AreaPage, QueryState } from "@/src/components/AreaUI";
-import { VehicleCard } from "@/src/portal/VehicleCard";
-import { portalColors as c, portalStyles } from "@/src/portal/theme";
-import { useNow } from "@/hooks/useNow";
+import { api } from "@/src/core/http/api";
+import { AreaPage, QueryState } from "@/src/shared/layout/AreaUI";
+import { VehicleCard } from "@/src/features/portal/VehicleCard";
+import { portalColors as c, portalStyles } from "@/src/features/portal/theme";
+import { useNow } from "@/src/shared/hooks/useNow";
 export default function ClientHome() {
   const wide = useWindowDimensions().width >= 700; const now = useNow();
   const vehicles = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });

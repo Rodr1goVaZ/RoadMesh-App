@@ -287,3 +287,15 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Guardados snapshots privados consistentes de testes e produção. Aplicada a migração 005 primeiro no RoadMesh-Testes e depois em produção, numa transação; confirmadas 30 tabelas e preservadas as contagens de todas as tabelas anteriores na produção. Não foram alteradas contas ou palavras-passe.
 - Republicada a API com o mesmo código de main (897edb5). Verificação remota: `/api/` 200, login da conta RaRo 200, painel de administração 200 e cabeçalho CORS correto para o frontend publicado.
 - Melhoradas localmente as mensagens da API: falha de rede e indisponibilidade do servidor em português; erros de credenciais continuam específicos. Cinco testes do cliente HTTP, TypeScript, ESLint e verificação do diff aprovados. Esta melhoria das mensagens ainda necessita de commit e publicação do frontend.
+
+
+## 26 de outubro de 2026 — Organização, peso local e reutilização
+
+- Mantidos TypeScript/TSX no frontend e Python na API, conforme opção confirmada. Configuração, SQL e ferramentas continuam nos formatos adequados.
+- Exemplo Expo independente arquivado fora do repositório (cerca de 558 MB), com 53 ficheiros anteriormente versionados verificados por hash. Cópia recuperável do código anterior também fora da árvore ativa. Pasta principal passou de cerca de 1,7 GB para 1,1 GB; o arquivo continua a ocupar espaço no disco.
+- Backend organizado no pacote roadmesh: api, core, domain, infrastructure e modules. Frontend organizado em core, features e shared, com imports atualizados. Mantidos os entry points, URLs, caminhos de recursos e configuração Vercel.
+- Identificadores UTC/UUID, validações de email/identidade/decimais, formatação, campos de cliente Oficina/Stand e carregador dos testes TypeScript partilhados. Retirados dois modelos de autenticação obsoletos e o seeder antigo sem chamadas; demonstração mantém scripts/demo_data.py.
+- Seis dependências diretas sem utilização removidas e lockfile sincronizado sem atualizar as versões restantes. Ferramenta reset-project e lockfile vazio da raiz arquivados fora do projeto; caches regeneráveis limpas.
+- Documentação operacional e histórica organizada em docs; README do frontend substituído pela descrição da aplicação real. Exclusões de build/uploads atualizadas para caches, dependências e dados privados.
+- Validação final: PostgreSQL local/PGlite 126 aprovados e 2 excluídos específicos de MongoDB; MongoDB isolado 115 aprovados e 13 excluídos específicos de PostgreSQL; 24 testes frontend aprovados; TypeScript, ESLint, exportação web e links da documentação aprovados.
+- Sem alteração de dados, credenciais, bases remotas ou publicação. Rotas legadas da oficina mantêm-se em backend/server.py; a organização não pretende ser uma reescrita integral da API. Estrutura e regras em [ESTRUTURA.md](architecture/ESTRUTURA.md); evidência em evidencias/reestruturacao-20261026.json.

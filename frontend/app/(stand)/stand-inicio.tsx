@@ -1,1 +1,1 @@
-export { StandHome as default } from "@/src/stand/StandScreens";
+export { StandHome as default } from "@/src/features/stand/StandScreens";

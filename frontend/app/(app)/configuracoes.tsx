@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
 
 export default function Settings() {
   const { user, support } = useAuth(); const manager = !!user?.can_manage_workshop || !!support;

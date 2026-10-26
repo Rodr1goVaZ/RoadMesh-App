@@ -1,14 +1,14 @@
-import { useListState } from "@/src/hooks/useListState";
-import { YearFilter } from "@/src/components/YearFilter";
+import { useListState } from "@/src/shared/hooks/useListState";
+import { YearFilter } from "@/src/shared/ui/YearFilter";
 import React from "react";
 import { Text } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Button } from "@/src/components/Button";
-import { formatEUR, formatDate } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Button } from "@/src/shared/ui/Button";
+import { formatEUR, formatDate } from "@/src/shared/utils/format";
 const labels: Record<string, string> = { rascunho: "Rascunho", por_validar: "Por validar", pendente: "Por receber", parcial: "Recebida parcialmente", recebida: "Recebida", cancelada: "Cancelada" };
 export default function Orders() {
   const { user, support } = useAuth(); const [year, setYear] = useListState("encomendas-year", "");

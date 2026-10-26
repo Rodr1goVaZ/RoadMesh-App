@@ -1,12 +1,7 @@
+const { loadTypeScript } = require('./test-helpers.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
-const compiled = ts.transpileModule(fs.readFileSync(require.resolve('../src/utils/pricing.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
-const exported = {};
-vm.runInNewContext(compiled, { exports: exported, BigInt, Error });
-const { saleFromMargin } = exported;
+const { saleFromMargin } = loadTypeScript('../src/features/finance/pricing.ts', { globals: { BigInt } });
 test('margin uses sale price denominator, not cost markup', () => assert.equal(saleFromMargin('80', '20'), '100.00'));
 test('decimal comma and half-cent rounding are exact', () => {
   assert.equal(saleFromMargin('0,01', '20'), '0.01');

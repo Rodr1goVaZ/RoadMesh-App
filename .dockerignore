@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.expo
+**/.metro-cache
+**/.vercel
+**/.env
+**/.env.*
+!**/.env.example
+.demo
+backups
+frontend/RoadMesh
+**/dist

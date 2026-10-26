@@ -16,7 +16,7 @@ from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'backend'))
-from media_storage import init_storage,storage_request  # noqa: E402
+from roadmesh.infrastructure.media.storage import init_storage,storage_request  # noqa: E402
 
 
 def main():

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.expo/
+.metro-cache/
+.demo/
+RoadMesh/
+dist/
+scripts/*.test.cjs
+scripts/test-helpers.cjs
+tests/

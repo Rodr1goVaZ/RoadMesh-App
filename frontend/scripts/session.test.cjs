@@ -1,9 +1,7 @@
+const { loadTypeScript } = require('./test-helpers.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const { Buffer } = require('node:buffer');
-const vm = require('node:vm');
-const ts = require('typescript');
 
 function token(seconds) {
   const payload = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds })).toString('base64url');
@@ -22,14 +20,11 @@ function createSession(fetch) {
     'react-native': { Platform: { OS: 'web' } },
     'expo-secure-store': {},
     '@react-native-async-storage/async-storage': storage,
-    './config': { API_BASE: 'http://isolated-test/api' },
-    './auth-events': { authEvents: { emit: status => events.push(status) } },
+    '@/src/core/config': { API_BASE: 'http://isolated-test/api' },
+    '@/src/core/auth/events': { authEvents: { emit: status => events.push(status) } },
   };
-  const source = fs.readFileSync(require.resolve('../src/session.ts'), 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
-  const exports = {};
-  vm.runInNewContext(compiled, { exports, require: name => modules[name], fetch, atob, Date, Promise, Error });
-  return { session: exports.session, events };
+  const { session } = loadTypeScript('../src/core/auth/session.ts', { modules, globals: { fetch, atob, Date, Promise } });
+  return { session, events };
 }
 
 function response(accessToken) {

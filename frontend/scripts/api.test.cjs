@@ -1,21 +1,14 @@
+const { loadTypeScript } = require('./test-helpers.cjs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
 
 function client(session, fetch) {
   const modules = {
-    './session': { session },
-    './config': { API_BASE: 'http://isolated-test/api' },
-    './auth-events': { authEvents: { emit: () => assert.fail('Unexpected authentication event') } },
+    '@/src/core/auth/session': { session },
+    '@/src/core/config': { API_BASE: 'http://isolated-test/api' },
+    '@/src/core/auth/events': { authEvents: { emit: () => assert.fail('Unexpected authentication event') } },
   };
-  const compiled = ts.transpileModule(fs.readFileSync(require.resolve('../src/api.ts'), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-  }).outputText;
-  const exports = {};
-  vm.runInNewContext(compiled, { exports, require: name => modules[name], fetch, FormData, JSON, Error });
-  return exports.api;
+  return loadTypeScript('../src/core/http/api.ts', { modules, globals: { fetch, FormData, JSON } }).api;
 }
 
 for (const route of ['/auth/forgot-password', '/auth/reset-password']) {

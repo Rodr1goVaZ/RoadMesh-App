@@ -1,9 +1,9 @@
 import React from "react";
 import { Text, View, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { AreaPage, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { VehicleCard } from "@/src/portal/VehicleCard";
+import { api } from "@/src/core/http/api";
+import { AreaPage, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { VehicleCard } from "@/src/features/portal/VehicleCard";
 export default function MyCars() {
   const { data = [], error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const wide = useWindowDimensions().width >= 900;

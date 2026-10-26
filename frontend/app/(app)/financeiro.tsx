@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
-import { AreaPage, Panel, Metrics, QueryState, areaStyles } from "@/src/components/AreaUI";
-import { Input } from "@/src/components/Input";
-import { Button } from "@/src/components/Button";
-import { Feedback } from "@/src/components/Feedback";
-import { formatEUR, formatDateTime } from "@/src/utils/format";
+import { api } from "@/src/core/http/api";
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { AreaPage, Panel, Metrics, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Input } from "@/src/shared/ui/Input";
+import { Button } from "@/src/shared/ui/Button";
+import { Feedback } from "@/src/shared/ui/Feedback";
+import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 const kinds: Record<string, string> = { charge: "Documento emitido", payment: "Pagamento", payment_reversal: "Estorno de pagamento", credit: "Crédito interno" };
 export default function Finance() {
