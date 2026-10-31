@@ -17,7 +17,28 @@ O exemplo independente foi retirado da árvore ativa e arquivado fora do reposit
 - `backend/`: API, controlo de acessos, fotografias e PDFs.
 - `backend/tests/`: regressão da API e testes de concorrência/rollback.
 
-## Demonstração pronta para testes
+Ver [criação de empresas e publicação](docs/guides/EMPRESAS.md) para os campos, armazenamento e limpeza local.
+
+## Desenvolvimento e demonstração local
+
+### Windows (desenvolvimento local)
+
+Abra `Iniciar-Local.cmd` ou execute `powershell -ExecutionPolicy Bypass -File .\dev.ps1`.
+A interface fica em http://localhost:8081 e a API em http://127.0.0.1:8765.
+As alterações à interface e à API são recarregadas automaticamente. Feche com Ctrl+C.
+
+Este arranque usa MongoDB privado em `127.0.0.1:27037`, base `roadmesh_demo`,
+e fotografias locais em `.demo/media`. Não usa Supabase, SMTP ou dados online.
+As ferramentas, configurações privadas, dados e logs ficam em `.demo/`, ignorada pelo Git.
+Os ficheiros `.env` locais também são ignorados. O arranque não faz commit, push ou deploy.
+
+Os acessos locais privados ficam em `ACESSOS-TESTES.md`, ignorado pelo Git.
+Quando a demonstração está ativa, uma empresa de exemplo nova tem Oficina e Stand ativos. Os módulos podem ser alterados na administração.
+
+O ambiente Windows preparado requer `.demo/venv/Scripts/python.exe`,
+`.demo/mongodb/bin/mongod.exe`, Node.js no PATH (ou o runtime local do Codex)
+e as dependências de `frontend/node_modules`. `dev.ps1 -Static` usa a exportação web,
+sem atualização automática, na porta 8765.
 
 Neste Mac, execute `./dev.sh` ou abra `Iniciar-Testes.command`. A aplicação fica em **http://localhost:8765**, com contas de oficina, cliente e administração, dados fictícios e fotografias locais persistentes. O ambiente é separado da configuração e dos dados existentes.
 

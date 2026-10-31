@@ -3,23 +3,25 @@ import { TextInput, View, Text, StyleSheet, TextInputProps, Pressable } from "re
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { colors, radius, spacing } from "@/src/shared/theme/legacy";
 
-type Props = TextInputProps & { label?: string; error?: string };
+type Props = TextInputProps & { label?: string; error?: string; inputRef?: React.Ref<TextInput>; trailingAction?: React.ReactNode };
 
-export function Input({ label, error, style, secureTextEntry, ...rest }: Props) {
+export function Input({ label, error, style, secureTextEntry, inputRef, trailingAction, ...rest }: Props) {
   const [visible, setVisible] = useState(false);
   return (
     <View style={styles.wrap}>
       {label ? <Text testID={rest.testID ? `${rest.testID}-label` : undefined} style={styles.label}>{label}</Text> : null}
       <View style={styles.field}>
         <TextInput
+        ref={inputRef}
         placeholderTextColor={colors.muted}
         {...rest}
         secureTextEntry={!!secureTextEntry && !visible}
         autoCapitalize={secureTextEntry ? "none" : rest.autoCapitalize}
         autoCorrect={secureTextEntry ? false : rest.autoCorrect}
         accessibilityLabel={rest.accessibilityLabel || label}
-        style={[styles.input, error ? { borderColor: colors.error } : null, style, secureTextEntry && styles.password]}
+        style={[styles.input, error ? { borderColor: colors.error } : null, style, !!(secureTextEntry || trailingAction) && styles.password]}
       />
+        {trailingAction && <View style={styles.visibility}>{trailingAction}</View>}
         {secureTextEntry && <Pressable testID={rest.testID ? `${rest.testID}-visibility` : undefined} accessibilityRole="button" accessibilityLabel={`${visible ? "Ocultar" : "Mostrar"} ${label?.toLowerCase() || "palavra-passe"}`} onPress={() => setVisible(value => !value)} style={styles.visibility}>
           <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={22} color={colors.muted} />
         </Pressable>}

@@ -1,19 +1,23 @@
 import React, { useContext } from "react";
-import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions, ActivityIndicator, Pressable, RefreshControl } from "react-native";
+import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions, ActivityIndicator, Pressable, RefreshControl, StyleProp, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AdminBreadcrumbs } from "./AdminBreadcrumbs";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
 import { PortalVisualContext, portalColors, portalStyles } from "@/src/features/portal/theme";
 import { goBack } from "@/src/shared/utils/navigation";
+import { AdminPageContext, adminContentWidth } from "@/src/shared/theme/workspace";
 
-export function AreaPage({ title, testID, back = true, children, onRefresh, refreshing = false }: { title: string; testID: string; back?: boolean; children: React.ReactNode; onRefresh?: () => void; refreshing?: boolean }) {
+export function AreaPage({ title, testID, back = true, children, onRefresh, refreshing = false, contentStyle, scrollRef }: { title: string; testID: string; back?: boolean; children: React.ReactNode; onRefresh?: () => void; refreshing?: boolean; contentStyle?: StyleProp<ViewStyle>; scrollRef?: React.Ref<ScrollView> }) {
   const insets = useSafeAreaInsets();
-  const portal = useContext(PortalVisualContext); const { width } = useWindowDimensions();
-  return <View style={[areaStyles.screen, portal && { backgroundColor: portalColors.background }]}>{portal ? back && <Pressable testID="back-btn" accessibilityRole="button" accessibilityLabel="Voltar" onPress={goBack} style={{ minHeight: 44, paddingHorizontal: 24, justifyContent: "center" }}><Text style={{ fontSize: 28, color: portalColors.brand }}>‹</Text></Pressable> : <ScreenHeader title={title} back={back} testID={`${testID}-header`} />}
+  const portal = useContext(PortalVisualContext); const admin = useContext(AdminPageContext); const { width } = useWindowDimensions();
+  const gap = StyleSheet.flatten([areaStyles.content, contentStyle]).gap;
+  const adminGap = typeof gap === "number" ? gap : 20;
+  return <View style={[areaStyles.screen, portal && { backgroundColor: portalColors.background }]}>{!admin && (portal ? back && <Pressable testID="back-btn" accessibilityRole="button" accessibilityLabel="Voltar" onPress={goBack} style={{ minHeight: 44, paddingHorizontal: 24, justifyContent: "center" }}><Text style={{ fontSize: 28, color: portalColors.brand }}>‹</Text></Pressable> : <ScreenHeader title={title} back={back} testID={`${testID}-header`} />)}
     <KeyboardAvoidingView style={areaStyles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView testID={testID} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined} contentContainerStyle={[areaStyles.content, portal && { maxWidth: 1264, paddingHorizontal: width < 700 ? 22 : 32, paddingTop: 4, gap: 20 }, { paddingBottom: insets.bottom + 40 }]}>{children}</ScrollView>
+      <ScrollView ref={scrollRef} testID={testID} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined} contentContainerStyle={[areaStyles.content, portal && { maxWidth: 1264, paddingHorizontal: width < 700 ? 22 : 32, paddingTop: 4, gap: 20 }, admin && { maxWidth: adminContentWidth, alignSelf: "flex-start", marginLeft: Math.max(0, (width - adminContentWidth) / 2), paddingHorizontal: width < 700 ? 16 : 24 }, { paddingBottom: insets.bottom + 40 }, contentStyle, admin && { paddingTop: 12 }]}>{admin && <View style={{ marginBottom: 5 - adminGap }}><AdminBreadcrumbs title={title} /></View>}{children}</ScrollView>
     </KeyboardAvoidingView>
   </View>;
 }

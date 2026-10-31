@@ -94,6 +94,7 @@ android-sdk/
 
 # Persistent local demonstration environment
 .demo/
+ACESSOS-TESTES.md
 backend/.local-media/
 
 # Private database exports; keep legitimate application CSV files trackable.

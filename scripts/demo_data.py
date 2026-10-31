@@ -44,7 +44,7 @@ def prepare_demo(base_url, database):
     workshops = call(admin, "GET", "/admin/workshops")
     workshop = next((w for w in workshops if w.get("manager_email") == STAFF_EMAIL), None)
     if not workshop:
-        provision = call(admin, "POST", "/admin/workshops", {"name": "Oficina RoadMesh · Demonstração", "nif": "", "address": "Dados fictícios para testes", "manager_name": "Equipa de Testes", "manager_email": STAFF_EMAIL})
+        provision = call(admin, "POST", "/admin/workshops", {"name": "Oficina RoadMesh · Demonstração", "nif": "", "address": "Dados fictícios para testes", "manager_name": "Equipa de Testes", "manager_email": STAFF_EMAIL, "modules": ["workshop", "stand"]})
         workshop = provision["workshop"]
         credentials = provision["credentials"]
     else:
