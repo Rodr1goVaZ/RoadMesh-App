@@ -1014,10 +1014,8 @@ async def invoice_snapshot(wo: dict, user: dict, session=None):
     client_doc = await db.clients.find_one(tenant_filter(user, {"id": wo["client_id"]}), {"_id": 0}, session=session)
     vehicle = await db.vehicles.find_one(tenant_filter(user, {"id": wo["vehicle_id"]}), {"_id": 0}, session=session)
     workshop = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0}, session=session)
-    if workshop:
-        # RoadMesh's own retainers and assistance are private platform records.
-        workshop.pop("platform_service_months", None)
-        workshop.pop("platform_service_revision", None)
+    from roadmesh.domain.company_documents import document_company
+    workshop = document_company(workshop)
     return {
         "client": client_doc or {},
         "vehicle": vehicle or {},

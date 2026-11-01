@@ -1,5 +1,6 @@
 """Platform retainers: correct periods, permissions, revisions and private data."""
 from datetime import date
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -33,7 +34,7 @@ def test_monthly_totals_revision_and_history(platform_session):
     row = next(r for r in after['companies'] if r['id'] == c['id'])
     assert row['state'] == 'pending'
     assert platform_session.put(url, json=record()).status_code == 409
-    checked(platform_session.put(url, json=record(received=150, hours_used=4, revision=1)))
+    checked(platform_session.post(url + "/movements", json={"kind": "payment", "amount": 50, "occurred_on": "2026-11-01", "reference": "TEST-RECEIPT", "method": "transfer", "note": "Pagamento de teste", "idempotency_key": str(uuid4())}), 201)
     updated = analytics(platform_session)
     assert updated['summary']['billed'] == after['summary']['billed']  # Editing never counts the month twice.
     assert next(r for r in updated['companies'] if r['id'] == c['id'])['state'] == 'paid'
@@ -78,10 +79,10 @@ def test_admin_only_and_platform_figures_are_not_exposed_to_workshops(platform_s
 def test_archived_company_keeps_history_but_disallows_edits(platform_session):
     c = company(platform_session); url = API+f"/admin/workshops/{c['id']}/service-months/2088/10"
     checked(platform_session.put(url, json=record()))
-    checked(platform_session.delete(API+'/admin/workshops/'+c['id']))
+    checked(platform_session.delete(API+'/admin/workshops/'+c['id'], json={"reason": "Arquivo para teste"}))
     assert platform_session.put(url, json=record(revision=1)).status_code == 409
     row = next(r for r in analytics(platform_session)['companies'] if r['id'] == c['id'])
-    assert row['company_status'] == 'archived' and row['record']['billed'] == '150'
+    assert row['company_status'] == 'archived' and Decimal(str(row['record']['billed'])) == 150
 
 
 def test_january_uses_previous_december_and_annual_hours_do_not_cancel_excess():

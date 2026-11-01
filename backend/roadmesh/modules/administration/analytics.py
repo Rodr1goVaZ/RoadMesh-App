@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, Query
 from pydantic import Field, model_validator
 
 from roadmesh.core.access_control import StrictModel, now, timestamp
-from roadmesh.infrastructure.database.integrity import transact
+from roadmesh.modules.administration.ledger import register_ledger, save_month as save_service_month
 
 
 class ServiceMonth(StrictModel):
@@ -66,14 +66,17 @@ def build_analytics(companies, year, month, today):
     selected = period_key(year, month)
     def eligible_at(y, m):
         cutoff = date(y, m, calendar.monthrange(y, m)[1]).isoformat()
-        return [c['id'] for c in companies if c['status'] != 'archived' and (c.get('created_at') or '')[:10] <= cutoff]
+        return [c['id'] for c in companies
+                if (c.get('created_at') or '')[:10] <= cutoff
+                and (c['status'] != 'archived' or (c.get('archived_at') or '')[:10] > cutoff)]
     eligible = eligible_at(year, month)
 
     def rows(periods):
         return [(c['id'], record) for c in companies for key, record in c.get('platform_service_months', {}).items() if key in periods]
 
     def for_period(key):
-        return summary(rows({key}), eligible, today)
+        period_year, period_month = map(int, key.split('-'))
+        return summary(rows({key}), eligible_at(period_year, period_month), today)
 
     months = []
     for number in range(1, 13):
@@ -101,10 +104,11 @@ def build_analytics(companies, year, month, today):
 
 
 def register_admin_analytics(api, db, access):
+    register_ledger(api, db, access)
     @api.get('/admin/dashboard/analytics')
     async def analytics(year: int = Query(ge=2000, le=2100), month: int = Query(ge=1, le=12), account=Depends(access.admin)):
         companies = await db.workshops.find({}, {'_id': 0, 'id': 1, 'name': 1, 'status': 1,
-                                                'created_at': 1, 'platform_service_months': 1}).to_list(None)
+                                                'created_at': 1, 'archived_at': 1, 'platform_service_months': 1}).to_list(None)
         return build_analytics(companies, year, month, now().astimezone(ZoneInfo('Europe/Lisbon')).date())
 
     @api.put('/admin/workshops/{wid}/service-months/{year}/{month}')
@@ -113,23 +117,4 @@ def register_admin_analytics(api, db, access):
             raise HTTPException(422, 'Selecione um mês e um ano válidos.')
         key = period_key(year, month)
 
-        async def operation(session):
-            # Touch the company before reading: concurrent edits retry with fresh state.
-            touched = await db.workshops.update_one({'id': wid}, {'$inc': {'platform_service_revision': 1}}, session=session)
-            if not touched.matched_count:
-                raise HTTPException(404, 'Empresa não encontrada.')
-            company = await db.workshops.find_one({'id': wid}, {'_id': 0}, session=session)
-            entries = dict(company.get('platform_service_months', {}))
-            previous = entries.get(key)
-            if body.revision != (previous or {}).get('revision', 0):
-                raise HTTPException(409, 'Este mês foi alterado por outro administrador. Atualize os dados antes de guardar.')
-            if company['status'] == 'archived':
-                raise HTTPException(409, 'Uma empresa arquivada mantém os registos para consulta.')
-            record = {**body.model_dump(mode='json', exclude={'revision'}), 'revision': body.revision + 1,
-                      'updated_at': timestamp(), 'actor_id': account['id']}
-            entries[key] = record
-            await db.workshops.update_one({'id': wid}, {'$set': {'platform_service_months': entries}}, session=session)
-            await access.audit(account, 'platform.service_month.updated', wid, key,
-                               details={'before': previous, 'after': record}, session=session)
-            return {'ok': True, 'record': record}
-        return await transact(db, operation)
+        return await save_service_month(db, access, wid, key, body, account)

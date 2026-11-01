@@ -14,8 +14,7 @@ from dotenv import dotenv_values
 
 ROOT=Path(__file__).resolve().parents[1]
 PRODUCTION_REF='gpzrzmdjcpzhndvqreqa'
-BASE='workshops clients users vehicles products appointments quotes work_orders work_order_items quote_items purchase_orders purchase_order_items stock_movements media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit'.split()
-EXTRA='suppliers financial_movements order_receipts reorder_needs password_resets'.split()
+from schema_tables import BASE, BUSINESS as EXTRA, tables_for_version
 
 
 def connection():
@@ -40,11 +39,7 @@ def main():
         conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         assert conn.execute('SHOW transaction_read_only').fetchone()[0]=='on'
         version=conn.execute("SELECT obj_description('roadmesh'::regnamespace,'pg_namespace')").fetchone()[0]
-        versions={'RoadMesh PostgreSQL schema version 2; private server access':BASE,
-            'RoadMesh PostgreSQL schema version 3; private server access':BASE+EXTRA,
-            'RoadMesh PostgreSQL schema version 5; private server access':BASE+EXTRA+'stand_inventory stand_leads stand_sales'.split()}
-        if version not in versions:raise ValueError('Versão não suportada; nenhuma alteração executada.')
-        tables=versions[version]
+        tables=tables_for_version(version)
         actual={r[0] for r in conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='roadmesh'")}
         if actual!=set(tables):raise ValueError('Lista de tabelas inesperada; backup incompleto recusado.')
         counts={t:conn.execute(sql.SQL('SELECT count(*) FROM {}').format(sql.Identifier('roadmesh',t))).fetchone()[0] for t in tables}

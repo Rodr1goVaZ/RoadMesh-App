@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-01",
+  "base_branch": "digo",
+  "base_commit": "5c11d34b4cd9356bd3d9063569eeac546f4f6e0a",
+  "postgres_isolated": {
+    "passed": 196,
+    "skipped": 2,
+    "engine": "PGlite",
+    "multi_process_supabase_certification": false
+  },
+  "mongodb_isolated": {
+    "passed": 182,
+    "skipped": 16
+  },
+  "frontend": {
+    "passed": 46,
+    "typescript": "passed",
+    "eslint": "passed",
+    "web_export": "passed"
+  },
+  "production": {
+    "schema": 5,
+    "modified": false,
+    "backup_restored_locally": true,
+    "snapshot_tables": 30,
+    "snapshot_rows": 545,
+    "migration_006_preserves_rows_locally": true
+  },
+  "staging": {
+    "project_ref": "deozdqnodbmqehkytzms",
+    "project_name": "RoadMesh-Backup",
+    "schema": 6,
+    "tables": 32,
+    "pre_migration_snapshot_rows": 2527,
+    "exact_restore_verified": true,
+    "rls_and_immutable_triggers_verified": true,
+    "runtime_role_membership_granted": false,
+    "full_api_suite": "running with explicitly authorized technical account rotation; technical test session keepalive enabled; no production session setting changes"
+  },
+  "local_rollout": {
+    "remote_connections": false,
+    "legacy_api_schema5": true,
+    "legacy_api_survives_live_migration006": true,
+    "new_api_reads_existing_company": true,
+    "new_ledger_payment": true,
+    "legacy_admin_dashboard_after_new_payment": true
+  },
+  "visual_review": {
+    "environment": "local fictional demo only",
+    "browser": "Safari",
+    "monthly_conditions_saved": true,
+    "individual_payment_saved": true,
+    "received_total_and_history_updated": true,
+    "physical_mobile_test": false
+  }
+}

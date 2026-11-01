@@ -31,11 +31,11 @@ Um contacto fornecido tem de ser válido mesmo quando o outro também está pree
 - No MongoDB, os campos adicionais ficam no documento `workshops`. No adaptador
   PostgreSQL/Supabase existente, ficam no JSONB `roadmesh.workshops.metadata`.
   Os rascunhos privados ficam nos metadados do próprio administrador em `users`.
-- Esta alteração não exige novas colunas SQL quando o esquema atual do projeto
+- Os campos de identificação e os rascunhos não exigem novas colunas SQL quando o esquema atual do projeto
   já está instalado, incluindo as colunas `metadata` exigidas pelo adaptador.
   Num ambiente desatualizado, rever primeiro as migrações já existentes em
   `backend/sql` e o guia de base de dados do projeto; não executar SQL por suposição.
-- Os registos mensais de pagamentos e assistência usam `platform_service_months`
+- O livro de pagamentos e assistência requer a migração 006 e as tabelas de períodos/movimentos. Os totais mensais projetados usam `platform_service_months`
   e `platform_service_revision`. São internos à administração e não representam
   a faturação das oficinas aos seus clientes. Ver [AVENCAS.md](AVENCAS.md).
 - O logótipo usa o serviço de media existente. As credenciais criadas são

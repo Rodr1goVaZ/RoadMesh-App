@@ -1,6 +1,10 @@
 # RoadMesh — relatório das alterações e validação
 
-**Atualizado:** 22 de outubro de 2026. **Branch:** `codex/roadmesh-auditoria-melhorias`. **Commit:** `04d5bac`. **Base original:** `8a55d9d`.
+**Atualizado:** 1 de novembro de 2026. Preparação da integração de `digo`, com correções de privacidade, motivos obrigatórios, períodos históricos e livro de pagamentos/assistência. A migração 006 foi validada numa cópia descartável; publicação remota ainda não confirmada.
+
+As secções seguintes preservam o histórico das entregas anteriores. A situação atual desta integração e os passos de publicação estão em [INTEGRAR-DIGO.md](guides/INTEGRAR-DIGO.md).
+
+## Histórico da auditoria de outubro de 2026
 
 Esta entrega contém código, testes e documentação. O commit 04d5bac e a referência remota local coincidem. A migração 003 já foi aplicada na produção, com backup e auditoria. O deployment do código mais recente não foi confirmado nesta atualização. As secções datadas seguintes preservam o histórico das etapas anteriores. A documentação de utilização, arquitetura, instalação, email, fotografias e publicação encontra-se em [PROJETO.md](PROJETO.md).
 
@@ -299,3 +303,15 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Documentação operacional e histórica organizada em docs; README do frontend substituído pela descrição da aplicação real. Exclusões de build/uploads atualizadas para caches, dependências e dados privados.
 - Validação final: PostgreSQL local/PGlite 126 aprovados e 2 excluídos específicos de MongoDB; MongoDB isolado 115 aprovados e 13 excluídos específicos de PostgreSQL; 24 testes frontend aprovados; TypeScript, ESLint, exportação web e links da documentação aprovados.
 - Sem alteração de dados, credenciais, bases remotas ou publicação. Rotas legadas da oficina mantêm-se em backend/server.py; a organização não pretende ser uma reescrita integral da API. Estrutura e regras em [ESTRUTURA.md](architecture/ESTRUTURA.md); evidência em evidencias/reestruturacao-20261026.json.
+
+
+## 1 de novembro de 2026 — integração de digo
+
+- Snapshot de documentos limitado à identidade pública da empresa.
+- Desativação e arquivo exigem motivo no backend; estado, sessões e auditoria transacionais.
+- Comparação de empresas por data de criação em cada período.
+- Livro individual de pagamentos e assistência: datas, referências, método, ator, idempotência e estornos.
+- Migração 006 aditiva e proteção SQL de imutabilidade para movimentos e auditoria.
+- Aberturas anteriores preservadas sem datas inventadas; backups/restauro suportam esquema 6.
+- Regressões da revisão e testes de duplicação, isolamento, rollback e imutabilidade.
+- Evidência e limites: [INTEGRAR-DIGO.md](guides/INTEGRAR-DIGO.md).

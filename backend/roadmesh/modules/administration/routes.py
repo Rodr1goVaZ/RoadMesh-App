@@ -154,6 +154,12 @@ class StatusBody(StrictModel):
     status: Literal["active", "disabled"]
     reason: str = Field(default="", max_length=500)
 
+    @model_validator(mode="after")
+    def require_reason(self):
+        if self.status == "disabled" and len(self.reason.strip()) < 5:
+            raise ValueError("Indique o motivo da desativação, com pelo menos 5 caracteres.")
+        return self
+
 
 class ArchiveCompanyBody(StrictModel):
     reason: str = Field(min_length=5, max_length=500)
@@ -284,29 +290,38 @@ def register_admin_routes(api, db, access):
 
     @api.post("/admin/workshops/{wid}/status")
     async def change_status(wid: str, body: StatusBody, account=Depends(access.admin)):
-        workshop = await workshop_doc(wid)
-        if workshop["status"] == "archived":
-            raise HTTPException(409, "Uma oficina arquivada não pode ser reativada.")
-        await db.workshops.update_one({"id": wid}, {"$set": {"status": body.status, "status_reason": body.reason, "updated_at": timestamp()}})
-        if body.status == "disabled":
-            await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}})
-        await access.audit(account, f"workshop:{body.status}", wid, body.reason)
-        return {"ok": True}
+        async def operation(session):
+            await db.workshops.update_one({"id": wid}, {"$inc": {"state_revision": 1}}, session=session)
+            workshop = await db.workshops.find_one({"id": wid}, {"_id": 0}, session=session)
+            if not workshop:
+                raise HTTPException(404, "Empresa não encontrada.")
+            if workshop["status"] == "archived":
+                raise HTTPException(409, "Uma empresa arquivada não pode ser reativada.")
+            await db.workshops.update_one({"id": wid}, {"$set": {"status": body.status, "status_reason": body.reason, "updated_at": timestamp()}}, session=session)
+            if body.status == "disabled":
+                await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}}, session=session)
+            await access.audit(account, f"workshop:{body.status}", wid, body.reason, session=session)
+            return {"ok": True}
+        return await transact(db, operation)
 
     async def archive_company(wid, account, reason):
-        await workshop_doc(wid)
-        await db.workshops.update_one({"id": wid}, {"$set": {"status": "archived", "archived_at": timestamp(), "archive_reason": reason, "updated_at": timestamp()}})
-        await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}})
-        await access.audit(account, "archive_workshop", wid, reason)
-        return {"ok": True, "archived": True}
+        async def operation(session):
+            touched = await db.workshops.update_one({"id": wid}, {"$inc": {"state_revision": 1}}, session=session)
+            if not touched.matched_count:
+                raise HTTPException(404, "Empresa não encontrada.")
+            await db.workshops.update_one({"id": wid}, {"$set": {"status": "archived", "archived_at": timestamp(), "archive_reason": reason, "updated_at": timestamp()}}, session=session)
+            await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}}, session=session)
+            await access.audit(account, "archive_workshop", wid, reason, session=session)
+            return {"ok": True, "archived": True}
+        return await transact(db, operation)
 
     @api.post("/admin/workshops/{wid}/archive")
     async def archive_with_reason(wid: str, body: ArchiveCompanyBody, account=Depends(access.admin)):
         return await archive_company(wid, account, body.reason)
 
     @api.delete("/admin/workshops/{wid}")
-    async def archive_workshop(wid: str, account=Depends(access.admin)):
-        return await archive_company(wid, account, "")
+    async def archive_workshop(wid: str, body: ArchiveCompanyBody, account=Depends(access.admin)):
+        return await archive_company(wid, account, body.reason)
 
     @api.post("/admin/workshops/{wid}/staff", status_code=201)
     async def add_staff(wid: str, body: UserBody, account=Depends(access.admin)):
