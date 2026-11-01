@@ -1,6 +1,6 @@
 # Integração da administração e livro de avenças
 
-Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Não considerar esta preparação uma publicação em produção.
+Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Alterações guardadas na branch `codex/digo-integracao-segura`, [PR #8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). Não considerar esta preparação uma publicação em produção.
 
 ## Correções incluídas
 
@@ -50,12 +50,20 @@ O esquema é aditivo e os dados antigos ficam preservados. Não apagar tabelas n
 - Frontend: 46 testes, TypeScript, ESLint e exportação web aprovados.
 - Um snapshot privado de produção com 30 tabelas e 545 registos foi restaurado localmente e comparado linha a linha. A 006 foi depois aplicada nessa cópia descartável, preservando as contagens existentes e produzindo 32 tabelas.
 - Nenhum dado da produção foi alterado por esta verificação. O snapshot não inclui os bytes das fotografias guardadas no Storage.
-- O resultado não certifica dispositivos físicos nem concorrência de múltiplos processos reais no Supabase. A validação remota depende de uma ligação de testes funcional.
+- O resultado não certifica dispositivos físicos nem concorrência de múltiplos processos reais no Supabase. A validação remota usa exclusivamente o projeto de testes confirmado.
 
 ## Validação remota em 1 de novembro de 2026
 
 O projeto de testes confirmado, `deozdqnodbmqehkytzms`, agora chama-se RoadMesh-Backup. Após terminar o arranque, foi criada uma cópia privada consistente de 30 tabelas/2527 registos, verificada por restauro local e comparação integral. A migração 006 foi aplicada nesse projeto e confirmou 32 tabelas. Não houve alteração da produção.
 
-O ensaio completo da API remota foi autorizado especificamente no RoadMesh-Backup. A primeira execução revelou expiração da sessão do processo de testes após 15 minutos; o suporte de renovação foi corrigido no harness, sem alterar os prazos da aplicação e sem recorrer a novo login para ocultar revogação. A execução final está em curso. Não se concedeu o papel runtime ao postgres.
+A suite remota foi autorizada especificamente no RoadMesh-Backup. O harness mantém a sessão técnica ativa também quando um processo fica temporariamente sem pedidos administrativos. Não altera os prazos da aplicação, não volta a fazer login para ocultar revogações e encerra a renovação no fim da suite. A execução final terminou com 194 testes aprovados, 3 ignorados e zero falhas (23 min 46 s). O teste que exige assumir `roadmesh_runtime` foi excluído, conforme a decisão anterior do proprietário; não houve concessão desse papel ao postgres. Não se concedeu o papel runtime ao postgres.
 
 O ensaio local de transição confirmou a API anterior no esquema 5, a aplicação da 006 com a API antiga ativa, a leitura da empresa existente pela nova API e um pagamento novo; o dashboard anterior continuou acessível. A interface Safari foi exercitada com dados fictícios locais: criação do mês e pagamento individual de 25,50 €, refletido no histórico e no total recebido. Não equivale a teste em dispositivos móveis físicos.
+
+O arranque Windows foi revisto no código; não foi executado neste Mac. O script Windows pressupõe um ambiente Python local já preparado em `.demo/venv`, Node.js e MongoDB disponíveis. Não se apresenta como um instalador independente para uma máquina Windows vazia.
+
+## Conclusão da revisão para main
+
+O código passou a validação local e a suite completa no Supabase real de testes. O PR não tem conflitos com a main na revisão efetuada. As compilações Vercel da API e do frontend passaram; isto comprova a compilação de preview e não a publicação em produção. Os ficheiros do commit de implementação foram comparados por hash com os testados e coincidem.
+
+A integração fica condicionada à aplicação da migração 006 na produção, atualmente no esquema 5, com uma cópia recuperável atualizada. Manter o PR em rascunho até concluir esse passo. A main, a base de produção e a conta RaRo não foram migradas/publicadas por esta entrega.

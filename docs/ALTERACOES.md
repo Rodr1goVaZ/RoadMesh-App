@@ -1,6 +1,6 @@
 # RoadMesh — relatório das alterações e validação
 
-**Atualizado:** 1 de novembro de 2026. Preparação da integração de `digo`, com correções de privacidade, motivos obrigatórios, períodos históricos e livro de pagamentos/assistência. A migração 006 foi validada numa cópia descartável; publicação remota ainda não confirmada.
+**Atualizado:** 1 de novembro de 2026. Preparação da integração de `digo`, com correções de privacidade, motivos obrigatórios, períodos históricos e livro de pagamentos/assistência. A migração 006 foi verificada em cópias descartáveis e aplicada no RoadMesh-Backup, cuja suite real passou com 194 testes. A produção continua no esquema 5; não houve merge nem publicação de produção.
 
 As secções seguintes preservam o histórico das entregas anteriores. A situação atual desta integração e os passos de publicação estão em [INTEGRAR-DIGO.md](guides/INTEGRAR-DIGO.md).
 
@@ -315,3 +315,5 @@ Validação: TypeScript e ESLint aprovados; exportação web aprovada; 7 testes 
 - Aberturas anteriores preservadas sem datas inventadas; backups/restauro suportam esquema 6.
 - Regressões da revisão e testes de duplicação, isolamento, rollback e imutabilidade.
 - Evidência e limites: [INTEGRAR-DIGO.md](guides/INTEGRAR-DIGO.md).
+
+Validação final desta integração: PostgreSQL local 196 aprovados/2 ignorados; MongoDB 182/16; frontend 46; TypeScript, lint e exportação web sem erros. Supabase real: 194 aprovados/3 ignorados, zero falhas; teste de troca para o papel runtime excluído por decisão do proprietário. As compilações de preview Vercel passaram. PR de entrega: [#8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). Antes de integrar, aplicar 006 em produção conforme o guia.

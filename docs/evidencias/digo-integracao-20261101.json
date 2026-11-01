@@ -35,7 +35,17 @@
     "exact_restore_verified": true,
     "rls_and_immutable_triggers_verified": true,
     "runtime_role_membership_granted": false,
-    "full_api_suite": "running with explicitly authorized technical account rotation; technical test session keepalive enabled; no production session setting changes"
+    "full_api_suite": {
+      "passed": 194,
+      "skipped": 3,
+      "failures": 0,
+      "duration_seconds": 1426.38,
+      "exit_code": 0,
+      "runtime_role_switch_test_excluded": true,
+      "technical_account_rotation_explicitly_authorized": true,
+      "technical_session_keepalive": true,
+      "production_session_settings_changed": false
+    }
   },
   "local_rollout": {
     "remote_connections": false,
@@ -52,5 +62,16 @@
     "individual_payment_saved": true,
     "received_total_and_history_updated": true,
     "physical_mobile_test": false
-  }
+  },
+  "pull_request": "https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8",
+  "implementation_commit": "28917aad8782e35ee17ccb837736b529c6d7378d",
+  "published_source_hash_comparison": {
+    "files": 32,
+    "mismatches": 0
+  },
+  "vercel_preview_builds": {
+    "api": "success",
+    "frontend": "success"
+  },
+  "merge_gate": "Apply migration 006 to production with a current verified backup before merging/deploying this API."
 }
