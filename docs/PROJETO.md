@@ -1,6 +1,6 @@
 # RoadMesh — documentação do projeto
 
-**Atualização:** 1 de novembro de 2026. A integração da branch `digo` acrescenta administração de empresas e movimentos individuais de avenças/assistência; requer o esquema 6 antes de publicar esta versão. Ver [procedimento e validação](guides/INTEGRAR-DIGO.md). A publicação destas alterações ainda não está confirmada.
+**Atualização de produção:** 1 de novembro de 2026. PR #8 integrado na main, migração 006 aplicada no Supabase e API/frontend publicados na Vercel. Login RaRo, dashboard e consultas validados. A ligação de fotografias ao Storage de produção ainda está por configurar; o teste de upload devolveu 503. Ver [evidência da publicação](evidencias/publicacao-producao-20261101.json).
 A arquitetura funcional e as regras abaixo mantêm-se; a organização atual está em [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.

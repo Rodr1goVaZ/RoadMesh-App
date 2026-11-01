@@ -1,6 +1,6 @@
 # Integração da administração e livro de avenças
 
-Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Alterações guardadas na branch `codex/digo-integracao-segura`, [PR #8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). Não considerar esta preparação uma publicação em produção.
+Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Alterações guardadas na branch `codex/digo-integracao-segura`, [PR #8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). A integração foi publicada em produção em 1 de novembro de 2026; o estado atual e a pendência de fotografias estão no fim deste guia.
 
 ## Correções incluídas
 
@@ -67,3 +67,9 @@ O arranque Windows foi revisto no código; não foi executado neste Mac. O scrip
 O código passou a validação local e a suite completa no Supabase real de testes. O PR não tem conflitos com a main na revisão efetuada. As compilações Vercel da API e do frontend passaram; isto comprova a compilação de preview e não a publicação em produção. Os ficheiros do commit de implementação foram comparados por hash com os testados e coincidem.
 
 A integração fica condicionada à aplicação da migração 006 na produção, atualmente no esquema 5, com uma cópia recuperável atualizada. Manter o PR em rascunho até concluir esse passo. A main, a base de produção e a conta RaRo não foram migradas/publicadas por esta entrega.
+
+## Publicação da main concluída em 1 de novembro de 2026
+
+A condição anterior foi cumprida: migração 006 aplicada em produção após backup e restauro integral verificado, com 545 registos preservados. O PR #8 foi integrado na main; API e frontend foram publicados na Vercel. Login admin e consultas reais passaram. A conta RaRo manteve a palavra-passe.
+
+Resta configurar e validar o Storage de fotografias na produção, cujo teste de upload devolveu 503 por falta das variáveis no backend. A configuração requer bucket privado e chave de servidor guardada como Secret exclusivamente no backend; a autorização específica foi solicitada. Ver [evidência de publicação](../evidencias/publicacao-producao-20261101.json).
