@@ -3,6 +3,7 @@
 No connection to Supabase, no modification of the source, no data printed.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -13,17 +14,18 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 
-from backup_staging import ROOT,TABLES
+from backup_staging import ROOT
+from schema_tables import tables_for_version
 sys.path.insert(0,str(ROOT/'backend/tests'))
 from run_local import available_port  # noqa: E402
 
 
-def verify(snapshot_path,runtime,report_path=None):
+def verify(snapshot_path,runtime,report_path=None,upgrade_platform=False):
     raw=snapshot_path.read_text()
     data=json.loads(raw)
-    if data.get('format')!='roadmesh-snapshot-v1' or data.get('schema_version') not in ('RoadMesh PostgreSQL schema version 3; private server access','RoadMesh PostgreSQL schema version 5; private server access'):
-        raise ValueError('Unrecognized snapshot version')
-    tables = TABLES + ('stand_inventory stand_leads stand_sales'.split() if 'version 5;' in data['schema_version'] else [])
+    if data.get('format')!='roadmesh-snapshot-v1':
+        raise ValueError('Unrecognized snapshot format')
+    tables = tables_for_version(data['schema_version'])
     if set(data.get('tables',{}))!=set(tables) or set(data.get('counts',{}))!=set(tables):
         raise ValueError('Incomplete table set')
     if any(len(data['tables'][t])!=data['counts'][t] for t in tables):
@@ -49,8 +51,10 @@ def verify(snapshot_path,runtime,report_path=None):
                         conn.execute(sql.SQL('CREATE ROLE {} NOLOGIN').format(sql.Identifier(role)))
                     for name in ('001_initial.sql','002_backend_compatibility.sql','003_business_modules.sql','004_runtime_role.sql'):
                         conn.execute((ROOT/'backend/sql'/name).read_text(),prepare=False)
-                    if 'version 5;' in data['schema_version']:
+                    if any(v in data['schema_version'] for v in ('version 5;', 'version 6;')):
                         conn.execute((ROOT/'backend/sql/005_company_modules_stand.sql').read_text(),prepare=False)
+                    if 'version 6;' in data['schema_version']:
+                        conn.execute((ROOT/'backend/sql/006_platform_service_ledger.sql').read_text(),prepare=False)
                     with conn.transaction():
                         conn.execute("SELECT set_config('TimeZone',%s,true)",(data.get('timezone','UTC'),))
                         for name in tables:
@@ -66,10 +70,22 @@ def verify(snapshot_path,runtime,report_path=None):
                             table=sql.Identifier('roadmesh',name)
                             same=conn.execute(sql.SQL("SELECT NOT EXISTS((SELECT to_jsonb(t) FROM {} t EXCEPT ALL SELECT value FROM jsonb_array_elements(%s::jsonb->'tables'->%s)) UNION ALL (SELECT value FROM jsonb_array_elements(%s::jsonb->'tables'->%s) EXCEPT ALL SELECT to_jsonb(t) FROM {} t))").format(table,table),(raw,name,raw,name)).fetchone()[0]
                             if not same:raise ValueError('Restored data does not match: '+name)
+                    if upgrade_platform:
+                        if 'version 5;' not in data['schema_version']:
+                            raise ValueError('Upgrade verification requires a schema-5 snapshot')
+                        conn.execute((ROOT/'backend/sql/006_platform_service_ledger.sql').read_text(),prepare=False)
+                        for name in tables:
+                            count=conn.execute(sql.SQL('SELECT count(*) FROM roadmesh.{}').format(sql.Identifier(name))).fetchone()[0]
+                            if count!=data['counts'][name]:
+                                raise ValueError('Upgrade changed existing row counts')
+                        if conn.execute("SELECT count(*) FROM pg_tables WHERE schemaname='roadmesh'").fetchone()[0]!=32:
+                            raise ValueError('Upgrade table inventory mismatch')
                 report={'source':'private supplied snapshot','tables':len(tables),
+                    'source_sha256':hashlib.sha256(snapshot_path.read_bytes()).hexdigest(),
                     'rows':sum(data['counts'].values()),'all_rows_compared':True,
                     'constraints_checked':True,'restore_engine':'disposable local PGlite',
-                    'remote_source_modified':False,'media_bytes_included':False}
+                    'remote_source_modified':False,'media_bytes_included':False,
+                    'migration_006_verified_locally':upgrade_platform}
                 target = report_path or ROOT/'docs/evidencias/restauro-staging.json'
                 target.write_text(json.dumps(report,indent=2)+'\n')
                 print(json.dumps(report,ensure_ascii=False))
@@ -84,8 +100,10 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('snapshot',type=Path)
     parser.add_argument('--pglite-runtime',type=Path,required=True)
+    parser.add_argument('--upgrade-platform',action='store_true',help='After exact local restore of schema 5, verify additive migration 006 locally.')
+    parser.add_argument('--report',type=Path)
     args=parser.parse_args()
-    try:raise SystemExit(verify(args.snapshot,args.pglite_runtime))
+    try:raise SystemExit(verify(args.snapshot,args.pglite_runtime,report_path=args.report,upgrade_platform=args.upgrade_platform))
     except Exception as error:
         print('Restauro não confirmado: '+type(error).__name__+'. Dados e credenciais omitidos.')
         raise SystemExit(1) from None

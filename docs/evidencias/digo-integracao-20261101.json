@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-01",
+  "base_branch": "digo",
+  "base_commit": "5c11d34b4cd9356bd3d9063569eeac546f4f6e0a",
+  "postgres_isolated": {
+    "passed": 196,
+    "skipped": 2,
+    "engine": "PGlite",
+    "multi_process_supabase_certification": false
+  },
+  "mongodb_isolated": {
+    "passed": 182,
+    "skipped": 16
+  },
+  "frontend": {
+    "passed": 46,
+    "typescript": "passed",
+    "eslint": "passed",
+    "web_export": "passed"
+  },
+  "production": {
+    "schema": 5,
+    "modified": false,
+    "backup_restored_locally": true,
+    "snapshot_tables": 30,
+    "snapshot_rows": 545,
+    "migration_006_preserves_rows_locally": true
+  },
+  "staging": {
+    "project_ref": "deozdqnodbmqehkytzms",
+    "project_name": "RoadMesh-Backup",
+    "schema": 6,
+    "tables": 32,
+    "pre_migration_snapshot_rows": 2527,
+    "exact_restore_verified": true,
+    "rls_and_immutable_triggers_verified": true,
+    "runtime_role_membership_granted": false,
+    "full_api_suite": {
+      "passed": 194,
+      "skipped": 3,
+      "failures": 0,
+      "duration_seconds": 1426.38,
+      "exit_code": 0,
+      "runtime_role_switch_test_excluded": true,
+      "technical_account_rotation_explicitly_authorized": true,
+      "technical_session_keepalive": true,
+      "production_session_settings_changed": false
+    }
+  },
+  "local_rollout": {
+    "remote_connections": false,
+    "legacy_api_schema5": true,
+    "legacy_api_survives_live_migration006": true,
+    "new_api_reads_existing_company": true,
+    "new_ledger_payment": true,
+    "legacy_admin_dashboard_after_new_payment": true
+  },
+  "visual_review": {
+    "environment": "local fictional demo only",
+    "browser": "Safari",
+    "monthly_conditions_saved": true,
+    "individual_payment_saved": true,
+    "received_total_and_history_updated": true,
+    "physical_mobile_test": false
+  },
+  "pull_request": "https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8",
+  "implementation_commit": "28917aad8782e35ee17ccb837736b529c6d7378d",
+  "published_source_hash_comparison": {
+    "files": 32,
+    "mismatches": 0
+  },
+  "vercel_preview_builds": {
+    "api": "success",
+    "frontend": "success"
+  },
+  "merge_gate": "Apply migration 006 to production with a current verified backup before merging/deploying this API."
+}

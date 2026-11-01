@@ -54,12 +54,15 @@ async def initialize_integrity(db):
         "damages",
         "appointments",
         "media",
-        "counters", "suppliers", "financial_movements", "order_receipts", "reorder_needs", "password_resets", "stand_inventory", "stand_leads", "stand_sales",
+        "counters", "suppliers", "financial_movements", "order_receipts", "reorder_needs", "password_resets", "stand_inventory", "stand_leads", "stand_sales", "platform_service_periods", "platform_service_movements",
     )
     try:
         for name in collections:
             await db[name].create_index("id", unique=True)
         await db.counters.create_index("id", unique=True)
+        await db.platform_service_periods.create_index([('workshop_id', 1), ('period', 1)], unique=True)
+        await db.platform_service_movements.create_index([('workshop_id', 1), ('idempotency_key', 1)], unique=True)
+        await db.platform_service_movements.create_index('reverses_id', unique=True, partialFilterExpression={'reverses_id': {'$type': 'string'}})
         await db.stand_inventory.create_index([("workshop_id",1),("plate_key",1)],unique=True)
         for field in ("inventory_id","idempotency_key"):
             await db.stand_sales.create_index([("workshop_id",1),(field,1)],unique=True)

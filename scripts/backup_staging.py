@@ -7,14 +7,16 @@ from psycopg import sql
 
 from check_staging_connection import ROOT,staging_connection
 
-TABLES='workshops clients users vehicles products appointments quotes work_orders work_order_items quote_items purchase_orders purchase_order_items stock_movements media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets'.split()
+from schema_tables import BASE, BUSINESS, tables_for_version
+TABLES = BASE + BUSINESS
 
 
 def main():
     with psycopg.connect(staging_connection(),prepare_threshold=None) as conn:
         conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
         actual={r[0] for r in conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='roadmesh'")}
-        tables = TABLES + ('stand_inventory stand_leads stand_sales'.split() if actual==set(TABLES + 'stand_inventory stand_leads stand_sales'.split()) else [])
+        version=conn.execute("SELECT obj_description('roadmesh'::regnamespace,'pg_namespace')").fetchone()[0]
+        tables=tables_for_version(version)
         if actual!=set(tables):raise ValueError('Unexpected schema: incomplete backup refused')
         pairs=[]
         for name in tables:

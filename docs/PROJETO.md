@@ -1,6 +1,6 @@
 # RoadMesh — documentação do projeto
 
-**Atualização estrutural:** 26 de outubro de 2026, alterações locais por publicar.
+**Atualização:** 1 de novembro de 2026. A integração da branch `digo` acrescenta administração de empresas e movimentos individuais de avenças/assistência; requer o esquema 6 antes de publicar esta versão. Ver [procedimento e validação](guides/INTEGRAR-DIGO.md). A publicação destas alterações ainda não está confirmada.
 A arquitetura funcional e as regras abaixo mantêm-se; a organização atual está em [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.

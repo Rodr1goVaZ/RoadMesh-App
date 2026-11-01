@@ -60,7 +60,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
                     conn.execute('CREATE DATABASE roadmesh_test')
             url = base_url if embedded else f'postgresql://postgres@/roadmesh_test?host={temp}'
             with psycopg.connect(url) as conn:
-                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql', '005_company_modules_stand.sql'):
+                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql', '005_company_modules_stand.sql', '006_platform_service_ledger.sql'):
                     conn.execute((ROOT / 'sql' / name).read_text(), prepare=False)
             env = {**os.environ, 'DATABASE_URL':url, 'DATABASE_POOL_SIZE':'4',
                 'JWT_SECRET':secrets.token_urlsafe(48),
