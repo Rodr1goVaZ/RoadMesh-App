@@ -1,6 +1,6 @@
 # RoadMesh — documentação do projeto
 
-**Atualização de produção:** 1 de novembro de 2026. PR #8 integrado na main, migração 006 aplicada no Supabase e API/frontend publicados na Vercel. Login RaRo, dashboard e consultas validados. A ligação de fotografias ao Storage de produção ainda está por configurar; o teste de upload devolveu 503. Ver [evidência da publicação](evidencias/publicacao-producao-20261101.json).
+**Atualização de produção:** 1 de novembro de 2026. PR #8 integrado na main, migração 006 aplicada no Supabase e API/frontend publicados na Vercel. Login RaRo, dashboard e consultas validados. Fotografias ligadas ao Supabase Storage privado em produção: envio 201, leitura autenticada 200 e leitura sem sessão 401. Ver [evidência da publicação](evidencias/publicacao-producao-20261101.json).
 A arquitetura funcional e as regras abaixo mantêm-se; a organização atual está em [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.
@@ -217,7 +217,7 @@ A Vercel não deve guardar fotografias no disco efémero da função. Para usar 
 4. Testar upload e leitura autenticada com oficina e cliente de teste; verificar recusa por outra oficina.
 5. Se existirem ficheiros no fornecedor antigo, manter as suas credenciais até uma migração de ficheiros explicitamente validada. O fornecedor fica associado aos novos registos; não se movem ficheiros automaticamente.
 
-O arranque valida configuração sem chamar o armazenamento externo em cada cold start. A comunicação só acontece quando uma fotografia é efetivamente utilizada. O contrato foi testado com respostas controladas e, em 21/10, houve upload/leitura real no bucket privado da base de testes. O fornecedor de produção ainda precisa da sua configuração e verificação próprias. Ver [buckets privados](https://supabase.com/docs/guides/storage/buckets/fundamentals) e [acesso do servidor](https://supabase.com/docs/guides/storage/security/access-control).
+O arranque valida configuração sem chamar o armazenamento externo em cada cold start. A comunicação só acontece quando uma fotografia é efetivamente utilizada. O contrato foi testado com respostas controladas e, em 21/10, houve upload/leitura real no bucket privado da base de testes. Em 1/11/2026, o bucket de produção roadmesh-media foi configurado como privado, limitado a JPEG e 10 MB. As quatro variáveis foram guardadas apenas no backend roadmesh-api da Vercel, com a chave de servidor existente como Secret. Após republicação, uma imagem fictícia foi enviada (201), lida com autenticação (200) e recusada sem sessão (401). A imagem pertence ao administrador e não foi associada a uma viatura de cliente. A chave não foi guardada no repositório nem enviada ao frontend. Ver [buckets privados](https://supabase.com/docs/guides/storage/buckets/fundamentals) e [acesso do servidor](https://supabase.com/docs/guides/storage/security/access-control).
 
 ## 6. Instalação e execução
 

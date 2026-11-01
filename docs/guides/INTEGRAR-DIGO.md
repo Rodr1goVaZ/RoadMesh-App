@@ -1,6 +1,6 @@
 # Integração da administração e livro de avenças
 
-Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Alterações guardadas na branch `codex/digo-integracao-segura`, [PR #8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). A integração foi publicada em produção em 1 de novembro de 2026; o estado atual e a pendência de fotografias estão no fim deste guia.
+Atualizado em 1 de novembro de 2026. Alterações preparadas sobre `digo`, commit de origem `5c11d34b4cd9356bd3d9063569eeac546f4f6e0a`. Alterações guardadas na branch `codex/digo-integracao-segura`, [PR #8](https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8). A integração foi publicada em produção em 1 de novembro de 2026; o estado atual e a validação das fotografias estão no fim deste guia.
 
 ## Correções incluídas
 
@@ -72,4 +72,4 @@ A integração fica condicionada à aplicação da migração 006 na produção,
 
 A condição anterior foi cumprida: migração 006 aplicada em produção após backup e restauro integral verificado, com 545 registos preservados. O PR #8 foi integrado na main; API e frontend foram publicados na Vercel. Login admin e consultas reais passaram. A conta RaRo manteve a palavra-passe.
 
-Resta configurar e validar o Storage de fotografias na produção, cujo teste de upload devolveu 503 por falta das variáveis no backend. A configuração requer bucket privado e chave de servidor guardada como Secret exclusivamente no backend; a autorização específica foi solicitada. Ver [evidência de publicação](../evidencias/publicacao-producao-20261101.json).
+A configuração de fotografias foi concluída após autorização específica do proprietário: bucket privado roadmesh-media, apenas JPEG e 10 MB; STORAGE_DRIVER=supabase, URL e nome do bucket em Production, chave de servidor existente como Secret exclusivamente no backend roadmesh-api. A API foi republicada (deployment 5R1NzoU6RY6EHk2aVJQGX56odxpQ, Ready). O teste com uma imagem fictícia passou: envio 201, leitura autenticada 200 e recusa sem sessão 401. A chave não foi guardada no repositório nem enviada ao frontend. Nenhuma viatura de cliente foi associada à imagem. Ver [evidência de publicação](../evidencias/publicacao-producao-20261101.json).

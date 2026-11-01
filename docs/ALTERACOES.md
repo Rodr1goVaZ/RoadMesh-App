@@ -1,6 +1,6 @@
 # RoadMesh — relatório das alterações e validação
 
-**Atualizado:** 1 de novembro de 2026. PR #8 integrado na main, Supabase de produção no esquema 6 e API/frontend publicados. Login e consultas validados; fotografias pendentes de configuração do Storage. As secções datadas preservam as fases anteriores.
+**Atualizado:** 1 de novembro de 2026. PR #8 integrado na main, Supabase de produção no esquema 6 e API/frontend publicados. Login, consultas e fotografias privadas validados em produção. As secções datadas preservam as fases anteriores.
 
 As secções seguintes preservam o histórico das entregas anteriores. A situação atual desta integração e os passos de publicação estão em [INTEGRAR-DIGO.md](guides/INTEGRAR-DIGO.md).
 
@@ -325,6 +325,6 @@ O PR #8 foi integrado na main, commit 798f3b64cf3c5e88d47a4bab029e24fb3cac2a7b. 
 
 As duas publicações Vercel passaram. O login de geral@raro-solutions.pt foi validado como admin, sem troca obrigatória e sem alterar a palavra-passe. Dashboard, empresas, analytics, CORS e páginas da aplicação responderam com sucesso; pedidos administrativos sem autenticação devolvem 401.
 
-O teste de fotografias identificou upload 503: faltam as variáveis de Storage no backend da Vercel. A configuração do bucket privado e da chave de servidor está pendente de autorização específica. Não se apresenta o armazenamento como validado. A configuração SMTP existente foi preservada; não foi enviado novo email nesta publicação.
+O primeiro teste de fotografias identificou upload 503 por falta de configuração. Após autorização específica do proprietário, foi criado o bucket privado roadmesh-media no Supabase de produção, limitado a JPEG e 10 MB. Foram guardadas as quatro variáveis apenas no backend da Vercel, com a chave de servidor existente como Secret, e republicada a API. O teste real com imagem fictícia passou: envio 201, leitura autenticada 200 (image/jpeg) e recusa sem sessão 401. Não foi criada associação a uma viatura de cliente nem alterada a palavra-passe do administrador. A chave não foi guardada no repositório nem enviada ao frontend. A configuração SMTP existente foi preservada; não foi enviado novo email nesta publicação.
 
 Evidência sem credenciais: [publicacao-producao-20261101.json](evidencias/publicacao-producao-20261101.json).
