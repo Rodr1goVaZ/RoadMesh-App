@@ -1,6 +1,6 @@
 # RoadMesh — documentação do projeto
 
-**Atualização de produção:** 1 de novembro de 2026. PR #8 integrado na main, migração 006 aplicada no Supabase e API/frontend publicados na Vercel. Login RaRo, dashboard e consultas validados. Fotografias ligadas ao Supabase Storage privado em produção: envio 201, leitura autenticada 200 e leitura sem sessão 401. Ver [evidência da publicação](evidencias/publicacao-producao-20261101.json).
+**Atualização de produção:** 2 de novembro de 2026. PR #8 integrado na main, migração 006 aplicada no Supabase e API/frontend publicados na Vercel. Login RaRo, dashboard e consultas validados. Fotografias ligadas ao Supabase Storage privado em produção: envio 201, leitura autenticada 200 e leitura sem sessão 401. Ver [evidência da publicação](evidencias/publicacao-producao-20261101.json).
 A arquitetura funcional e as regras abaixo mantêm-se; a organização atual está em [ESTRUTURA.md](architecture/ESTRUTURA.md).
 
 Este documento explica a arquitetura, utilização, regras de negócio, instalação e operação. O relatório [ALTERACOES.md](ALTERACOES.md) descreve o trabalho efetuado, evidências, limitações e correspondência com o pedido de auditoria.
@@ -346,3 +346,10 @@ Validado no navegador local em 393×852, 768×1024 e 1440×1000, com contas fict
 A aplicação suporta Oficina, Stand ou ambos na mesma empresa e sessão. A administração seleciona os módulos na criação/edição. A nova área Stand inclui inventário, estados, clientes partilhados, contactos comerciais, vendas transacionais e histórico. O menu Mais mantém-se e a alternância só aparece com ambos os módulos ativos. Os dados existentes são preservados como Oficina.
 
 A versão requer a migração aditiva 005_company_modules_stand.sql, com três novas tabelas e configuração modules na empresa. A produção e o staging remoto não foram migrados nesta etapa. Consultar MODULOS-STAND.md antes de publicar; a migração deve preceder o novo backend.
+
+
+## 2 de novembro de 2026 — desempenho da administração
+
+A API de produção executa em Dublin (dub1), junto do Supabase eu-west-1, configurada em backend/vercel.json. O cabeçalho x-vercel-id confirmou a mudança de iad1 para dub1. As contagens e a faturação do dashboard PostgreSQL usam uma única consulta agrupada. A lista de empresas usa uma consulta de dados e uma de métricas para o lote inteiro, em vez de cinco consultas adicionais por empresa. A ficha reutiliza a mesma função. Os filtros, permissões e deduplicação da faturação por ordem foram preservados; não foi necessária migração.
+
+Três medições sequenciais por endpoint, com três empresas na produção: mediana do dashboard de 4,056 s para 0,117 s; lista de empresas de 6,543 s para 0,121 s. Os valores foram comparados com os cálculos anteriores. Estes tempos não são uma garantia nem um teste de carga; pode continuar a existir atraso no primeiro pedido após inatividade. PostgreSQL/PGlite: 198 testes aprovados e 2 ignorados; MongoDB: 182 aprovados e 18 ignorados. Login, dashboard, analytics, CORS e leitura privada da imagem confirmados após publicação. Ver [evidência de desempenho](evidencias/desempenho-20261102.json).
