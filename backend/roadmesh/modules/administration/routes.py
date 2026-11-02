@@ -178,6 +178,9 @@ def register_admin_routes(api, db, access):
         return doc
 
     async def metrics(wid=None):
+        if getattr(db, 'is_postgres', False) is True:
+            result = await db.administration_metrics(None if wid is None else [wid])
+            return result['totals']
         scope = {"workshop_id": wid} if wid else {}
         result = {name: await db[collection].count_documents(scope) for name, collection in
                   [("clients", "clients"), ("vehicles", "vehicles"), ("work_orders", "work_orders"), ("users", "users")]}
@@ -221,6 +224,12 @@ def register_admin_routes(api, db, access):
 
     @api.get("/admin/dashboard")
     async def dashboard(account=Depends(access.admin)):
+        if getattr(db, 'is_postgres', False) is True:
+            grouped = await db.administration_metrics()
+            states = grouped['statuses']
+            return {**grouped['totals'], 'workshops': sum(states.values()),
+                    **{key: states.get(state, 0) for key, state in
+                       (('active', 'active'), ('disabled', 'disabled'), ('archived', 'archived'))}}
         result = await metrics()
         result.update({"workshops": await db.workshops.count_documents({}), "active": await db.workshops.count_documents({"status": "active"}),
                        "disabled": await db.workshops.count_documents({"status": "disabled"}), "archived": await db.workshops.count_documents({"status": "archived"})})
@@ -236,9 +245,10 @@ def register_admin_routes(api, db, access):
             match = {"$regex": re.escape(search.strip()), "$options": "i"}
             scope["$or"] = [{key: match} for key in ["name", "email", "nif", "manager_name", "manager_email"]]
         docs = await db.workshops.find(scope, {"_id": 0}).sort("name", 1).to_list(2000)
+        batch = (await db.administration_metrics([doc['id'] for doc in docs]))['companies'] if getattr(db, 'is_postgres', False) is True else None
         for doc in docs:
             doc["modules"] = active_modules(doc)
-            doc["metrics"] = await metrics(doc["id"])
+            doc["metrics"] = batch[doc['id']] if batch is not None else await metrics(doc["id"])
         return docs
 
     @api.get("/admin/workshops/{wid}")

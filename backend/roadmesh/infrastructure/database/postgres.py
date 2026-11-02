@@ -124,6 +124,43 @@ class PostgresDatabase:
     async def close(self):
         await self.pool.close()
 
+    async def administration_metrics(self, workshop_ids=None):
+        """One round trip for platform counts or a selected batch of companies.
+
+        Keep invoice deduplication by service, not document. Values are summed
+        before rounding so global revenue retains the existing semantics.
+        This method is called only after platform administrator authorization.
+        """
+        names = ('clients', 'vehicles', 'work_orders', 'users')
+        selected = None if workshop_ids is None else list(dict.fromkeys(workshop_ids))
+        empty = lambda: {**dict.fromkeys(names, 0), 'revenue': 0}
+        companies = {} if selected is None else {wid: empty() for wid in selected}
+        if selected == []:
+            return {'totals': empty(), 'companies': companies, 'statuses': {}}
+        condition = sql.SQL('') if selected is None else sql.SQL(' WHERE workshop_id = ANY(%s::uuid[])')
+        queries = [sql.SQL('SELECT workshop_id, {} AS metric, count(*)::numeric AS value FROM roadmesh.{}{} GROUP BY workshop_id').format(
+            sql.Literal(name), sql.Identifier(name), condition) for name in names]
+        queries.append(sql.SQL("SELECT workshop_id, 'revenue' AS metric, sum(amount) AS value FROM (SELECT workshop_id, work_order_id, max(grand_total) AS amount FROM roadmesh.invoices WHERE document_type IN ('fatura','fatura_recibo'){} GROUP BY workshop_id, work_order_id) services GROUP BY workshop_id").format(
+            sql.SQL('') if selected is None else sql.SQL(' AND workshop_id = ANY(%s::uuid[])')))
+        if selected is None:
+            queries.append(sql.SQL("SELECT NULL::uuid AS workshop_id, 'status:' || status AS metric, count(*)::numeric AS value FROM roadmesh.workshops GROUP BY status"))
+        args = [] if selected is None else [selected] * (len(names) + 1)
+        async with self.connection() as conn:
+            rows = await (await conn.execute(sql.SQL(' UNION ALL ').join(queries), args)).fetchall()
+        totals, statuses = empty(), {}
+        for row in rows:
+            key, value = row['metric'], row['value']
+            if key.startswith('status:'):
+                statuses[key.removeprefix('status:')] = int(value)
+                continue
+            value = value if key == 'revenue' else int(value)
+            totals[key] += value
+            if selected is not None:
+                companies[str(row['workshop_id'])][key] = value
+        for values in (totals, *companies.values()):
+            values['revenue'] = round(float(values['revenue']), 2)
+        return {'totals': totals, 'companies': companies, 'statuses': statuses}
+
     @asynccontextmanager
     async def connection(self, session=None, write=False):
         try:
