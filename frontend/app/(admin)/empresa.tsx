@@ -11,6 +11,7 @@ import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { UserManager } from "@/src/features/administration/components/UserManager";
 import { CompanyServicePanel } from "@/src/features/administration/components/CompanyServicePanel";
+import { CompanySupportAccess } from "@/src/features/administration/components/CompanySupportAccess";
 import { Photo } from "@/src/shared/media/Photo";
 import { formatEUR } from "@/src/shared/utils/format";
 import { colors as c } from "@/src/shared/theme/legacy";
@@ -61,6 +62,7 @@ export default function CompanyDetail() {
         ].filter(([, value]) => value).map(([label, value]) => <View key={label} style={s.detail}><Text style={s.hint}>{label}</Text><Text selectable style={s.contact}>{value}</Text></View>)}</View>}
       </View>
       <View style={s.card} testID="company-activity"><Text style={s.sectionTitle}>Atividade da empresa</Text><View style={s.metrics}>{[{ label: "Clientes", value: data.metrics.clients }, { label: "Viaturas", value: data.metrics.vehicles }, { label: "Ordens de serviço", value: data.metrics.work_orders }, { label: "Faturação da empresa", value: formatEUR(data.metrics.revenue) }].map((metric, index) => <View key={metric.label} style={[s.metric, { flexBasis: wide ? "22%" : "45%" }]}><Text style={s.hint}>{metric.label}</Text><Text testID={`workshop-metrics-${index}-value`} style={s.metricValue}>{metric.value}</Text></View>)}</View></View>
+      <CompanySupportAccess company={data} />
       <CompanyServicePanel company={data} />
       <View style={s.card}><Pressable accessibilityRole="button" accessibilityState={{ expanded: users }} testID="company-toggle-users" onPress={() => setUsers(!users)} style={s.disclosure}><Text style={[s.sectionTitle, s.flex]}>Utilizadores e acessos ({data.users.length})</Text><Ionicons name={users ? "chevron-up" : "chevron-down"} size={20} color={c.brandPrimary} /></Pressable>
         {users && <>
