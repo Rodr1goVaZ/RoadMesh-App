@@ -1,8 +1,11 @@
 """Explicitly opted-in API tests: accounts are provisioned through platform admin."""
 
 import os
+import threading
+import time
 import uuid
 
+import jwt
 import pytest
 import requests
 
@@ -15,6 +18,57 @@ def checked(response, status=200):
     return response.json()
 
 
+class RenewingTestSession(requests.Session):
+    """Long remote suites renew their technical session like the application.
+
+    No retry on 401 and no password fallback: revoked sessions still fail.
+    Decoding here only schedules renewal; the API verifies every token.
+    """
+    def __init__(self):
+        super().__init__()
+        self._renew_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._renew_error = None
+        self._thread = None
+
+    def _renew_if_due(self):
+        with self._renew_lock:
+            if self._renew_error:
+                raise AssertionError('A renovação da sessão técnica falhou.') from self._renew_error
+            self._renew_locked()
+
+    def _renew_locked(self):
+        token = self.headers.get('Authorization', '').removeprefix('Bearer ')
+        if token:
+            expiry = jwt.decode(token, options={'verify_signature': False}).get('exp', 0)
+            if expiry <= time.time() + 180:
+                response = requests.post(API+'/auth/refresh', headers={'Authorization': 'Bearer '+token}, timeout=30)
+                self.headers['Authorization'] = 'Bearer ' + checked(response)['access_token']
+
+    def _keepalive(self):
+        while not self._stop.wait(30):
+            try:
+                self._renew_if_due()
+            except Exception as error:
+                self._renew_error = error
+                return
+
+    def start_renewal(self):
+        self._thread = threading.Thread(target=self._keepalive, daemon=True)
+        self._thread.start()
+
+    def close(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=35)
+        super().close()
+
+    def request(self, method, url, **kwargs):
+        if url.startswith(API + '/') and not url.endswith('/auth/refresh'):
+            self._renew_if_due()
+        return super().request(method, url, **kwargs)
+
+
 @pytest.fixture(scope="session")
 def platform_session():
     if os.environ.get("ROADMESH_TEST_ALLOW_WRITE") != "1":
@@ -22,13 +76,17 @@ def platform_session():
     email, password = os.environ.get("TEST_ADMIN_EMAIL"), os.environ.get("TEST_ADMIN_PASSWORD")
     if not email or not password or not os.environ.get("EXPO_PUBLIC_BACKEND_URL"):
         pytest.fail("EXPO_PUBLIC_BACKEND_URL, TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD are required")
-    session = requests.Session()
+    session = RenewingTestSession()
     data = checked(session.post(f"{API}/auth/admin/login", json={"email": email, "password": password}, timeout=30))
     assert not data["user"]["password_change_required"], (
         "Change the test administrator password before running the suite"
     )
     session.headers["Authorization"] = f"Bearer {data['access_token']}"
-    return session
+    session.start_renewal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture(scope="session")

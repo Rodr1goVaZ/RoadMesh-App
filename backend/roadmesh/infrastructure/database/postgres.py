@@ -28,7 +28,7 @@ from pymongo.errors import DuplicateKeyError
 
 TABLES = frozenset('workshops clients users vehicles products appointments quotes work_orders '
     'work_order_items quote_items purchase_orders purchase_order_items stock_movements '
-    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets stand_inventory stand_leads stand_sales'.split())
+    'media photos damages invoices counters revoked_sessions login_limits support_sessions admin_support_audit suppliers financial_movements order_receipts reorder_needs password_resets stand_inventory stand_leads stand_sales platform_service_periods platform_service_movements'.split())
 CHILDREN = {'work_orders': ('work_order_items', 'work_order_id'),
             'quotes': ('quote_items', 'quote_id'),
             'purchase_orders': ('purchase_order_items', 'purchase_order_id')}
@@ -93,7 +93,7 @@ class PostgresDatabase:
             for row in rows:
                 self.columns.setdefault(row['table_name'], {})[row['column_name']] = row['udt_name']
             if any('metadata' not in self.columns.get(name, {}) for name in TABLES) or self.columns.get('work_orders', {}).get('number') != 'text':
-                raise RuntimeError('Apply backend/sql/001_initial.sql 002_backend_compatibility.sql 003_business_modules.sql and 005_company_modules_stand.sql before starting PostgreSQL mode.')
+                raise RuntimeError('Apply RoadMesh SQL migrations 001, 002, 003, 005 and 006 before starting PostgreSQL mode.')
             # SQL expiry checks are authoritative. Cleanup is bounded to startup.
             for name in ('revoked_sessions', 'login_limits', 'support_sessions'):
                 await conn.execute(sql.SQL('DELETE FROM roadmesh.{} WHERE expires_at <= now()').format(sql.Identifier(name)))
@@ -123,6 +123,43 @@ class PostgresDatabase:
 
     async def close(self):
         await self.pool.close()
+
+    async def administration_metrics(self, workshop_ids=None):
+        """One round trip for platform counts or a selected batch of companies.
+
+        Keep invoice deduplication by service, not document. Values are summed
+        before rounding so global revenue retains the existing semantics.
+        This method is called only after platform administrator authorization.
+        """
+        names = ('clients', 'vehicles', 'work_orders', 'users')
+        selected = None if workshop_ids is None else list(dict.fromkeys(workshop_ids))
+        empty = lambda: {**dict.fromkeys(names, 0), 'revenue': 0}
+        companies = {} if selected is None else {wid: empty() for wid in selected}
+        if selected == []:
+            return {'totals': empty(), 'companies': companies, 'statuses': {}}
+        condition = sql.SQL('') if selected is None else sql.SQL(' WHERE workshop_id = ANY(%s::uuid[])')
+        queries = [sql.SQL('SELECT workshop_id, {} AS metric, count(*)::numeric AS value FROM roadmesh.{}{} GROUP BY workshop_id').format(
+            sql.Literal(name), sql.Identifier(name), condition) for name in names]
+        queries.append(sql.SQL("SELECT workshop_id, 'revenue' AS metric, sum(amount) AS value FROM (SELECT workshop_id, work_order_id, max(grand_total) AS amount FROM roadmesh.invoices WHERE document_type IN ('fatura','fatura_recibo'){} GROUP BY workshop_id, work_order_id) services GROUP BY workshop_id").format(
+            sql.SQL('') if selected is None else sql.SQL(' AND workshop_id = ANY(%s::uuid[])')))
+        if selected is None:
+            queries.append(sql.SQL("SELECT NULL::uuid AS workshop_id, 'status:' || status AS metric, count(*)::numeric AS value FROM roadmesh.workshops GROUP BY status"))
+        args = [] if selected is None else [selected] * (len(names) + 1)
+        async with self.connection() as conn:
+            rows = await (await conn.execute(sql.SQL(' UNION ALL ').join(queries), args)).fetchall()
+        totals, statuses = empty(), {}
+        for row in rows:
+            key, value = row['metric'], row['value']
+            if key.startswith('status:'):
+                statuses[key.removeprefix('status:')] = int(value)
+                continue
+            value = value if key == 'revenue' else int(value)
+            totals[key] += value
+            if selected is not None:
+                companies[str(row['workshop_id'])][key] = value
+        for values in (totals, *companies.values()):
+            values['revenue'] = round(float(values['revenue']), 2)
+        return {'totals': totals, 'companies': companies, 'statuses': statuses}
 
     @asynccontextmanager
     async def connection(self, session=None, write=False):

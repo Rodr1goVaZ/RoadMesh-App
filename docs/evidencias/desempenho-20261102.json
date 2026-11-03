@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-02",
+  "pr": "https://github.com/Rodr1goVaZ/RoadMesh-App/pull/9",
+  "implementation_commit": "7af98db899288c9e783a90d03fc5a27b25254fb9",
+  "merge_commit": "32517933e8f01f050d567ba093534e5a3b151c88",
+  "tests": {
+    "postgres_pglite": {
+      "passed": 198,
+      "skipped": 2
+    },
+    "mongodb": {
+      "passed": 182,
+      "skipped": 18
+    }
+  },
+  "before": {
+    "date": "2026-11-02",
+    "read_only_business_requests": true,
+    "api_seconds": {
+      "/admin/dashboard": [
+        4.131,
+        4.056,
+        4.052
+      ],
+      "/admin/workshops": [
+        6.543,
+        6.533,
+        6.563
+      ]
+    },
+    "matches_existing_values": true,
+    "new_grouped_query_seconds": [
+      0.639,
+      0.252,
+      0.253
+    ],
+    "company_count": 3
+  },
+  "after": {
+    "date": "2026-11-02",
+    "read_only_business_requests": true,
+    "api_seconds": {
+      "/admin/dashboard": [
+        0.296,
+        0.108,
+        0.117
+      ],
+      "/admin/workshops": [
+        0.12,
+        0.234,
+        0.121
+      ]
+    },
+    "matches_existing_values": true,
+    "new_grouped_query_seconds": [
+      0.707,
+      0.315,
+      0.257
+    ],
+    "company_count": 3
+  },
+  "summary": {
+    "/admin/dashboard": {
+      "before_median_seconds": 4.056,
+      "after_median_seconds": 0.117
+    },
+    "/admin/workshops": {
+      "before_median_seconds": 6.543,
+      "after_median_seconds": 0.121
+    }
+  },
+  "production_function_region": {
+    "before": "iad1",
+    "after": "dub1",
+    "verified_by": "x-vercel-id response header"
+  },
+  "database_schema_changes": false,
+  "business_data_changed": false,
+  "sensitive_values_included": false,
+  "production_smoke": {
+    "login": {
+      "status": 200,
+      "role": "admin",
+      "password_change_required": false
+    },
+    "me": {
+      "status": 200
+    },
+    "admin_dashboard": {
+      "status": 200
+    },
+    "companies": {
+      "status": 200,
+      "count": 3
+    },
+    "analytics": {
+      "status": 200,
+      "summary_present": true
+    },
+    "unauthenticated_admin": 401,
+    "cors": {
+      "status": 200,
+      "origin": "https://roadmesh-app-frontend.vercel.app"
+    },
+    "frontend/login": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/dashboard": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/empresas": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/criar-empresa": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/reset-password": {
+      "status": 200,
+      "html": true
+    },
+    "database": {
+      "schema": "RoadMesh PostgreSQL schema version 6; private server access",
+      "tables": 32
+    },
+    "existing_photo": {
+      "status": 200,
+      "content_type": "image/jpeg",
+      "bytes": 285
+    },
+    "passed": true
+  },
+  "deployments": {
+    "api": "https://vercel.com/rodr1govaz/roadmesh-api/8BHKKCVSjedPZzGsMF33d45r9Frt",
+    "frontend": "https://vercel.com/rodr1govaz/roadmesh-app-frontend/H5aQY3qwiH6o7mkprXa5mCoMAECh",
+    "status": "success"
+  },
+  "limits": [
+    "Three sequential samples per endpoint, not a load test or guaranteed latency.",
+    "Cold starts may still occur.",
+    "PGlite is not a native multi-process concurrency proof."
+  ]
+}

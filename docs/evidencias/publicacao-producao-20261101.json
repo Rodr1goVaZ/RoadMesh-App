@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-01",
+  "environment": "production",
+  "merged_pr": "https://github.com/Rodr1goVaZ/RoadMesh-App/pull/8",
+  "merge_commit": "798f3b64cf3c5e88d47a4bab029e24fb3cac2a7b",
+  "database": {
+    "production_project": "gpzrzmdjcpzhndvqreqa",
+    "migration": "006",
+    "schema": 6,
+    "tables": 32,
+    "existing_tables": 30,
+    "existing_rows_preserved": 545,
+    "backup_sha256": "68270c4b99997123c2b34e6383ecf551edae2610dee6621ffe9c58039a381224",
+    "migration_blob": "ca6e8ddf746b173c303bf73142ac718c3142720d",
+    "committed": true
+  },
+  "smoke": {
+    "login": {
+      "status": 200,
+      "role": "admin",
+      "password_change_required": false
+    },
+    "me": {
+      "status": 200
+    },
+    "admin_dashboard": {
+      "status": 200
+    },
+    "companies": {
+      "status": 200,
+      "count": 3
+    },
+    "analytics": {
+      "status": 200,
+      "summary_present": true
+    },
+    "unauthenticated_admin": 401,
+    "cors": {
+      "status": 200,
+      "origin": "https://roadmesh-app-frontend.vercel.app"
+    },
+    "frontend/login": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/dashboard": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/empresas": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/criar-empresa": {
+      "status": 200,
+      "html": true
+    },
+    "frontend/reset-password": {
+      "status": 200,
+      "html": true
+    },
+    "database": {
+      "schema": "RoadMesh PostgreSQL schema version 6; private server access",
+      "tables": 32
+    },
+    "existing_photo": {
+      "status": 200,
+      "content_type": "image/jpeg",
+      "bytes": 285
+    },
+    "passed": true
+  },
+  "photo_storage": {
+    "upload_status": 201,
+    "synthetic_image": true,
+    "owner": "platform admin",
+    "customer_vehicle_link_created": false,
+    "download_status": 200,
+    "content_type": "image/jpeg",
+    "bytes": 285,
+    "unauthenticated_status": 401,
+    "passed": true
+  },
+  "deployments": {
+    "api": "https://vercel.com/rodr1govaz/roadmesh-api/GmRJM7STdPBys9fqmNriuEWqwmH4",
+    "frontend": "https://vercel.com/rodr1govaz/roadmesh-app-frontend/FJqRyxQnAEuofm8CRx6cZDF5SUK1",
+    "api_status": "success",
+    "frontend_status": "success"
+  },
+  "admin_password_changed": false,
+  "storage_configuration": {
+    "provider": "Supabase Storage",
+    "production_project": "gpzrzmdjcpzhndvqreqa",
+    "bucket": "roadmesh-media",
+    "public": false,
+    "file_size_limit": 10485760,
+    "allowed_mime_types": [
+      "image/jpeg"
+    ],
+    "backend_project": "roadmesh-api",
+    "environment": "Production",
+    "driver": "supabase",
+    "service_key_type": "Secret",
+    "service_key_in_frontend": false,
+    "service_key_in_repository": false,
+    "specific_owner_authorization": true,
+    "deployment": "https://vercel.com/rodr1govaz/roadmesh-api/5R1NzoU6RY6EHk2aVJQGX56odxpQ",
+    "deployment_status": "Ready"
+  },
+  "secret_values_included": false
+}

@@ -1,6 +1,5 @@
 """Start a persistent local demo without reading or changing either .env file."""
 import argparse
-import fcntl
 import json
 import os
 import platform
@@ -19,10 +18,28 @@ ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / ".demo"
 
 
+def lock_runner(handle):
+    if os.name == "nt":
+        import msvcrt
+        handle.seek(0)
+        handle.write("0")
+        handle.flush()
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def backend_revision():
+    files = [ROOT / "backend/server.py", *(ROOT / "backend/roadmesh").rglob("*.py")]
+    return {str(path): path.stat().st_mtime_ns for path in files}
+
+
 def prepare_python():
     if sys.version_info < (3, 10):
         raise RuntimeError("Use Python 3.12: PYTHON=python3.12 ./dev.sh")
-    python = DEMO / "venv/bin/python"
+    python = DEMO / ("venv/Scripts/python.exe" if os.name == "nt" else "venv/bin/python")
     if not python.exists():
         print("A preparar Python para a demonstração…", flush=True)
         subprocess.run([sys.executable, "-m", "venv", str(DEMO / "venv")], check=True)
@@ -43,7 +60,7 @@ def mongo_binary(override):
     installed = shutil.which("mongod")
     if installed:
         return installed
-    binary = DEMO / "mongodb/bin/mongod"
+    binary = DEMO / ("mongodb/bin/mongod.exe" if os.name == "nt" else "mongodb/bin/mongod")
     if binary.exists():
         return str(binary)
     if platform.system() != "Darwin" or platform.machine() not in {"arm64", "x86_64"}:
@@ -104,14 +121,17 @@ def main():
     parser.add_argument("--mongod")
     parser.add_argument("--no-build", action="store_true", help="Reuse the last web build")
     parser.add_argument("--lan", action="store_true", help="Allow a phone browser on the same network")
+    parser.add_argument("--dev", action="store_true", help="Start Expo with live updates on localhost")
+    parser.add_argument("--seed-demo", action="store_true", help="Restore synthetic demo data after a local cleanup")
+    parser.add_argument("--web-port", type=int, default=8081)
     args = parser.parse_args()
     DEMO.mkdir(mode=0o700, exist_ok=True)
     prepare_python()
     # The open file stays locked for this runner's entire lifetime.
     lock = (DEMO / "run.lock").open("a+")
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError as exc:
+        lock_runner(lock)
+    except OSError as exc:
         raise RuntimeError("A demonstração já está a correr. Consulte .demo/running.json para o endereço.") from exc
     from pymongo import MongoClient
     import requests
@@ -121,6 +141,8 @@ def main():
         raise RuntimeError("Instale Node.js 20 ou superior para iniciar a aplicação")
     binary = mongo_binary(args.mongod)
     check_port(args.port); check_port(args.mongo_port)
+    if args.dev:
+        check_port(args.web_port)
     config_file = DEMO / "config.json"
     if config_file.exists():
         config = json.loads(config_file.read_text())
@@ -141,21 +163,30 @@ def main():
         "STORAGE_DRIVER": "local",
         "LOCAL_MEDIA_ROOT": str(DEMO / "media"),
         "EMERGENT_LLM_KEY": "",
+        "SUPABASE_URL": "",
+        "SUPABASE_SERVICE_ROLE_KEY": "",
+        "SUPABASE_STORAGE_BUCKET": "",
+        "PASSWORD_RESET_URL": "",
+        "SMTP_HOST": "",
+        "SMTP_USERNAME": "",
+        "SMTP_PASSWORD": "",
+        "SMTP_FROM": "",
         "INTEGRATION_PROXY_URL": "",
         "ROADMESH_DEMO": "1",
         "DEMO_WEB_DIR": str(DEMO / "web"),
         "EXPO_NO_DOTENV": "1",
         "EXPO_NO_TELEMETRY": "1",
-        "EXPO_PUBLIC_BACKEND_URL": "",
-        "CORS_ORIGINS": f"http://localhost:{args.port},http://127.0.0.1:{args.port}",
+        "EXPO_PUBLIC_BACKEND_URL": f"http://127.0.0.1:{args.port}" if args.dev else "",
+        "CORS_ORIGINS": f"http://localhost:{args.port},http://127.0.0.1:{args.port},http://localhost:{args.web_port},http://127.0.0.1:{args.web_port}",
     }
     frontend = ROOT / "frontend"
     if not (frontend / "node_modules/expo/bin/cli").exists():
-        subprocess.run(["npx", "--yes", "yarn@1.22.22", "install", "--frozen-lockfile"], cwd=frontend, env=env, check=True)
-    if not args.no_build or not (DEMO / "web/index.html").exists():
+        subprocess.run([shutil.which("npx") or "npx", "--yes", "yarn@1.22.22", "install", "--frozen-lockfile"], cwd=frontend, env=env, check=True)
+    if not args.dev and (not args.no_build or not (DEMO / "web/index.html").exists()):
         print("A preparar a aplicação web…", flush=True)
         subprocess.run([node, str(frontend / "node_modules/expo/bin/cli"), "export", "--platform", "web", "--output-dir", str(DEMO / "web")], cwd=frontend, env=env, check=True)
     processes = []
+    process_options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {}
     mongo = MongoClient(f"mongodb://127.0.0.1:{args.mongo_port}/?directConnection=true", serverSelectionTimeoutMS=500)
     logs = DEMO / "logs"; logs.mkdir(exist_ok=True)
     dbpath = DEMO / "db"; dbpath.mkdir(exist_ok=True)
@@ -166,36 +197,70 @@ def main():
 
     signal.signal(signal.SIGTERM, interrupt)
     try:
-        with (logs / "mongo.log").open("a") as mongo_log, (logs / "api.log").open("a") as api_log:
-            mongod = subprocess.Popen([binary, "--dbpath", str(dbpath), "--replSet", "roadmesh-demo", "--port", str(args.mongo_port), "--bind_ip", "127.0.0.1"], stdout=mongo_log, stderr=subprocess.STDOUT)
+        with (logs / "mongo.log").open("a") as mongo_log, (logs / "api.log").open("a") as api_log, (logs / "web.log").open("a") as web_log:
+            mongod = subprocess.Popen([binary, "--dbpath", str(dbpath), "--replSet", "roadmesh-demo", "--port", str(args.mongo_port), "--bind_ip", "127.0.0.1"], stdout=mongo_log, stderr=subprocess.STDOUT, **process_options)
             processes.append(mongod)
             wait_for(lambda: mongo.admin.command("ping").get("ok"), mongod, "MongoDB")
             if not mongo.admin.command("hello").get("setName"):
                 mongo.admin.command("replSetInitiate", {"_id": "roadmesh-demo", "members": [{"_id": 0, "host": f"127.0.0.1:{args.mongo_port}"}]})
             wait_for(lambda: mongo.admin.command("hello").get("isWritablePrimary"), mongod, "MongoDB primary")
-            api = subprocess.Popen([sys.executable, "-m", "uvicorn", "demo_server:app", "--host", "0.0.0.0" if args.lan else "127.0.0.1", "--port", str(args.port), "--no-access-log"], cwd=ROOT / "backend", env=env, stdout=api_log, stderr=subprocess.STDOUT)
+            # Uvicorn's Windows reloader broadcasts CTRL_C_EVENT to the console.
+            # Restart our own single API process below instead of stopping siblings.
+            api_command = [sys.executable, "-m", "uvicorn", "server:app" if args.dev else "demo_server:app", *(["--reload"] if args.dev and os.name != "nt" else []), "--host", "0.0.0.0" if args.lan else "127.0.0.1", "--port", str(args.port), "--no-access-log"]
+            api = subprocess.Popen(api_command, cwd=ROOT / "backend", env=env, stdout=api_log, stderr=subprocess.STDOUT, **process_options)
             processes.append(api)
             base_url = f"http://127.0.0.1:{args.port}"
             wait_for(lambda: requests.get(base_url + "/api/", timeout=1).status_code == 200, api, "API")
-            print("A preparar contas e dados de demonstração…", flush=True)
-            prepare_demo(base_url, mongo["roadmesh_demo"])
-            public_url = f"http://localhost:{args.port}"
+            seed_demo = args.seed_demo or config.get("seed_demo", True)
+            if seed_demo:
+                print("A preparar contas e dados de demonstração…", flush=True)
+                prepare_demo(base_url, mongo["roadmesh_demo"])
+            if args.dev:
+                web = subprocess.Popen([node, str(frontend / "node_modules/expo/bin/cli"), "start", "--web", "--localhost", "--port", str(args.web_port)], cwd=frontend, env={**env, "BROWSER": "none"}, stdout=web_log, stderr=subprocess.STDOUT, **process_options)
+                processes.append(web)
+                wait_for(lambda: requests.get(f"http://localhost:{args.web_port}", timeout=1).status_code == 200, web, "Frontend")
+            public_url = f"http://localhost:{args.web_port if args.dev else args.port}"
             if args.lan:
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
                     sock.connect(("1.1.1.1", 80))
                     public_url = f"http://{sock.getsockname()[0]}:{args.port}"
-            running.write_text(json.dumps({"url": public_url, "pid": os.getpid(), "api_pid": api.pid, "mongo_pid": mongod.pid}))
-            print(f"\nRoadMesh pronto para testes: {public_url}\n\nOficina:       {STAFF_EMAIL}\nCliente:       {CLIENT_EMAIL}\nAdministração: {ADMIN_EMAIL}\nPalavra-passe das três contas: {PASSWORD}\n\nOs dados e fotografias ficam guardados em .demo/.\nCtrl+C para parar; ./dev.sh para voltar a iniciar.\n", flush=True)
+            state = {"url": public_url, "pid": os.getpid(), "api_pid": api.pid, "mongo_pid": mongod.pid, "web_pid": web.pid if args.dev else None}
+            running.write_text(json.dumps(state))
+            revision = backend_revision() if args.dev and os.name == "nt" else None
+            restart = "Iniciar-Local.cmd" if os.name == "nt" else "./dev.sh"
+            if seed_demo:
+                print(f"\nRoadMesh pronto para testes: {public_url}\n\nOficina:       {STAFF_EMAIL}\nCliente:       {CLIENT_EMAIL}\nAdministração: {ADMIN_EMAIL}\nPalavra-passe das três contas: {PASSWORD}\n", flush=True)
+            else:
+                print(f"\nRoadMesh local: {public_url}\nAdministração: {ADMIN_EMAIL}\nDados de demonstração desativados; os acessos existentes são mantidos.\n", flush=True)
+            print(f"Os dados e fotografias ficam guardados em .demo/.\nCtrl+C para parar; {restart} para voltar a iniciar.\n", flush=True)
             while True:
                 time.sleep(1)
                 if any(p.poll() is not None for p in processes):
                     raise RuntimeError("Um serviço terminou. Consulte .demo/logs/")
+                if revision is not None:
+                    current_revision = backend_revision()
+                    if current_revision != revision:
+                        position = processes.index(api)
+                        api.terminate()
+                        api.wait(timeout=15)
+                        api = subprocess.Popen(api_command, cwd=ROOT / "backend", env=env, stdout=api_log, stderr=subprocess.STDOUT, **process_options)
+                        processes[position] = api
+                        wait_for(lambda: requests.get(base_url + "/api/", timeout=1).status_code == 200, api, "API")
+                        revision = current_revision
+                        state["api_pid"] = api.pid
+                        running.write_text(json.dumps(state))
+                        print("API atualizada; interface e dados locais preservados.", flush=True)
     except KeyboardInterrupt:
         print("\nA parar a demonstração; os dados ficam guardados.", flush=True)
     finally:
         mongo.close()
         for process in reversed(processes):
             if process.poll() is None:
+                if os.name == "nt":
+                    # Terminate only this runner's process tree, including reload workers.
+                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                    process.wait(timeout=15)
+                    continue
                 process.terminate()
                 try:
                     process.wait(timeout=15)

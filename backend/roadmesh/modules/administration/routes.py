@@ -1,16 +1,28 @@
 """Platform administration and staff-managed end-customer accounts."""
 import hashlib
+import re
 import secrets
-from datetime import timedelta
-from typing import Literal, Optional
+from datetime import date, timedelta
+from decimal import Decimal
+from typing import Annotated, Literal
+from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import Depends, HTTPException
-from pydantic import EmailStr, Field, field_validator
-from roadmesh.core.company_modules import active_modules
+from pydantic import EmailStr, Field, field_validator, model_validator
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
-from roadmesh.core.access_control import StrictModel, identifier, now, password_hash, timestamp
+
+from roadmesh.core.access_control import (
+    StrictModel,
+    identifier,
+    now,
+    password_hash,
+    timestamp,
+)
+from roadmesh.core.company_modules import active_modules
 from roadmesh.infrastructure.database.integrity import revenue_pipeline, transact
+from roadmesh.modules.administration.analytics import register_admin_analytics
 
 
 class WorkshopBody(StrictModel):
@@ -26,10 +38,110 @@ class WorkshopBody(StrictModel):
     name: str = Field(min_length=2, max_length=100)
     nif: str = Field(default="", max_length=30)
     address: str = Field(default="", max_length=300)
-    email: Optional[EmailStr] = None
+    email: EmailStr | None = None
     manager_name: str = Field(min_length=2, max_length=100)
     manager_email: EmailStr
-    logo_media_id: Optional[str] = None
+    logo_media_id: str | None = None
+    company_profile_version: Literal[2] | None = None
+    legal_name: str = Field(default="", max_length=200)
+    entity_type: Literal["sole_trader", "company"] | None = None
+    sole_trader_name: str = Field(default="", max_length=100)
+    company_people: list[Annotated[str, Field(max_length=100, strip_whitespace=True)]] = Field(default_factory=list, max_length=20)
+    country: str = Field(default="Portugal", max_length=100)
+    district: str = Field(default="", max_length=100)
+    municipality: str = Field(default="", max_length=100)
+    postal_code: str = Field(default="", max_length=20)
+    phone: str = Field(default="", max_length=30)
+    mobile: str = Field(default="", max_length=30)
+    billing_email: EmailStr | None = None
+    activity_start_date: date | None = None
+    website: str = Field(default="", max_length=300)
+    description: str = Field(default="", max_length=2000)
+    opening_hours: str = Field(default="", max_length=1000)
+
+    billing_terms_version: Literal[1] | None = None
+    monthly_fee: Decimal | None = Field(default=None, ge=0, max_digits=11, decimal_places=2)
+    billing_cycle: Literal["monthly", "quarterly", "yearly"] = "monthly"
+    payment_day: int | None = Field(default=None, ge=1, le=31)
+    support_hours: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
+    extra_hour_rate: Decimal | None = Field(default=None, ge=0, max_digits=11, decimal_places=2)
+
+    @model_validator(mode="after")
+    def validate_billing_terms(self):
+        if self.billing_terms_version == 1 and any(value is None for value in (self.monthly_fee, self.payment_day, self.support_hours)):
+            raise ValueError("Preencha o valor mensal, o dia de pagamento e as horas incluídas.")
+        return self
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, value):
+        if not value:
+            return value
+        parsed = urlsplit(value)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("Indique um website válido, começando por https:// ou http://.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_company_profile(self):
+        # Older clients can still edit legacy companies without erasing new fields.
+        if self.company_profile_version != 2:
+            return self
+        for field, label in (("legal_name", "Denominação social"), ("nif", "NIF/NIPC"),
+                             ("country", "País"), ("district", "Distrito / região"),
+                             ("municipality", "Concelho / município"), ("address", "Morada"),
+                             ("postal_code", "Código postal")):
+            if not getattr(self, field).strip():
+                raise ValueError(f"Preencha o campo {label}.")
+        if not self.entity_type or not self.email:
+            raise ValueError("Selecione o tipo de entidade e preencha o email geral.")
+        if self.country.casefold() in ("portugal", "pt"):
+            if not re.fullmatch(r"\d{9}", self.nif):
+                raise ValueError("O NIF/NIPC deve ter 9 algarismos.")
+            if not re.fullmatch(r"\d{4}-\d{3}", self.postal_code):
+                raise ValueError("Use o formato 0000-000 no código postal.")
+        if not self.phone.strip() and not self.mobile.strip():
+            raise ValueError("Preencha o telemóvel ou o telefone.")
+        for number in (self.phone, self.mobile):
+            if number and (not re.fullmatch(r"\+?[\d\s().-]+", number) or not 6 <= len(re.sub(r"\D", "", number)) <= 15):
+                raise ValueError("Indique um contacto telefónico válido.")
+        return self
+
+
+class CompanyDraftForm(StrictModel):
+    modules: list[Literal["workshop", "stand"]] = Field(default_factory=lambda: ["workshop"], min_length=1, max_length=2)
+    name: str = Field(default="", max_length=100)
+    legal_name: str = Field(default="", max_length=200)
+    nif: str = Field(default="", max_length=30)
+    entity_type: Literal["", "sole_trader", "company"] = ""
+    sole_trader_name: str = Field(default="", max_length=100)
+    company_people: list[Annotated[str, Field(max_length=100)]] = Field(default_factory=list, max_length=20)
+    country: str = Field(default="Portugal", max_length=100)
+    district: str = Field(default="", max_length=100)
+    municipality: str = Field(default="", max_length=100)
+    address: str = Field(default="", max_length=300)
+    postal_code: str = Field(default="", max_length=20)
+    phone: str = Field(default="", max_length=30)
+    mobile: str = Field(default="", max_length=30)
+    email: str = Field(default="", max_length=254)
+    billing_email: str = Field(default="", max_length=254)
+    manager_name: str = Field(default="", max_length=100)
+    manager_email: str = Field(default="", max_length=254)
+    website: str = Field(default="", max_length=300)
+    activity_start_date: str = Field(default="", max_length=10)
+    description: str = Field(default="", max_length=2000)
+    opening_hours: str = Field(default="", max_length=1000)
+    monthly_fee: str = Field(default="200", max_length=16)
+    billing_cycle: str = Field(default="monthly", max_length=20)
+    payment_day: str = Field(default="", max_length=2)
+    support_hours: str = Field(default="", max_length=16)
+    extra_hour_rate: str = Field(default="", max_length=16)
+    logo_media_id: str | None = Field(default=None, max_length=100)
+
+
+class CompanyDraftBody(StrictModel):
+    form: CompanyDraftForm
+    step: int = Field(ge=0, le=4)
 
 
 class UserBody(StrictModel):
@@ -40,6 +152,17 @@ class UserBody(StrictModel):
 
 class StatusBody(StrictModel):
     status: Literal["active", "disabled"]
+    reason: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def require_reason(self):
+        if self.status == "disabled" and len(self.reason.strip()) < 5:
+            raise ValueError("Indique o motivo da desativação, com pelo menos 5 caracteres.")
+        return self
+
+
+class ArchiveCompanyBody(StrictModel):
+    reason: str = Field(min_length=5, max_length=500)
 
 
 class SupportBody(StrictModel):
@@ -47,6 +170,7 @@ class SupportBody(StrictModel):
 
 
 def register_admin_routes(api, db, access):
+    register_admin_analytics(api, db, access)
     async def workshop_doc(wid):
         doc = await db.workshops.find_one({"id": wid}, {"_id": 0})
         if not doc:
@@ -54,6 +178,9 @@ def register_admin_routes(api, db, access):
         return doc
 
     async def metrics(wid=None):
+        if getattr(db, 'is_postgres', False) is True:
+            result = await db.administration_metrics(None if wid is None else [wid])
+            return result['totals']
         scope = {"workshop_id": wid} if wid else {}
         result = {name: await db[collection].count_documents(scope) for name, collection in
                   [("clients", "clients"), ("vehicles", "vehicles"), ("work_orders", "work_orders"), ("users", "users")]}
@@ -65,8 +192,44 @@ def register_admin_routes(api, db, access):
         if mid and not await db.media.find_one({"id": mid, "$or": [{"owner_id": account["id"]}, {"workshop_id": wid}]}, {"_id": 0, "id": 1}):
             raise HTTPException(404, "Logótipo não encontrado")
 
+    def draft_field(key):
+        if key != "new":
+            try:
+                key = str(UUID(key))
+            except ValueError as exc:
+                raise HTTPException(422, "Rascunho inválido.") from exc
+        return "company_draft_" + key
+
+    @api.get("/admin/company-drafts/{key}")
+    async def read_company_draft(key: str, account=Depends(access.admin)):
+        field = draft_field(key)
+        owner = await db.users.find_one({"id": account["id"]}, {"_id": 0, field: 1})
+        return owner.get(field) if owner else None
+
+    @api.put("/admin/company-drafts/{key}")
+    async def save_company_draft(key: str, body: CompanyDraftBody, account=Depends(access.admin)):
+        field = draft_field(key)
+        if key != "new":
+            await workshop_doc(str(UUID(key)))
+        await check_logo(body.form.logo_media_id, account, None if key == "new" else str(UUID(key)))
+        value = {"version": 2, "form": body.form.model_dump(mode="json"), "step": body.step, "savedAt": timestamp()}
+        # Private administrator metadata works with MongoDB and PostgreSQL's JSON metadata.
+        await db.users.update_one({"id": account["id"]}, {"$set": {field: value}})
+        return value
+
+    @api.delete("/admin/company-drafts/{key}")
+    async def clear_company_draft(key: str, account=Depends(access.admin)):
+        await db.users.update_one({"id": account["id"]}, {"$set": {draft_field(key): None}})
+        return {"ok": True}
+
     @api.get("/admin/dashboard")
     async def dashboard(account=Depends(access.admin)):
+        if getattr(db, 'is_postgres', False) is True:
+            grouped = await db.administration_metrics()
+            states = grouped['statuses']
+            return {**grouped['totals'], 'workshops': sum(states.values()),
+                    **{key: states.get(state, 0) for key, state in
+                       (('active', 'active'), ('disabled', 'disabled'), ('archived', 'archived'))}}
         result = await metrics()
         result.update({"workshops": await db.workshops.count_documents({}), "active": await db.workshops.count_documents({"status": "active"}),
                        "disabled": await db.workshops.count_documents({"status": "disabled"}), "archived": await db.workshops.count_documents({"status": "archived"})})
@@ -82,9 +245,10 @@ def register_admin_routes(api, db, access):
             match = {"$regex": re.escape(search.strip()), "$options": "i"}
             scope["$or"] = [{key: match} for key in ["name", "email", "nif", "manager_name", "manager_email"]]
         docs = await db.workshops.find(scope, {"_id": 0}).sort("name", 1).to_list(2000)
+        batch = (await db.administration_metrics([doc['id'] for doc in docs]))['companies'] if getattr(db, 'is_postgres', False) is True else None
         for doc in docs:
             doc["modules"] = active_modules(doc)
-            doc["metrics"] = await metrics(doc["id"])
+            doc["metrics"] = batch[doc['id']] if batch is not None else await metrics(doc["id"])
         return docs
 
     @api.get("/admin/workshops/{wid}")
@@ -100,11 +264,11 @@ def register_admin_routes(api, db, access):
     async def create_workshop(body: WorkshopBody, account=Depends(access.admin)):
         await check_logo(body.logo_media_id, account)
         if await db.users.find_one({"email": str(body.manager_email).lower()}, {"_id": 0, "id": 1}):
-            raise HTTPException(409, "O email do gerente já tem uma conta.")
+            raise HTTPException(409, "O email do responsável já tem uma conta.")
         wid = identifier()
         async def operation(session):
             manager, credentials = await access.create_account(body.manager_name, str(body.manager_email), "workshop_staff", wid, manager=True, session=session)
-            doc = {"id": wid, **body.model_dump(), "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
+            doc = {"id": wid, **body.model_dump(mode="json"), "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
             await db.workshops.insert_one(doc, session=session)
             return doc, credentials
 
@@ -124,8 +288,8 @@ def register_admin_routes(api, db, access):
             try:
                 await db.users.update_one({"id": manager["id"], "workshop_id": wid}, {"$set": {"name": body.manager_name, "email": str(body.manager_email).lower(), "is_manager": True, "updated_at": timestamp()}})
             except DuplicateKeyError as exc:
-                raise HTTPException(409, "O email do gerente já está em uso.") from exc
-        update = {**body.model_dump(), "updated_at": timestamp()}
+                raise HTTPException(409, "O email do responsável já está em uso.") from exc
+        update = {**body.model_dump(mode="json", exclude_unset=True), "updated_at": timestamp()}
         if "modules" not in body.model_fields_set:
             update.pop("modules", None)
         if manager:
@@ -136,22 +300,38 @@ def register_admin_routes(api, db, access):
 
     @api.post("/admin/workshops/{wid}/status")
     async def change_status(wid: str, body: StatusBody, account=Depends(access.admin)):
-        workshop = await workshop_doc(wid)
-        if workshop["status"] == "archived":
-            raise HTTPException(409, "Uma oficina arquivada não pode ser reativada.")
-        await db.workshops.update_one({"id": wid}, {"$set": {"status": body.status, "updated_at": timestamp()}})
-        if body.status == "disabled":
-            await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}})
-        await access.audit(account, f"workshop:{body.status}", wid)
-        return {"ok": True}
+        async def operation(session):
+            await db.workshops.update_one({"id": wid}, {"$inc": {"state_revision": 1}}, session=session)
+            workshop = await db.workshops.find_one({"id": wid}, {"_id": 0}, session=session)
+            if not workshop:
+                raise HTTPException(404, "Empresa não encontrada.")
+            if workshop["status"] == "archived":
+                raise HTTPException(409, "Uma empresa arquivada não pode ser reativada.")
+            await db.workshops.update_one({"id": wid}, {"$set": {"status": body.status, "status_reason": body.reason, "updated_at": timestamp()}}, session=session)
+            if body.status == "disabled":
+                await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}}, session=session)
+            await access.audit(account, f"workshop:{body.status}", wid, body.reason, session=session)
+            return {"ok": True}
+        return await transact(db, operation)
+
+    async def archive_company(wid, account, reason):
+        async def operation(session):
+            touched = await db.workshops.update_one({"id": wid}, {"$inc": {"state_revision": 1}}, session=session)
+            if not touched.matched_count:
+                raise HTTPException(404, "Empresa não encontrada.")
+            await db.workshops.update_one({"id": wid}, {"$set": {"status": "archived", "archived_at": timestamp(), "archive_reason": reason, "updated_at": timestamp()}}, session=session)
+            await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}}, session=session)
+            await access.audit(account, "archive_workshop", wid, reason, session=session)
+            return {"ok": True, "archived": True}
+        return await transact(db, operation)
+
+    @api.post("/admin/workshops/{wid}/archive")
+    async def archive_with_reason(wid: str, body: ArchiveCompanyBody, account=Depends(access.admin)):
+        return await archive_company(wid, account, body.reason)
 
     @api.delete("/admin/workshops/{wid}")
-    async def archive_workshop(wid: str, account=Depends(access.admin)):
-        await workshop_doc(wid)
-        await db.workshops.update_one({"id": wid}, {"$set": {"status": "archived", "archived_at": timestamp(), "updated_at": timestamp()}})
-        await db.users.update_many({"workshop_id": wid}, {"$inc": {"session_version": 1}})
-        await access.audit(account, "archive_workshop", wid)
-        return {"ok": True, "archived": True}
+    async def archive_workshop(wid: str, body: ArchiveCompanyBody, account=Depends(access.admin)):
+        return await archive_company(wid, account, body.reason)
 
     @api.post("/admin/workshops/{wid}/staff", status_code=201)
     async def add_staff(wid: str, body: UserBody, account=Depends(access.admin)):
