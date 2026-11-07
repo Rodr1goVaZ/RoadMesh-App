@@ -28,6 +28,12 @@ class RequestDiagnostics:
                 started = True
                 status = message['status']
                 message['headers'] = [*message.get('headers',[]),(b'x-request-id',request_id.encode())]
+                if scope.get('path', '').startswith('/api/'):
+                    # Authenticated records and photographs must not survive logout in HTTP caches.
+                    message['headers'] = [(key, value) for key, value in message['headers']
+                        if key.lower() not in {b'cache-control', b'pragma', b'expires'}]
+                    message['headers'].extend([(b'cache-control', b'private, no-store'),
+                        (b'pragma', b'no-cache'), (b'expires', b'0')])
             await send(message)
         try:
             await self.app(scope,receive,observed_send)

@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-07",
+  "branch": "UI-empresarios-digo",
+  "environment": "local Windows; isolated MongoDB and PGlite PostgreSQL",
+  "modules": ["customer_database", "inventory", "service_orders", "vehicle_reception", "customer_notifications"],
+  "checks": {
+    "typescript": "passed",
+    "frontend_lint": "passed",
+    "frontend_tests": { "passed": 51 },
+    "mongodb_full_suite": { "passed": 233, "skipped": 18 },
+    "mongodb_module_regression_with_later_portal_tests": { "passed": 46 },
+    "postgresql_full_suite": { "passed": 251, "skipped": 2 },
+    "final_contract_guard_regression": { "mongodb_passed": 1, "postgresql_passed": 1 },
+    "new_backend_module_lint": "passed",
+    "git_diff_check": "passed"
+  },
+  "browser_verified": [
+    "Preset selection plus independent manual toggles",
+    "Preset name and composition saved, then original default restored",
+    "Editing a preset preserves the current company selection and total",
+    "Company editing enables another module and updates the total from 90 to 100 EUR using fictional data",
+    "Dashboard shows only the three enabled modules",
+    "Reception selects an existing vehicle without database management enabled",
+    "Reception exposes photo upload and camera controls",
+    "Disabling and re-enabling notifications updates the already open dashboard without another login",
+    "Direct service-order URL redirects to the permitted dashboard when that module is disabled"
+  ],
+  "physical_camera_tested": false,
+  "online_databases_changed": false,
+  "commit_created": false,
+  "push_or_deploy_performed": false
+}

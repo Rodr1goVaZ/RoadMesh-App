@@ -8,6 +8,7 @@ import { workspaceColors as c } from "@/src/shared/theme/workspace";
 
 export function ModuleSwitch({ current }: { current: CompanyModule }) {
   const { user, support } = useAuth();
+  if ((support || user)?.subscription_version === 1) return null;
   const modules = companyModules(support || user);
   if (!modules.includes("workshop") || !modules.includes("stand")) return null;
   const stand = current === "workshop";

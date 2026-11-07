@@ -22,11 +22,11 @@ function PhotoImage({ mediaId, legacyUri, testID, style, resizeMode, supportToke
       const uri = `${API_BASE}/media/${mediaId}`;
       const headers = { Authorization: `Bearer ${token}`, ...(supportToken ? { "X-Support-Token": supportToken } : {}) };
       if (Platform.OS === "web") {
-        const response = await fetch(uri, { headers });
+        const response = await fetch(uri, { headers, cache: "no-store" });
         if (!response.ok) throw new Error("Foto indisponível");
         blobUrl = URL.createObjectURL(await response.blob());
         if (active) setSource({ uri: blobUrl }); else URL.revokeObjectURL(blobUrl);
-      } else if (active) setSource({ uri, headers });
+      } else if (active) setSource({ uri, headers, cache: "reload" });
     })().catch(() => { if (active) setError(true); });
     return () => { active = false; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [mediaId, legacyUri, supportToken]);

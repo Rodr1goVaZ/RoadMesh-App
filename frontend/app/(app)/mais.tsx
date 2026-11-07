@@ -7,6 +7,7 @@ import { AreaPage, Panel, areaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { DashboardAction } from "@/src/shared/layout/DashboardUI";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { featureForScreen, hasFeature } from "@/src/core/auth/company-features";
 export default function Mais() {
   const { user, logout, support } = useAuth(); const wide = useWindowDimensions().width >= 900;
   const logoutConfirm = () => Alert.alert("Sair", "Terminar sessão?", [
@@ -15,6 +16,7 @@ export default function Mais() {
   const items: { label: string; href: any; icon: React.ComponentProps<typeof Ionicons>["name"]; testID: string }[] = [
     { label: "Marcações dos Clientes", href: "/(app)/marcacoes", icon: "calendar-outline", testID: "mais-appointments" },
     { label: "Pesquisar por Matrícula", href: "/(app)/viaturas", icon: "search-outline", testID: "mais-search-plate" },
+    { label: "Receção de veículos", href: "/(app)/rececao", icon: "camera-outline", testID: "mais-reception" },
     { label: "Registo de Danos", href: "/(app)/danos", icon: "camera-outline", testID: "mais-damages" },
     { label: "Nova Ordem de Serviço", href: "/(app)/servico/new", icon: "construct-outline", testID: "mais-new-wo" },
     { label: "Novo Orçamento", href: "/(app)/orcamento-new", icon: "document-text-outline", testID: "mais-new-quote" },
@@ -22,7 +24,7 @@ export default function Mais() {
     { label: "Novo Produto", href: "/(app)/stock/new", icon: "cube-outline", testID: "mais-new-prod" },
     { label: "Nova Encomenda", href: "/(app)/stock/encomenda-new", icon: "cart-outline", testID: "mais-new-po" },
     { label: "Fornecedores", href: "/(app)/fornecedores", icon: "business-outline", testID: "mais-suppliers" },
-    { label: "Configurações da oficina", href: "/(app)/configuracoes", icon: "settings-outline", testID: "mais-settings" },
+    { label: "Configurações da empresa", href: "/(app)/configuracoes", icon: "settings-outline", testID: "mais-settings" },
     { label: "Históricos e movimentos", href: "/(app)/historicos", icon: "time-outline", testID: "mais-history" },
     { label: "Encomendas", href: "/(app)/stock/encomendas", icon: "bag-outline", testID: "mais-orders" },
     { label: "Faturação", href: "/(app)/faturacao", icon: "receipt-outline", testID: "mais-invoices" },
@@ -31,9 +33,9 @@ export default function Mais() {
   return <AreaPage title="Mais" testID="workshop-more" back={false}>
     <Panel title={user?.name} testID="workshop-account"><Text style={areaStyles.hint}>{support?.name || user?.workshop_name}</Text><Text style={areaStyles.label}>{user?.email}</Text></Panel>
     <View style={{ flexDirection: wide ? "row" : "column", flexWrap: "wrap", gap: 16 }}>
-      {items.filter(it => user?.can_manage_workshop || support || !["mais-new-prod", "mais-new-po"].includes(it.testID)).map(it => <View key={it.testID} style={{ width: wide ? "48.8%" : "100%" }}><DashboardAction label={it.label} icon={it.icon} testID={it.testID} onPress={() => router.push(it.href)} /></View>)}
+      {items.filter(it => { const required = featureForScreen(String(it.href).split("/")[2]); return !required || hasFeature(support || user, required); }).filter(it => user?.can_manage_workshop || support || !["mais-new-prod", "mais-new-po"].includes(it.testID)).map(it => <View key={it.testID} style={{ width: wide ? "48.8%" : "100%" }}><DashboardAction label={it.label} icon={it.icon} testID={it.testID} onPress={() => router.push(it.href)} /></View>)}
     </View>
-    {(user?.can_manage_workshop || support) && <Button testID="mais-finance" title="Contas e pagamentos" onPress={() => router.push("/(app)/financeiro")} />}
+    {(user?.can_manage_workshop || support) && hasFeature(support || user, "service_orders") && <Button testID="mais-finance" title="Contas e pagamentos" onPress={() => router.push("/(app)/financeiro")} />}
     <Button testID="logout-btn" title="Sair" variant="ghost" onPress={logoutConfirm} />
   </AreaPage>;
 }

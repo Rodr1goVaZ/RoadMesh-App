@@ -2,7 +2,11 @@ import { defaultOpeningGroups, formatOpeningHours, openingHoursError } from "./c
 import { isValidEmail } from "@/src/shared/utils/validation";
 import { CompanyModule, companyModules } from "@/src/core/auth/company-modules";
 
+import { enabledFeatures, featureCatalog, FeatureId, monthlySubscription } from "@/src/core/auth/company-features";
+
 export const emptyCompany = {
+  subscription_version: 1 as const, enabled_modules: [] as FeatureId[],
+  module_prices: Object.fromEntries(featureCatalog.map(item => [item.id, "0"])) as Record<FeatureId, string>, base_monthly_fee: "200",
   modules: ["workshop"] as CompanyModule[], name: "", legal_name: "", nif: "",
   entity_type: "" as "" | "sole_trader" | "company", sole_trader_name: "", company_people: [] as string[], country: "Portugal", district: "", municipality: "",
   address: "", postal_code: "", phone: "", mobile: "", email: "", billing_email: "",
@@ -20,17 +24,22 @@ export const requiredCompanyFields = {
 } as const;
 
 export function companyForm(data?: any): CompanyForm {
-  if (!data) return { ...emptyCompany, modules: [...emptyCompany.modules], company_people: [] };
+  if (!data) return { ...emptyCompany, modules: [...emptyCompany.modules], enabled_modules: [...emptyCompany.enabled_modules], module_prices: { ...emptyCompany.module_prices }, company_people: [] };
   const form = { ...emptyCompany, company_people: [] as string[] };
   for (const key of Object.keys(emptyCompany) as (keyof CompanyForm)[]) {
     if (key !== "modules" && data[key] != null) (form as any)[key] = data[key];
   }
   form.modules = companyModules(data);
+  form.subscription_version = 1;
+  form.enabled_modules = enabledFeatures(data);
+  form.module_prices = Object.fromEntries(featureCatalog.map(item => [item.id, String(data.module_prices?.[item.id] ?? "0").replace(".", ",")])) as Record<FeatureId, string>;
+  form.base_monthly_fee = String((data.subscription_version === 1 ? data.base_monthly_fee : undefined) ?? data.monthly_fee ?? defaultMonthlyFee(form.modules)).replace(".", ",");
   form.company_people = Array.isArray(data.company_people) ? data.company_people.filter((name: unknown) => typeof name === "string") : [];
   for (const key of ["monthly_fee", "payment_day", "support_hours", "extra_hour_rate"] as const) {
     form[key] = data[key] == null ? emptyCompany[key] : String(data[key]).replace(".", ",");
   }
   if (data.monthly_fee == null) form.monthly_fee = String(defaultMonthlyFee(form.modules));
+  form.monthly_fee = monthlySubscription(form.base_monthly_fee, form.enabled_modules, form.module_prices);
   const responsible = data.users?.find((u: any) => u.id === data.manager_id) || data.users?.find((u: any) => u.is_manager);
   form.manager_name = data.manager_name || responsible?.name || "";
   form.manager_email = data.manager_email || responsible?.email || "";
@@ -54,7 +63,7 @@ export function validateCompany(form: CompanyForm): CompanyErrors {
   for (const key of ["name", "manager_name"] as const) {
     if (form[key].trim() && form[key].trim().length < 2) errors[key] = "Indique pelo menos 2 caracteres.";
   }
-  if (!form.modules.length) errors.modules = "Escolha o tipo de negócio.";
+  if (Object.values(form.module_prices).some(price => !/^\d+(?:[.,]\d{1,2})?$/.test(price.trim())) || !monthlySubscription(form.base_monthly_fee, form.enabled_modules, form.module_prices)) errors.enabled_modules = "Reveja o valor base e os preços dos módulos ativos (até 2 casas decimais).";
   for (const key of ["email", "billing_email", "manager_email"] as const) {
     if (form[key] && !isValidEmail(form[key])) errors[key] = "Indique um email válido.";
   }
@@ -86,7 +95,7 @@ export function validateCompany(form: CompanyForm): CompanyErrors {
 
 export function companyPayload(form: CompanyForm, logoId: string | null) {
   const payload = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, typeof value === "string" ? value.trim() : value]));
-  return { ...payload, billing_terms_version: 1, monthly_fee: form.monthly_fee.trim().replace(",", "."), support_hours: form.support_hours.trim().replace(",", "."), extra_hour_rate: form.extra_hour_rate.trim() ? form.extra_hour_rate.trim().replace(",", ".") : null, payment_day: Number(form.payment_day), sole_trader_name: form.entity_type === "sole_trader" ? form.sole_trader_name.trim() : "", company_people: form.entity_type === "company" ? form.company_people.map(name => name.trim()).filter(Boolean) : [], company_profile_version: 2, logo_media_id: logoId,
+  return { ...payload, subscription_version: 1, module_prices: Object.fromEntries(Object.entries(form.module_prices).map(([key, price]) => [key, price.trim().replace(",", ".") || "0"])), base_monthly_fee: form.base_monthly_fee.trim().replace(",", "."), billing_terms_version: 1, monthly_fee: monthlySubscription(form.base_monthly_fee, form.enabled_modules, form.module_prices).replace(",", "."), support_hours: form.support_hours.trim().replace(",", "."), extra_hour_rate: form.extra_hour_rate.trim() ? form.extra_hour_rate.trim().replace(",", ".") : null, payment_day: Number(form.payment_day), sole_trader_name: form.entity_type === "sole_trader" ? form.sole_trader_name.trim() : "", company_people: form.entity_type === "company" ? form.company_people.map(name => name.trim()).filter(Boolean) : [], company_profile_version: 2, logo_media_id: logoId,
     email: form.email.trim().toLowerCase() || null, billing_email: form.billing_email.trim().toLowerCase() || null,
     manager_email: form.manager_email.trim().toLowerCase(), entity_type: form.entity_type || null,
     activity_start_date: form.activity_start_date.trim() ? isoDate(form.activity_start_date) : null };
@@ -94,7 +103,7 @@ export function companyPayload(form: CompanyForm, logoId: string | null) {
 
 export const companySteps = ["Introdução", "Identificação", "Morada", "Faturação e assistência", "Contactos e acesso"];
 const stepFields: (keyof CompanyForm)[][] = [
- ["name", "modules", "description"], ["legal_name", "nif", "entity_type", "sole_trader_name", "company_people", "activity_start_date", "website", "opening_hours", "logo_media_id"],
+ ["name", "modules", "description", "enabled_modules", "module_prices", "base_monthly_fee", "subscription_version"], ["legal_name", "nif", "entity_type", "sole_trader_name", "company_people", "activity_start_date", "website", "opening_hours", "logo_media_id"],
  ["country", "district", "municipality", "address", "postal_code"], ["monthly_fee", "billing_cycle", "payment_day", "support_hours", "extra_hour_rate", "billing_email"], ["phone", "mobile", "email", "manager_name", "manager_email"],
 ];
 export const companyFieldStep = (key: keyof CompanyForm) => stepFields.findIndex(fields => fields.includes(key));

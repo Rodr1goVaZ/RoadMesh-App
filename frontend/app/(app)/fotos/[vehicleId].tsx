@@ -37,10 +37,10 @@ export default function VehiclePhotos() {
   const filtered = photos.filter((p: any) => p.zone === zone);
   const main = selected ? photos.find((p: any) => p.id === selected) : filtered[0];
 
-  const pickImage = async () => {
+  const pickImage = async (camera = false) => {
     setError(""); setUploading(true);
     try {
-      const asset = await pickPhoto();
+      const asset = await pickPhoto(camera);
       if (!asset) return;
       const media = await uploadPhoto(asset);
       await api.post("/photos", { vehicle_id: vehicleId, zone, media_id: media.id, caption: null });
@@ -95,7 +95,8 @@ export default function VehiclePhotos() {
         )}
 
         <Feedback testID="vehicle-photo-upload-error" error message={error} />
-        <Button title="Carregar fotografias" onPress={pickImage} testID="upload-photo" loading={uploading} />
+        <Button title="Tirar fotografia na receção" testID="reception-camera" onPress={() => void pickImage(true)} loading={uploading} />
+        <Button title="Carregar fotografias" onPress={() => void pickImage()} testID="upload-photo" loading={uploading} />
         <DamageQuickActions vehicleId={vehicleId} testID="photos-damage" />
       </ScrollView>
     </View>

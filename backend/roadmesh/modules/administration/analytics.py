@@ -93,7 +93,7 @@ def build_analytics(companies, year, month, today):
         balance = max(amount(record['billed']) - amount(record['received']), Decimal(0)) if record else None
         state = 'unrecorded' if record is None else 'pending' if balance else 'paid' if amount(record['billed']) else 'free'
         company_rows.append({'id': company['id'], 'name': company['name'], 'company_status': company['status'],
-                             'state': state, 'record': record, 'pending': float(balance) if balance is not None else None})
+                             'suggested_monthly_fee': company.get('monthly_fee') if selected >= max((company.get('subscription_effective_at') or company.get('updated_at') or '')[:7], today.isoformat()[:7]) else None, 'suggested_support_hours': company.get('support_hours'), 'state': state, 'record': record, 'pending': float(balance) if balance is not None else None})
     previous_month = period_key(year, month - 1) if month > 1 else period_key(year - 1, 12)
     return {'year': year, 'month': month, 'period': selected,
             'summary': for_period(selected), 'previous_month': for_period(previous_month),
@@ -108,7 +108,7 @@ def register_admin_analytics(api, db, access):
     @api.get('/admin/dashboard/analytics')
     async def analytics(year: int = Query(ge=2000, le=2100), month: int = Query(ge=1, le=12), account=Depends(access.admin)):
         companies = await db.workshops.find({}, {'_id': 0, 'id': 1, 'name': 1, 'status': 1,
-                                                'created_at': 1, 'archived_at': 1, 'platform_service_months': 1}).to_list(None)
+                                                'created_at': 1, 'archived_at': 1, 'platform_service_months': 1, 'monthly_fee': 1, 'support_hours': 1, 'subscription_effective_at': 1, 'updated_at': 1}).to_list(None)
         return build_analytics(companies, year, month, now().astimezone(ZoneInfo('Europe/Lisbon')).date())
 
     @api.put('/admin/workshops/{wid}/service-months/{year}/{month}')

@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
@@ -18,6 +20,7 @@ import { ClientAccess } from "@/src/features/clients/components/ClientAccess";
 const TABS = ["contactos", "viaturas", "historico"] as const;
 
 export default function ClientDetail() {
+  const { user, support } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -43,7 +46,7 @@ export default function ClientDetail() {
       <ScreenHeader title={data.name} back testID="client-detail-header" />
       <Feedback testID="cliente-operation-error" message={operationError} error />
       <View style={styles.tabs}>
-        {TABS.map(t => (
+        {TABS.filter(t => t !== "historico" || hasFeature(support || user, "service_orders")).map(t => (
           <Pressable key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
             <Text style={[styles.tabTxt, tab === t && styles.tabTxtActive]}>{t.charAt(0).toUpperCase() + t.slice(1)}</Text>
           </Pressable>

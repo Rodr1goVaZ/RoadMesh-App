@@ -51,10 +51,12 @@ def verify(snapshot_path,runtime,report_path=None,upgrade_platform=False):
                         conn.execute(sql.SQL('CREATE ROLE {} NOLOGIN').format(sql.Identifier(role)))
                     for name in ('001_initial.sql','002_backend_compatibility.sql','003_business_modules.sql','004_runtime_role.sql'):
                         conn.execute((ROOT/'backend/sql'/name).read_text(),prepare=False)
-                    if any(v in data['schema_version'] for v in ('version 5;', 'version 6;')):
+                    if any(v in data['schema_version'] for v in ('version 5;', 'version 6;', 'version 7;')):
                         conn.execute((ROOT/'backend/sql/005_company_modules_stand.sql').read_text(),prepare=False)
-                    if 'version 6;' in data['schema_version']:
+                    if any(v in data['schema_version'] for v in ('version 6;', 'version 7;')):
                         conn.execute((ROOT/'backend/sql/006_platform_service_ledger.sql').read_text(),prepare=False)
+                    if 'version 7;' in data['schema_version']:
+                        conn.execute((ROOT/'backend/sql/007_module_presets.sql').read_text(),prepare=False)
                     with conn.transaction():
                         conn.execute("SELECT set_config('TimeZone',%s,true)",(data.get('timezone','UTC'),))
                         for name in tables:

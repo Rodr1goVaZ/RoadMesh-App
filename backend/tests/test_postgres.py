@@ -45,7 +45,7 @@ def pg_workshop(workshop_factory):
 
 def test_private_tables_are_not_readable_by_supabase_browser_roles(pg):
     tables = pg.execute("SELECT tablename,rowsecurity FROM pg_tables WHERE schemaname='roadmesh'").fetchall()
-    assert len(tables) == 32
+    assert len(tables) == 33
     assert all(t['rowsecurity'] for t in tables)
     for role in ('anon', 'authenticated'):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
@@ -132,7 +132,7 @@ def test_simultaneous_instance_bootstrap_creates_one_admin(pg, monkeypatch):
             await asyncio.gather(*(Access(db).bootstrap() for db in databases))
         finally:
             await asyncio.gather(*(db.close() for db in databases))
-    asyncio.run(start())
+    asyncio.run(start(), loop_factory=asyncio.SelectorEventLoop)
     assert pg.execute('SELECT count(*) AS n FROM roadmesh.users WHERE email=%s',(email,)).fetchone()['n'] == 1
 
 

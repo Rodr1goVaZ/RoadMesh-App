@@ -31,6 +31,7 @@ test('private requests continue to use the authenticated account and support sco
     async (url, options) => {
       assert.equal(options.headers.Authorization, 'Bearer test-account-token');
       assert.equal(options.headers['X-Support-Token'], 'test-support-token');
+      assert.equal(options.cache, 'no-store');
       return { ok: true, text: async () => '{}' };
     });
   await api.get('/dashboard');

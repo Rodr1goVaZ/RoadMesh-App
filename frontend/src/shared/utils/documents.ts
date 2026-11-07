@@ -42,7 +42,7 @@ export async function exportInvoice(invoice: any) {
   const support = await session.getSupport();
   const headers = { Authorization: `Bearer ${token}`, ...(support?.token ? { "X-Support-Token": support.token } : {}) };
   if (Platform.OS === "web") {
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { headers, cache: "no-store" });
     if (!response.ok) throw new Error("Não foi possível gerar o PDF. Tente novamente.");
     const blobUrl = URL.createObjectURL(await response.blob());
     try { await Linking.openURL(blobUrl); }

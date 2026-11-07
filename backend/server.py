@@ -23,6 +23,8 @@ from starlette.concurrency import run_in_threadpool
 from roadmesh.infrastructure.media.storage import storage_configuration, register_media_routes
 from roadmesh.infrastructure.documents.pdf import build_invoice_pdf
 from roadmesh.core.access_control import Access, register_auth_routes
+from roadmesh.core.module_catalog import enabled_features, is_modular
+from roadmesh.modules.administration.module_presets import initialize_presets
 from roadmesh.modules.administration.routes import register_admin_routes
 from roadmesh.modules.portal.routes import register_portal_routes
 from roadmesh.core.request_logging import RequestDiagnostics
@@ -136,7 +138,7 @@ async def get_client(client_id: str, user: CompanyUser):
     doc["vehicles"] = await db.vehicles.find(tenant_filter(user, {"client_id": client_id}), {"_id": 0}).to_list(500)
     doc["work_orders"] = await db.work_orders.find(
         tenant_filter(user, {"client_id": client_id}), {"_id": 0}
-    ).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
+    ).sort("created_at", -1).to_list(500) if ("workshop" in user.get("modules", ["workshop"]) and (not is_modular(user) or "service_orders" in enabled_features(user))) else []
     return doc
 
 
@@ -229,10 +231,10 @@ async def get_vehicle(vehicle_id: str, user: CompanyUser):
     doc = await db.vehicles.find_one(tenant_filter(user, {"id": vehicle_id}), {"_id": 0})
     if not doc:
         raise HTTPException(404, "Viatura não encontrada")
-    doc["photos"] = await db.photos.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
-    doc["damages"] = await db.damages.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
+    doc["photos"] = await db.photos.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if ("workshop" in user.get("modules", ["workshop"]) and (not is_modular(user) or "vehicle_reception" in enabled_features(user))) else []
+    doc["damages"] = await db.damages.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if ("workshop" in user.get("modules", ["workshop"]) and (not is_modular(user) or "vehicle_reception" in enabled_features(user))) else []
     doc["client"] = await db.clients.find_one(tenant_filter(user, {"id": doc["client_id"]}), {"_id": 0})
-    doc["work_orders"] = await db.work_orders.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if "workshop" in user.get("modules", ["workshop"]) else []
+    doc["work_orders"] = await db.work_orders.find(tenant_filter(user, {"vehicle_id": vehicle_id}), {"_id": 0}).sort("created_at", -1).to_list(500) if ("workshop" in user.get("modules", ["workshop"]) and (not is_modular(user) or "service_orders" in enabled_features(user))) else []
     return doc
 
 
@@ -303,6 +305,8 @@ async def validate_order_relations(data, user, session=None):
     ):
         raise HTTPException(404, "Viatura não encontrada para este cliente")
     for item in data.items:
+        if item.product_id and is_modular(user) and "inventory" not in enabled_features(user):
+            raise HTTPException(403, "Ative a gestão de stocks para usar produtos do inventário.")
         if item.product_id and not await db.products.find_one_and_update(
             tenant_filter(user, {"id": item.product_id}),
             {"$inc": {"reference_revision": 1}},
@@ -1116,6 +1120,21 @@ async def invoice_pdf(invoice_id: str, user: CurrentUser):
 # ----------------------------- dashboard -----------------------------
 @api.get("/dashboard")
 async def dashboard(user: CurrentUser):
+    if is_modular(user):
+        modules = enabled_features(user)
+        summary = {}
+        f = tenant_filter(user)
+        if "inventory" in modules:
+            summary["inventory"] = {"products": await db.products.count_documents(f), "orders": await db.purchase_orders.count_documents({**f, "status": {"$nin": ["cancelada", "recebida"]}})}
+        if "customer_database" in modules:
+            summary["customer_database"] = {"clients": await db.clients.count_documents(f), "vehicles": await db.vehicles.count_documents(f)}
+        if "service_orders" in modules:
+            summary["service_orders"] = {"services": await db.work_orders.count_documents(f)}
+        if "vehicle_reception" in modules:
+            summary["vehicle_reception"] = {"photos": await db.photos.count_documents(f), "damages": await db.damages.count_documents(f)}
+        if "customer_notifications" in modules:
+            summary["customer_notifications"] = {"appointments": await db.appointments.count_documents({**f, "status": {"$nin": ["cancelada", "concluida"]}})}
+        return {"enabled_modules": modules, "module_summary": summary}
     f = tenant_filter(user)
     total = await db.work_orders.count_documents(f)
     em_rep = await db.work_orders.count_documents({**f, "status": {"$in": ["entrada", "diagnostico"]}})
@@ -1186,6 +1205,7 @@ logger = logging.getLogger("roadmesh")
 async def _startup_storage():
     await initialize_integrity(db)
     await access.initialize()
+    await initialize_presets(db)
     try:
         await run_in_threadpool(storage_configuration)
     except Exception as exc:

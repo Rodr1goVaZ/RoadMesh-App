@@ -12,7 +12,7 @@ import { monthNames, parseDueDate, readAmount, ServiceCompany } from '@/src/feat
 export function ServiceMonthEditor({ company, year, month, onClose, onSaved, initialSection = "all" }: { initialSection?: "payment" | "assistance" | "all"; company: ServiceCompany; year: number; month: number; onClose: () => void; onSaved: () => void }) {
   const firstField = useRef<TextInput>(null);
   const [record, setRecord] = useState(company.record); const wide = useWindowDimensions().width >= 700;
-  const [form, setForm] = useState({ billed: String(record?.billed ?? '').replace('.', ','), received: String(record?.received ?? 0).replace('.', ','), hours_included: String(record?.hours_included ?? '').replace('.', ','), hours_used: String(record?.hours_used ?? 0).replace('.', ','), due_date: record?.due_date?.split('-').reverse().join('/') || '', note: record?.note || '' });
+  const [form, setForm] = useState({ billed: String(record?.billed ?? company.suggested_monthly_fee ?? '').replace('.', ','), received: String(record?.received ?? 0).replace('.', ','), hours_included: String(record?.hours_included ?? company.suggested_support_hours ?? '').replace('.', ','), hours_used: String(record?.hours_used ?? 0).replace('.', ','), due_date: record?.due_date?.split('-').reverse().join('/') || '', note: record?.note || '' });
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const saving = useRef(false); const qc = useQueryClient();
   const save = async () => {
     if (saving.current) return;

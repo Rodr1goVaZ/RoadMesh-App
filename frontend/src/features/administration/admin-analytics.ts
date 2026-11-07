@@ -1,7 +1,7 @@
 export const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 export type ServiceRecord = { billed: number | string; received: number | string; hours_included: number | string; hours_used: number | string; due_date: string | null; note: string; revision: number };
 export type ServiceSummary = { billed: number | null; received: number | null; pending: number | null; hours_included: number | null; hours_used: number | null; hours_extra: number | null; paid: number; pending_companies: number; overdue: number; recorded: number; unrecorded: number };
-export type ServiceCompany = { id: string; name: string; company_status: string; state: 'unrecorded' | 'pending' | 'paid' | 'free'; record: ServiceRecord | null; pending: number | null };
+export type ServiceCompany = { suggested_monthly_fee?: number | string | null; suggested_support_hours?: number | string | null; id: string; name: string; company_status: string; state: 'unrecorded' | 'pending' | 'paid' | 'free'; record: ServiceRecord | null; pending: number | null };
 export type ServiceMonth = { month: number; billed: number | null; received: number | null; previous_billed: number | null; hours_used: number | null; hours_included: number | null; previous_hours_used: number | null };
 export type AdminAnalytics = { year: number; month: number; period: string; summary: ServiceSummary; previous_month: ServiceSummary; previous_year_month: ServiceSummary; annual: ServiceSummary; previous_annual: ServiceSummary; months: ServiceMonth[]; companies: ServiceCompany[] };
 export function changeLabel(current: number | null, previous: number | null, label: string): string {

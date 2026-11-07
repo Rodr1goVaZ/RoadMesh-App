@@ -141,7 +141,7 @@ def test_version5_snapshot_can_be_restored_locally(pg, company, tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
     from backup_staging import TABLES
     from verify_staging_backup import verify
-    tables = TABLES + ['stand_inventory', 'stand_leads', 'stand_sales', 'platform_service_periods', 'platform_service_movements']
+    tables = TABLES + ['stand_inventory', 'stand_leads', 'stand_sales', 'platform_service_periods', 'platform_service_movements', 'module_presets']
     pairs = []
     for name in tables:
         pairs.extend([sql.Literal(name), sql.SQL("(SELECT coalesce(jsonb_agg(to_jsonb(t)),'[]'::jsonb) FROM roadmesh.{} t)").format(sql.Identifier(name))])
@@ -154,4 +154,4 @@ def test_version5_snapshot_can_be_restored_locally(pg, company, tmp_path):
     path.write_text(raw)
     report_path = tmp_path / 'restore-report.json'
     assert verify(path, Path(runtime), report_path=report_path) == 0
-    assert json.loads(report_path.read_text())['tables'] == 32
+    assert json.loads(report_path.read_text())['tables'] == 33

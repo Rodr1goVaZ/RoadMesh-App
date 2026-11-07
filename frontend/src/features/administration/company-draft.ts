@@ -12,6 +12,9 @@ export function decodeCompanyDraft(raw: string | null): { form: CompanyForm; ste
     const migrated = companyForm(form);
     for (const key of newFields) if (form[key] == null) form[key] = migrated[key as keyof CompanyForm];
   }
+  const migrated = companyForm(form);
+  const legacySubscription = form.subscription_version !== 1;
+  for (const key of ["base_monthly_fee", "enabled_modules", "module_prices", "subscription_version"] as const) if (legacySubscription || form[key] == null) form[key] = migrated[key];
   for (const [key, fallback] of Object.entries(emptyCompany)) {
     if (typeof fallback === "string" && typeof form[key] !== "string") throw new Error("Rascunho incompleto.");
   }

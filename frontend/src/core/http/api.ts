@@ -14,6 +14,7 @@ async function request(path: string, options: RequestInit = {}) {
   try {
     res = await fetch(url, {
       ...options,
+      cache: "no-store",
       headers: {
         ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -39,6 +40,7 @@ async function request(path: string, options: RequestInit = {}) {
 
 export const api = {
   upload: (data: FormData) => request("/media", { method: "POST", body: data }),
+  uploadTo: (path: string, data: FormData) => request(path, { method: "POST", body: data }),
   get: (p: string) => request(p),
   post: (p: string, data: any) => request(p, { method: "POST", body: JSON.stringify(data) }),
   put: (p: string, data: any) => request(p, { method: "PUT", body: JSON.stringify(data) }),

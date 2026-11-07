@@ -1,4 +1,5 @@
 """Private image storage; ownership checks are shared by managed and local drivers."""
+from roadmesh.core.module_catalog import enabled_features, is_modular
 import io
 import logging
 import os
@@ -192,6 +193,10 @@ def register_media_routes(api, db, access):
                 doc = await db.media.find_one({"id": media_id}, {"_id": 0})
             if not allowed and not logo:
                 raise HTTPException(404, "Fotografia não encontrada")
+        if user.get("workshop_id"):
+            company = await db.workshops.find_one({"id": user["workshop_id"]}, {"_id": 0})
+            if is_modular(company) and "vehicle_reception" not in enabled_features(company) and company.get("logo_media_id") != media_id:
+                raise HTTPException(403, "O módulo de receção de veículos não está ativo.")
         if not doc:
             raise HTTPException(404, "Fotografia não encontrada")
         try:

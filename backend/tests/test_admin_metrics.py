@@ -55,7 +55,7 @@ def test_batched_metrics_match_legacy_counts_and_service_revenue(pg, platform_se
         finally:
             await db.close()
 
-    asyncio.run(compare())
+    asyncio.run(compare(), loop_factory=asyncio.SelectorEventLoop)
     companies = checked(platform_session.get(API+'/admin/workshops'))
     for company in companies:
         detail = checked(platform_session.get(API+'/admin/workshops/'+company['id']))

@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -10,6 +12,8 @@ export const DAMAGE_TYPES = [
   { id: "fuga", label: "Fuga", icon: "water-outline" },
 ] as const;
 export function DamageQuickActions({ vehicleId, testID }: { vehicleId?: string; testID: string }) {
+  const { user, support } = useAuth();
+  if (!hasFeature(support || user, "vehicle_reception")) return null;
   return <View style={styles.card}>
     <Text testID={`${testID}-heading`} style={styles.title}>Registo rápido de danos</Text>
     <Text testID={`${testID}-help`} style={styles.hint}>Assinale o dano, adicione uma foto e a gravidade.</Text>

@@ -23,9 +23,30 @@ from roadmesh.core.access_control import (
 from roadmesh.core.company_modules import active_modules
 from roadmesh.infrastructure.database.integrity import revenue_pipeline, transact
 from roadmesh.modules.administration.analytics import register_admin_analytics
+from roadmesh.core.module_catalog import FEATURE_IDS, is_modular, public_configuration, subscription_total
+from roadmesh.modules.administration.module_presets import FeatureId, register_preset_routes
 
 
 class WorkshopBody(StrictModel):
+    subscription_version: Literal[1] | None = None
+    enabled_modules: list[FeatureId] | None = Field(default=None, max_length=5)
+    module_prices: dict[FeatureId, Annotated[Decimal, Field(ge=0, max_digits=11, decimal_places=2)]] | None = None
+    base_monthly_fee: Decimal | None = Field(default=None, ge=0, max_digits=11, decimal_places=2)
+
+    @model_validator(mode="after")
+    def validate_subscription(self):
+        if self.subscription_version != 1:
+            if any(key in self.model_fields_set for key in ("enabled_modules", "module_prices", "base_monthly_fee")):
+                raise ValueError("Indique a versão da configuração de módulos.")
+            return self
+        if self.enabled_modules is None or self.module_prices is None or self.base_monthly_fee is None:
+            raise ValueError("Preencha os módulos e os preços da subscrição.")
+        if len(self.enabled_modules) != len(set(self.enabled_modules)) or any(key not in self.module_prices for key in self.enabled_modules):
+            raise ValueError("Indique um preço para cada módulo ativo, sem repetir módulos.")
+        self.enabled_modules = [key for key in FEATURE_IDS if key in self.enabled_modules]
+        self.monthly_fee = subscription_total(self.base_monthly_fee, self.enabled_modules, self.module_prices)
+        return self
+
     modules: list[Literal["workshop","stand"]] = Field(default_factory=lambda: ["workshop"], min_length=1, max_length=2)
 
     @field_validator("modules")
@@ -109,6 +130,10 @@ class WorkshopBody(StrictModel):
 
 
 class CompanyDraftForm(StrictModel):
+    subscription_version: Literal[1] | None = None
+    enabled_modules: list[FeatureId] = Field(default_factory=list, max_length=5)
+    module_prices: dict[FeatureId, str] = Field(default_factory=dict)
+    base_monthly_fee: str = Field(default="", max_length=16)
     modules: list[Literal["workshop", "stand"]] = Field(default_factory=lambda: ["workshop"], min_length=1, max_length=2)
     name: str = Field(default="", max_length=100)
     legal_name: str = Field(default="", max_length=200)
@@ -170,6 +195,7 @@ class SupportBody(StrictModel):
 
 
 def register_admin_routes(api, db, access):
+    register_preset_routes(api, db, access)
     register_admin_analytics(api, db, access)
     async def workshop_doc(wid):
         doc = await db.workshops.find_one({"id": wid}, {"_id": 0})
@@ -247,6 +273,7 @@ def register_admin_routes(api, db, access):
         docs = await db.workshops.find(scope, {"_id": 0}).sort("name", 1).to_list(2000)
         batch = (await db.administration_metrics([doc['id'] for doc in docs]))['companies'] if getattr(db, 'is_postgres', False) is True else None
         for doc in docs:
+            doc.update(public_configuration(doc))
             doc["modules"] = active_modules(doc)
             doc["metrics"] = batch[doc['id']] if batch is not None else await metrics(doc["id"])
         return docs
@@ -254,6 +281,7 @@ def register_admin_routes(api, db, access):
     @api.get("/admin/workshops/{wid}")
     async def workshop_detail(wid: str, account=Depends(access.admin)):
         doc = await workshop_doc(wid)
+        doc.update(public_configuration(doc))
         doc["modules"] = active_modules(doc)
         doc["metrics"] = await metrics(wid)
         users = await db.users.find({"workshop_id": wid}, {"_id": 0, "password_hash": 0}).sort("name", 1).to_list(2000)
@@ -280,6 +308,8 @@ def register_admin_routes(api, db, access):
     @api.put("/admin/workshops/{wid}")
     async def edit_workshop(wid: str, body: WorkshopBody, account=Depends(access.admin)):
         workshop = await workshop_doc(wid)
+        if is_modular(workshop) and body.subscription_version != 1 and any(key in body.model_fields_set for key in ("modules", "monthly_fee", "subscription_version", "enabled_modules", "module_prices", "base_monthly_fee")):
+            raise HTTPException(422, "Use a configuração de módulos para alterar esta subscrição.")
         await check_logo(body.logo_media_id, account, wid)
         manager = await db.users.find_one({"workshop_id": wid, "role": "workshop_staff", "$or": [{"id": workshop.get("manager_id")}, {"is_manager": True}]}, {"_id": 0})
         if not manager:
@@ -290,12 +320,17 @@ def register_admin_routes(api, db, access):
             except DuplicateKeyError as exc:
                 raise HTTPException(409, "O email do responsável já está em uso.") from exc
         update = {**body.model_dump(mode="json", exclude_unset=True), "updated_at": timestamp()}
+        if body.subscription_version == 1:
+            update["monthly_fee"] = str(body.monthly_fee)
+            keys = ("enabled_modules", "module_prices", "base_monthly_fee", "monthly_fee")
+            if any(workshop.get(key) != update.get(key) for key in keys):
+                update["subscription_effective_at"] = timestamp()
         if "modules" not in body.model_fields_set:
             update.pop("modules", None)
         if manager:
             update["manager_id"] = manager["id"]
         await db.workshops.update_one({"id": wid}, {"$set": update})
-        await access.audit(account, "edit_workshop", wid)
+        await access.audit(account, "edit_workshop", wid, details={"subscription_before": {key: workshop.get(key) for key in ("enabled_modules", "module_prices", "base_monthly_fee", "monthly_fee")}, "subscription_after": {key: update.get(key, workshop.get(key)) for key in ("enabled_modules", "module_prices", "base_monthly_fee", "monthly_fee")}})
         return {"ok": True}
 
     @api.post("/admin/workshops/{wid}/status")
@@ -372,7 +407,7 @@ def register_admin_routes(api, db, access):
         await db.support_sessions.insert_one({"id": identifier(), "actor_id": account["id"], "workshop_id": wid, "reason": body.reason,
                                               "digest": hashlib.sha256(secret.encode()).hexdigest(), "expires_at": now() + timedelta(hours=1)})
         await access.audit(account, "begin_support", wid, body.reason)
-        return {"support_token": secret, "workshop": {"id": wid, "name": workshop["name"], "status": workshop["status"], "modules": active_modules(workshop)}}
+        return {"support_token": secret, "workshop": {"id": wid, "name": workshop["name"], "status": workshop["status"], "modules": active_modules(workshop), **public_configuration(workshop)}}
 
     @api.delete("/admin/support")
     async def end_support(account=Depends(access.admin)):

@@ -4,7 +4,8 @@ const { loadTypeScript } = require('./test-helpers.cjs');
 const schedule = loadTypeScript('../src/features/administration/company-opening-hours.ts');
 const validation = loadTypeScript('../src/shared/utils/validation.ts');
 const modules = loadTypeScript('../src/core/auth/company-modules.ts');
-const profile = loadTypeScript('../src/features/administration/company-profile.ts', { modules: { '@/src/shared/utils/validation': validation, '@/src/core/auth/company-modules': modules, './company-opening-hours': schedule }, globals: { URL } });
+const features = loadTypeScript('../src/core/auth/company-features.ts');
+const profile = loadTypeScript('../src/features/administration/company-profile.ts', { modules: { '@/src/shared/utils/validation': validation, '@/src/core/auth/company-modules': modules, '@/src/core/auth/company-features': features, './company-opening-hours': schedule }, globals: { URL } });
 const { companyDraftKey, createCompanyDraftStore, decodeCompanyDraft } = loadTypeScript('../src/features/administration/company-draft.ts', { modules: { './company-profile': profile } });
 test('each step only checks its own fields and entity names are optional', () => {
  const form = { ...profile.companyForm(), name: 'Oficina Teste' };
@@ -61,9 +62,9 @@ test('billing plans suggest the right price and preserve negotiated amounts', ()
 });
 test('old four-step drafts are migrated without losing contacts or changing the selected plan', async () => {
  const old = { ...profile.companyForm(), modules: ['stand'], name: 'Rascunho antigo' };
- for (const key of ['monthly_fee', 'billing_cycle', 'payment_day', 'support_hours', 'extra_hour_rate']) delete old[key];
+ for (const key of ['monthly_fee', 'billing_cycle', 'payment_day', 'support_hours', 'extra_hour_rate', 'base_monthly_fee', 'subscription_version', 'enabled_modules', 'module_prices']) delete old[key];
  const restored = decodeCompanyDraft(JSON.stringify({ version: 1, form: old, step: 3, savedAt: new Date().toISOString() }));
- assert.equal(restored.step, 4); assert.equal(restored.form.monthly_fee, '150'); assert.equal(restored.form.name, 'Rascunho antigo');
+ assert.equal(restored.step, 4); assert.equal(Number(restored.form.monthly_fee.replace(',', '.')), 150); assert.equal(restored.form.name, 'Rascunho antigo');
 });
 
 test('weekly opening selectors round-trip and preserve legacy schedules', () => {
@@ -84,4 +85,13 @@ test('numeric company fields reject letters and keep the appropriate separators'
  assert.equal(schedule.numericCompanyInput('monthly_fee', '€ 200,5a0'), '200,50');
  assert.equal(schedule.numericCompanyInput('support_hours', '10.25x4'), '10.25');
  assert.equal(schedule.numericCompanyInput('phone', '+351 abc 910 000 000'), '+351  910 000 000');
+});
+
+
+test('old server drafts with empty subscription defaults preserve their agreed monthly amount', () => {
+ const old = { ...profile.companyForm(), subscription_version: null, base_monthly_fee: '', enabled_modules: [], module_prices: {}, monthly_fee: '175,50', modules: ['workshop'] };
+ const restored = decodeCompanyDraft(JSON.stringify({ version: 2, form: old, step: 0, savedAt: new Date().toISOString() }));
+ assert.equal(restored.form.base_monthly_fee, '175,50');
+ assert.equal(restored.form.monthly_fee, '175,50');
+ assert.equal(restored.form.enabled_modules.length, 5);
 });

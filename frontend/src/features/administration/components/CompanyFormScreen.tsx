@@ -16,16 +16,11 @@ import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { Photo } from "@/src/shared/media/Photo";
 import { pickPhoto, uploadPhoto } from "@/src/shared/media/helpers";
-import { CompanyModule } from "@/src/core/auth/company-modules";
+import { CompanyModuleConfigurator } from "./CompanyModuleConfigurator";
 import { formatEUR } from "@/src/shared/utils/format";
 import { colors as c } from "@/src/shared/theme/legacy";
-import { companyForm, companyPayload, CompanyForm, CompanyErrors, requiredCompanyFields, validateCompany, formatCompanyDate, formatCompanyPostalCode, companySteps, isCompanyStepComplete, companyFieldStep, validateCompanyStep, selectCompanyModules, defaultMonthlyFee } from "@/src/features/administration/company-profile";
+import { companyForm, companyPayload, CompanyForm, CompanyErrors, requiredCompanyFields, validateCompany, formatCompanyDate, formatCompanyPostalCode, companySteps, isCompanyStepComplete, companyFieldStep, validateCompanyStep } from "@/src/features/administration/company-profile";
 
-const businesses: { label: string; hint: string; icon: keyof typeof Ionicons.glyphMap; modules: CompanyModule[] }[] = [
-  { label: "Oficina", hint: "Manutenção e reparação", icon: "construct-outline", modules: ["workshop"] },
-  { label: "Stand", hint: "Compra e venda de viaturas", icon: "car-sport-outline", modules: ["stand"] },
-  { label: "Oficina + Stand", hint: "Os dois negócios, uma conta", icon: "business-outline", modules: ["workshop", "stand"] },
-];
 export function CompanyFormScreen({ mode }: { mode: "create" | "edit" }) {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = mode === "edit" ? params.id : undefined;
@@ -104,7 +99,7 @@ function WorkshopEditor({ id, data }: { id?: string; data?: any }) {
     setErrors({}); setError(""); setStep(target);
   };
   const update = <K extends keyof CompanyForm>(key: K, value: CompanyForm[K]) => {
-    setForm(prev => key === "modules" ? selectCompanyModules(prev, value as CompanyModule[]) : ({ ...prev, [key]: value })); setErrors(prev => ({ ...prev, ...(key === "phone" || key === "mobile" ? { phone: undefined, mobile: undefined } : {}), [key]: undefined }));
+    setForm(prev => ({ ...prev, [key]: value })); setErrors(prev => ({ ...prev, ...(key === "phone" || key === "mobile" ? { phone: undefined, mobile: undefined } : {}), [key]: undefined }));
   };
   const field = (key: keyof CompanyForm, label: string, props: TextInputProps & { trailingAction?: React.ReactNode } = {}, hint?: string) =><View style={s.field} key={key}>
     <Input inputRef={node => { if (node) inputs.current[key] = node; }} testID={`workshop-${key.replace(/_/g, "-")}`} label={`${label}${key in requiredCompanyFields ? " *" : ""}`} value={String(form[key] || "")} editable={!busy && !cloudBusy} onChangeText={value => update(key, (key === "activity_start_date" ? formatCompanyDate(value, form.activity_start_date) : key === "postal_code" && portugueseAddress ? formatCompanyPostalCode(value, form.postal_code) : numericCompanyInput(key, value)) as never)} error={errors[key]} {...props} />
@@ -153,13 +148,8 @@ function WorkshopEditor({ id, data }: { id?: string; data?: any }) {
       <View style={s.card} testID="company-step-panel">
         <View style={s.sectionHeader}><View style={s.number}><Text style={s.numberText}>0{step + 1}</Text></View><Text accessibilityRole="header" style={[s.sectionTitle, s.flex]}>{["Introdução", "Identificação da empresa", "Morada", "Faturação e assistência", "Contactos e pessoa responsável"][step]}</Text><Pressable accessibilityRole="button" accessibilityLabel={cloudSaved ? "Rascunho guardado na base de dados. Guardar novamente" : "Guardar rascunho na base de dados"} testID="company-save-draft" disabled={busy || cloudBusy || logoBusy} onPress={() => void saveCloudDraft()} style={[s.draftButton, cloudSaved && s.draftSaved]}>{cloudBusy ? <ActivityIndicator size="small" color={c.brandPrimary} /> : cloudSaved ? <View style={s.cloudIndicator}><Ionicons name="cloud-done-outline" size={24} color="#24754B" /><Ionicons name="checkmark" size={14} color="#24754B" /></View> : <Ionicons name="save-outline" size={22} color={c.brandPrimary} />}</Pressable></View>
       {step === 0 && <>
-      <View testID="company-module-options">
-        <View style={[s.businessOptions, paired && s.fieldsRow]}>{businesses.map(option => {
-          const selected = form.modules.join() === option.modules.join();
-          return <Pressable key={option.label} testID={`company-modules-${option.modules.join("-")}`} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: busy || cloudBusy }} accessibilityLabel={option.label} disabled={busy || cloudBusy} onPress={() => update("modules", option.modules)} style={({ pressed }) => [s.business, selected && s.selected, pressed && s.pressed]}><View style={[s.businessIcon, selected && s.iconSelected]}><Ionicons name={option.icon} color={selected ? c.brandPrimary : c.onSurfaceTertiary} size={24} /></View><View style={s.flex}><Text style={s.optionTitle}>{option.label}</Text><Text style={s.hint}>{option.hint}</Text><Text style={s.priceHint}>{formatEUR(defaultMonthlyFee(option.modules))}/mês</Text></View><Ionicons name={selected ? "radio-button-on" : "radio-button-off"} color={selected ? c.brandPrimary : c.borderStrong} size={21} /></Pressable>;
-        })}</View>
-      </View>
       <View style={s.fields}>{field("name", "Nome comercial", { placeholder: "Ex.: Auto Central", maxLength: 100 })}{field("description", "Descrição da empresa", { placeholder: "Uma breve apresentação do negócio…", multiline: true, maxLength: 2000, style: s.multiline })}</View>
+      <CompanyModuleConfigurator form={form} disabled={busy || cloudBusy || logoBusy} error={errors.enabled_modules} onChange={next => { setForm(next); setErrors(previous => ({ ...previous, enabled_modules: undefined })); }} />
       </>}
       {step === 1 && <View style={s.columns}>
           <View style={s.fields} testID="workshop-form-details">
@@ -183,7 +173,7 @@ function WorkshopEditor({ id, data }: { id?: string; data?: any }) {
           </View></>}
       {step === 3 && <View style={[s.columns, desktop && s.fieldsRow]}>
         <View style={[s.column, desktop && s.flex]} testID="company-billing-terms"><Text style={s.subheading}>Condições de faturação</Text>
-          {field("monthly_fee", "Valor mensal acordado (€)", { placeholder: "Ex.: 200,00", keyboardType: "decimal-pad", maxLength: 16 }, "Valor sugerido pelo tipo de empresa. Pode ajustá-lo ao acordo com o cliente.")}
+          {field("monthly_fee", "Total mensal: base + módulos ativos (€)", { editable: false }, "Calculado na Introdução. Ajuste o valor base ou os preços de cada módulo nessa etapa.")}
           <View style={s.entityGroup}><Text style={s.label}>Periodicidade de pagamento *</Text><View style={[s.entityOptions, paired && s.fieldsRow]}>{[{ value: "monthly", label: "Mensal" }, { value: "quarterly", label: "Trimestral" }, { value: "yearly", label: "Anual" }].map(option => <Pressable key={option.value} testID={`company-billing-cycle-${option.value}`} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{ checked: form.billing_cycle === option.value }} disabled={busy || cloudBusy} onPress={() => update("billing_cycle", option.value)} style={[s.cycleOption, form.billing_cycle === option.value && s.selected]}><Text style={s.label}>{option.label}</Text></Pressable>)}</View>{errors.billing_cycle && <Text style={s.invalid}>{errors.billing_cycle}</Text>}</View>
           {!!form.monthly_fee.trim() && !validateCompanyStep(form, 3).monthly_fee && <Text style={s.billingTotal}>{formatEUR(Number(form.monthly_fee.replace(",", ".")) * (form.billing_cycle === "quarterly" ? 3 : form.billing_cycle === "yearly" ? 12 : 1))} {form.billing_cycle === "quarterly" ? "a cada 3 meses" : form.billing_cycle === "yearly" ? "por ano" : "por mês"}</Text>}
           {field("payment_day", "Dia de pagamento", { placeholder: "1 a 31", keyboardType: "number-pad", maxLength: 2 }, "Nos meses sem esse dia, considera-se o último dia do mês.")}

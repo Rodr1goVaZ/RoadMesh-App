@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
 import { View, Text, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +8,7 @@ import { api } from "@/src/core/http/api";
 import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 export default function ClientHistory() {
+  const { user } = useAuth();
   const { data = [], error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const wide = useWindowDimensions().width >= 700;
   return <AreaPage title="Histórico" testID="portal-history" back={false}>
@@ -18,6 +21,6 @@ export default function ClientHistory() {
         <Button title="Consultar histórico completo" onPress={() => router.push({ pathname: "/(portal)/carro", params: { id: vehicle.id } })} />
       </Panel></View>)}
     </View>
-    <Button testID="portal-history-appointments" title="Histórico de marcações" variant="secondary" onPress={() => router.push("/(portal)/marcacoes")} />
+    {hasFeature(user, "customer_notifications") && <Button testID="portal-history-appointments" title="Histórico de marcações" variant="secondary" onPress={() => router.push("/(portal)/marcacoes")} />}
   </AreaPage>;
 }

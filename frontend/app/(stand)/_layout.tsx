@@ -21,7 +21,7 @@ export default function StandLayout() {
   if (!companyModules(support || user).includes("stand")) return <Redirect href={support ? companyHome(support) : homeFor(user)} />;
   return <WorkspaceVisualContext.Provider value={true}><View style={{ flex: 1, backgroundColor: c.background }}>
     <SupportBanner />
-    <WorkspaceHeader name={user.name} subtitle={`Stand · ${support?.name || user.workshop_name}`} items={items} profileHref="/(stand)/stand-mais" actionHref="/(stand)/stand-viaturas" actionLabel="Consultar inventário do Stand" actionIcon="car-sport-outline" testID="stand-header" />
+    <WorkspaceHeader items={items} profileHref={user.role === "admin" ? "/(admin)/conta" : "/(stand)/stand-conta"} actionHref="/(stand)/stand-viaturas" actionLabel="Consultar inventário do Stand" actionIcon="car-sport-outline" testID="stand-header" />
     {!mobile && <ModuleSwitch current="stand" />}
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.background } }} />
     {mobile && <><ModuleSwitch current="stand" /><WorkspaceNavigation items={items} mobile /></>}

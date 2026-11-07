@@ -7,7 +7,7 @@ import { api } from "@/src/core/http/api";
 import { AreaPage, QueryState } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
-import { companyModules } from "@/src/core/auth/company-modules";
+import { featureSummary } from "@/src/core/auth/company-features";
 import { workspaceColors as c } from "@/src/shared/theme/workspace";
 
 const FILTERS = { all: "Todas", active: "Ativas", disabled: "Inativas", archived: "Arquivadas" };
@@ -25,7 +25,7 @@ export default function Empresas() {
       {wide && !!data.length && <View style={[s.companyRow, s.tableHead]}><Text style={[s.business, s.columnTitle]}>EMPRESA</Text><Text style={[s.contact, s.columnTitle]}>RESPONSÁVEL</Text><Text style={[s.state, s.columnTitle]}>ESTADO</Text><View style={s.action} /></View>}
       {!isLoading && !error && !data.length && <View style={s.empty}><Ionicons name="business-outline" size={32} color={c.muted} /><Text testID="admin-workshops-empty" style={s.companyName}>Nenhuma empresa encontrada.</Text><Text style={s.hint}>Experimente outro nome ou ajuste os filtros.</Text></View>}
       {data.map((company: any) => <View testID={`admin-workshop-${company.id}`} key={company.id} style={[s.companyRow, !wide && s.mobileRow]}>
-        <View style={[s.business, s.identity]}><View style={s.companyIcon}><Ionicons name="business-outline" size={23} color={c.brand} /></View><View style={s.flex}><Text style={s.companyName}>{company.name}</Text><Text style={s.hint}>{companyModules(company).map(m => m === "stand" ? "Stand" : "Oficina").join(" + ")}</Text><Text style={s.small}>NIF/NIPC {company.nif || "não indicado"}</Text></View></View>
+        <View style={[s.business, s.identity]}><View style={s.companyIcon}><Ionicons name="business-outline" size={23} color={c.brand} /></View><View style={s.flex}><Text style={s.companyName}>{company.name}</Text><Text style={s.hint}>{featureSummary(company)}</Text><Text style={s.small}>NIF/NIPC {company.nif || "não indicado"}</Text></View></View>
         <View style={s.contact}>{!wide && <Text style={s.small}>Responsável</Text>}<Text style={s.contactName}>{company.manager_name || "Por indicar"}</Text><Text style={s.hint}>{company.manager_email || "Email não indicado"}</Text></View>
         <View style={s.state}><View style={[s.status, company.status === "active" && s.statusActive]}><Text testID={`admin-workshop-status-${company.id}`} style={[s.statusText, company.status === "active" && { color: "#357962" }]}>{STATUS[company.status] || company.status}</Text></View></View>
         <View style={s.action}><Button testID={`admin-workshop-open-${company.id}`} title="Ver empresa" variant="secondary" onPress={() => router.push({ pathname: "/(admin)/empresa", params: { id: company.id } })} /></View>

@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,6 +12,7 @@ import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export function QuoteCard({ quote }: { quote: any }) {
+  const { user, support } = useAuth(); const notifications = hasFeature(support || user, "customer_notifications");
   const qc = useQueryClient();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -50,10 +53,10 @@ export function QuoteCard({ quote }: { quote: any }) {
     {expanded && <View testID={`quote-lines-${id}`} style={styles.lines}>{quote.items.map((item: any, index: number) => <Text testID={`quote-line-${id}-${index}`} key={item.id || index} style={styles.hint}>{item.item_type === "peca" ? "Peça" : "Mão de obra"} · {item.description} · {item.quantity} × {formatEUR(item.unit_price)}</Text>)}
       <Text testID={`quote-tax-${id}`} style={styles.hint}>Subtotal {formatEUR(quote.subtotal)} · IVA {formatEUR(quote.vat)}</Text>
     </View>}
-    <View style={styles.row}>
+    {notifications && <View style={styles.row}>
       <Button testID={`quote-email-${id}`} title="Email" variant="secondary" style={styles.flex} disabled={!!busy} loading={busy === "email"} onPress={() => send("email")} />
       <Button testID={`quote-whatsapp-${id}`} title="WhatsApp" variant="secondary" style={styles.flex} disabled={!!busy} loading={busy === "whatsapp"} onPress={() => send("whatsapp")} />
-    </View>
+    </View>}
     <Feedback testID={`quote-error-${id}`} error message={error} />
     {error.includes("contactos") && <Button testID={`quote-edit-client-${id}`} title="Abrir ficha do cliente" variant="ghost" onPress={() => router.push(`/(app)/clientes/${quote.client_id}`)} />}
     <Feedback testID={`quote-feedback-${id}`} message={message} />

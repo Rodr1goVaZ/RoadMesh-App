@@ -15,6 +15,8 @@ function createSession(fetch) {
     getItem: async key => values.get(key) ?? null,
     setItem: async (key, value) => { values.set(key, value); },
     removeItem: async key => { values.delete(key); },
+    getAllKeys: async () => [...values.keys()],
+    multiRemove: async keys => { keys.forEach(key => values.delete(key)); },
   };
   const modules = {
     'react-native': { Platform: { OS: 'web' } },
@@ -23,8 +25,8 @@ function createSession(fetch) {
     '@/src/core/config': { API_BASE: 'http://isolated-test/api' },
     '@/src/core/auth/events': { authEvents: { emit: status => events.push(status) } },
   };
-  const { session } = loadTypeScript('../src/core/auth/session.ts', { modules, globals: { fetch, atob, Date, Promise } });
-  return { session, events };
+  const { session } = loadTypeScript('../src/core/auth/session.ts', { modules, globals: { fetch, atob, Date, Promise, AbortController, setTimeout, clearTimeout } });
+  return { session, events, values };
 }
 
 function response(accessToken) {
@@ -88,4 +90,29 @@ test('network failure does not discard a stored token or emit a logout', async (
   await assert.rejects(session.getFreshToken(), /offline/);
   assert.equal(await session.getToken(), stored);
   assert.deepEqual(events, []);
+});
+
+test('logout discards cached private drafts and preserves unrelated preferences', async () => {
+  const { session, values } = createSession(() => assert.fail('unexpected request'));
+  values.set('roadmesh:company-draft:v1:user:new', 'private company details');
+  values.set('theme', 'dark');
+  await session.clearPrivateDrafts();
+  assert.equal(values.has('roadmesh:company-draft:v1:user:new'), false);
+  assert.equal(values.get('theme'), 'dark');
+});
+
+test('logout revokes the captured session even after local credentials have been erased', async () => {
+  let calls = 0;
+  const { session } = createSession(async (url, options) => {
+    calls++;
+    assert.equal(url, 'http://isolated-test/api/auth/logout');
+    assert.equal(options.headers.Authorization, 'Bearer captured-token');
+    assert.equal(options.cache, 'no-store');
+    assert.equal(options.method, 'POST');
+    return { ok: true };
+  });
+  await session.clearToken();
+  await session.revoke('captured-token');
+  assert.equal(calls, 1);
+  assert.equal(await session.getToken(), null);
 });

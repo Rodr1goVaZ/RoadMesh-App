@@ -11,7 +11,12 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
 import { DashboardHero, DashboardMetrics, DashboardAction, dashboardStyles as ds } from "@/src/shared/layout/DashboardUI";
 import { workspaceColors as c, workspaceStyles } from "@/src/shared/theme/workspace";
+import { ModularDashboard } from "@/src/features/workspace/ModularDashboard";
 export default function Inicio() {
+  const { user, support } = useAuth();
+  return (support || user)?.subscription_version === 1 ? <ModularDashboard /> : <LegacyInicio />;
+}
+function LegacyInicio() {
   const { user, support } = useAuth(); const wide = useWindowDimensions().width >= 900;
   const { data, error, isLoading, refetch, isRefetching } = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get("/dashboard") });
   const k = data?.kpis; const recent = data?.recent_work_orders || [];

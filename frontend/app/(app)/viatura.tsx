@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +13,7 @@ import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
 import { formatDate, formatEUR } from "@/src/shared/utils/format";
 
 export default function VehicleDetail() {
+  const { user, support } = useAuth(); const company = support || user;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["vehicle", id], queryFn: () => api.get(`/vehicles/${id}`), enabled: !!id });
   return <View style={styles.screen}>
@@ -28,14 +31,15 @@ export default function VehicleDetail() {
           {data.client && <Button title="Ver cliente" testID="vehicle-open-client" variant="ghost" onPress={() => router.push(`/(app)/clientes/${data.client_id}`)} />}
         </View>
         <DamageQuickActions vehicleId={id} testID="vehicle-damage" />
-        <Button testID="vehicle-open-damages" title={`Ver danos (${data.damages?.length || 0})`} variant="secondary" onPress={() => router.push({ pathname: "/(app)/danos", params: { vehicle_id: id } })} />
+        {hasFeature(company, "vehicle_reception") && <><Button testID="vehicle-open-damages" title={`Ver danos (${data.damages?.length || 0})`} variant="secondary" onPress={() => router.push({ pathname: "/(app)/danos", params: { vehicle_id: id } })} />
         <Button testID="vehicle-open-photos" title="Fotografias da viatura" variant="secondary" onPress={() => router.push(`/(app)/fotos/${id}`)} />
-        <Text testID="vehicle-history-heading" style={styles.title}>Histórico de serviços</Text>
+        </>}
+        {hasFeature(company, "service_orders") && <><Text testID="vehicle-history-heading" style={styles.title}>Histórico de serviços</Text>
         {!data.work_orders?.length && <Text testID="vehicle-history-empty" style={styles.hint}>Esta viatura ainda não tem ordens de serviço.</Text>}
         {data.work_orders?.map((order: any) => <View key={order.id} style={styles.card}>
           <Text testID={`vehicle-order-summary-${order.id}`} style={styles.hint}>Ordem de Serviço {order.number} · {formatDate(order.created_at)} · {formatEUR(order.total)}</Text>
           <Button testID={`vehicle-open-order-${order.id}`} title="Ver serviço" variant="ghost" onPress={() => router.push(`/(app)/servico/${order.id}`)} />
-        </View>)}
+        </View>)}</>}
       </>}
     </ScrollView>
   </View>;

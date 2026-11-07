@@ -9,7 +9,7 @@ def tables_for_version(version):
     prefix = 'RoadMesh PostgreSQL schema version '
     inventories = {prefix + str(n) + '; private server access': tables for n, tables in (
         (2, BASE), (3, BASE + BUSINESS), (5, BASE + BUSINESS + STAND),
-        (6, BASE + BUSINESS + STAND + PLATFORM))}
+        (6, BASE + BUSINESS + STAND + PLATFORM), (7, BASE + BUSINESS + STAND + PLATFORM + ['module_presets']))}
     if version not in inventories:
         raise ValueError('Unsupported RoadMesh snapshot schema')
     return inventories[version]

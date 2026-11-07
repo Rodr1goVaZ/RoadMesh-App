@@ -1,3 +1,5 @@
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -5,6 +7,7 @@ import { router } from "expo-router";
 import { Photo } from "@/src/shared/media/Photo";
 import { portalColors as c } from "@/src/features/portal/theme";
 export function VehicleCard({ vehicle, nextDate, featured = false }: { vehicle: any; nextDate?: string | null; featured?: boolean }) {
+  const { user } = useAuth(); const notifications = hasFeature(user, "customer_notifications");
   const open = () => router.push({ pathname: "/(portal)/carro", params: { id: vehicle.id } });
   return <View testID={`portal-car-${vehicle.id}`} style={s.card}>
     <View style={s.photoWrap}>
@@ -16,10 +19,10 @@ export function VehicleCard({ vehicle, nextDate, featured = false }: { vehicle: 
       <Text testID={`portal-car-specs-${vehicle.id}`} style={s.hint}>{[vehicle.fuel, vehicle.year].filter(Boolean).join(" · ") || "Dados disponíveis na ficha da viatura"}</Text>
       <View style={s.stats}>
         <View style={s.stat}><Ionicons name="speedometer-outline" size={21} color={c.muted} /><Text style={s.statValue}>{vehicle.mileage != null ? vehicle.mileage.toLocaleString("pt-PT") + " km" : "Não indicada"}</Text><Text style={s.statLabel}>Quilometragem</Text></View>
-        <View style={s.stat}><Ionicons name="calendar-outline" size={21} color={c.muted} /><Text style={[s.statValue, { color: c.brand }]}>{nextDate ? new Date(nextDate).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Lisbon" }) : nextDate === null ? "Por agendar" : "Consultar agenda"}</Text><Text style={s.statLabel}>Próxima marcação</Text></View>
+        {notifications && <View style={s.stat}><Ionicons name="calendar-outline" size={21} color={c.muted} /><Text style={[s.statValue, { color: c.brand }]}>{nextDate ? new Date(nextDate).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Lisbon" }) : nextDate === null ? "Por agendar" : "Consultar agenda"}</Text><Text style={s.statLabel}>Próxima marcação</Text></View>}
       </View>
       <View style={s.actions}>
-        <Pressable testID={`portal-car-schedule-${vehicle.id}`} accessibilityRole="button" onPress={() => router.push({ pathname: "/(portal)/marcacoes", params: { vehicleId: vehicle.id, novo: "1" } })} style={({ pressed }) => [s.schedule, pressed && { opacity: 0.8 }]}><Ionicons name="calendar-outline" size={19} color="#FFF" /><Text style={s.scheduleText}>Agendar</Text></Pressable>
+        {notifications && <Pressable testID={`portal-car-schedule-${vehicle.id}`} accessibilityRole="button" onPress={() => router.push({ pathname: "/(portal)/marcacoes", params: { vehicleId: vehicle.id, novo: "1" } })} style={({ pressed }) => [s.schedule, pressed && { opacity: 0.8 }]}><Ionicons name="calendar-outline" size={19} color="#FFF" /><Text style={s.scheduleText}>Agendar</Text></Pressable>}
         <Pressable testID={`portal-car-open-${vehicle.id}`} accessibilityRole="button" accessibilityLabel={`Ver carro e histórico de ${vehicle.license_plate}`} onPress={open} style={s.more}><Ionicons name="ellipsis-horizontal" size={23} color={c.muted} /></Pressable>
       </View>
     </View>

@@ -1,3 +1,4 @@
+import { hasFeature } from "@/src/core/auth/company-features";
 import React, { useState } from "react";
 import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -9,13 +10,15 @@ import { Button } from "@/src/shared/ui/Button";
 import { formatDateTime, formatEUR } from "@/src/shared/utils/format";
 
 export default function Histories() {
-  const { user, support } = useAuth(); const [resource, setResource] = useState("stock");
+  const { user, support } = useAuth(); const [selectedResource, setResource] = useState("stock");
+  const resources = Object.entries({ stock: "Stock", receipts: "Receções", orders: "Encomendas", services: "Ordens de Serviço", quotes: "Orçamentos", invoices: "Documentos", photos: "Fotografias", damages: "Danos", ...(user?.can_manage_workshop || support ? { payments: "Pagamentos e ajustes" } : {}) }).filter(([key]) => hasFeature(support || user, ["stock", "receipts", "orders"].includes(key) ? "inventory" : ["photos", "damages"].includes(key) ? "vehicle_reception" : "service_orders"));
+  const resource = resources.some(([key]) => key === selectedResource) ? selectedResource : resources[0]?.[0] || "";
   const [year, setYear] = useState(""); const [page, setPage] = useState(0);
-  const q = useQuery({ queryKey: ["history", resource, year, page], queryFn: () => api.get(`/history/${resource}?skip=${page * 50}&limit=50${year ? "&year=" + year : ""}`) });
+  const q = useQuery({ queryKey: ["history", resource, year, page], enabled: !!resource, queryFn: () => api.get(`/history/${resource}?skip=${page * 50}&limit=50${year ? "&year=" + year : ""}`) });
   return <AreaPage title="Históricos e movimentos" testID="histories">
-    {Object.entries({ stock: "Stock", receipts: "Receções", orders: "Encomendas", services: "Ordens de Serviço", quotes: "Orçamentos", invoices: "Documentos", photos: "Fotografias", damages: "Danos", ...(user?.can_manage_workshop || support ? { payments: "Pagamentos e ajustes" } : {}) }).map(([key, title]) =>
+    {resources.map(([key, title]) =>
       <Button key={key} title={title} variant={resource === key ? "primary" : "secondary"} onPress={() => { setResource(key); setYear(""); setPage(0); }} />)}
-    <YearFilter resource={resource} value={year} onChange={v => { setYear(v); setPage(0); }} />
+    {!!resource && <YearFilter resource={resource} value={year} onChange={v => { setYear(v); setPage(0); }} />}
     <QueryState loading={q.isLoading} error={q.error} retry={q.refetch} testID="history-query" />
     {q.data?.items.map((m: any) => <Panel key={m.id} testID={`history-${m.id}`} title={m.reason || m.description || m.product_name || m.supplier || m.document_number || m.number || m.kind || "Registo"}>
       <Text selectable style={areaStyles.hint}>{formatDateTime(m.created_at)} · {m.actor_name || "Registo anterior"}</Text>

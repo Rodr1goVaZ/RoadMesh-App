@@ -1,5 +1,7 @@
 # RoadMesh — módulos Oficina e Stand
 
+> Para a nova configuração por capacidades e presets editáveis, veja [Módulos independentes](MODULOS-INDEPENDENTES.md). Este documento descreve o modelo anterior, mantido para instalações ainda não convertidas.
+
 Implementação de 24/10/2026. Código desenvolvido na aplicação existente, na branch de trabalho, sem outro projeto, sistema de login ou novas dependências. Não foi aplicada qualquer migração na produção ou no Supabase de staging nesta etapa.
 
 ## Análise e solução adotada

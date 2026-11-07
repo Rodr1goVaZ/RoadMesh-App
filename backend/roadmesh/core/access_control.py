@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from roadmesh.core.company_modules import active_modules, require_module
+from roadmesh.core.module_catalog import guard_feature, is_modular, public_configuration
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from starlette.concurrency import run_in_threadpool
@@ -124,11 +125,12 @@ class Access:
                            "iat": now(), "exp": min(int((now() + timedelta(minutes=15)).timestamp()), session_exp)}, self.secret, algorithm="HS256")
 
     async def public(self, account):
-        result = {key: account.get(key) for key in ["id", "name", "email", "role", "workshop_id", "client_id", "is_manager", "is_active", "password_change_required"]}
+        result = {key: account.get(key) for key in ["id", "name", "email", "avatar_url", "role", "workshop_id", "client_id", "is_manager", "is_active", "password_change_required"]}
         result["can_manage_workshop"] = await self.is_workshop_manager(account)
-        workshop = await self.db.workshops.find_one({"id": account.get("workshop_id")}, {"_id": 0, "name": 1, "modules": 1}) if account.get("workshop_id") else None
+        workshop = await self.db.workshops.find_one({"id": account.get("workshop_id")}, {"_id": 0}) if account.get("workshop_id") else None
         result["workshop_name"] = workshop["name"] if workshop else "RoadMesh"
         result["modules"] = active_modules(workshop) if workshop else []
+        result.update(public_configuration(workshop))
         return result
 
     async def check_account(self, account):
@@ -196,35 +198,43 @@ class Access:
             raise HTTPException(403, "Acesso exclusivo da administração RoadMesh.")
         return account
 
-    async def client(self, token: str = Depends(bearer)):
+    async def client(self, request: Request, token: str = Depends(bearer)):
         account = await self.ready(await self.identity(token))
         if account["role"] != "client":
             raise HTTPException(403, "Acesso exclusivo da área de cliente.")
-        await require_module(self.db, account, "workshop")
-        return account
+        company = await self.db.workshops.find_one({"id": account["workshop_id"], "status": "active"}, {"_id": 0})
+        if not is_modular(company):
+            await require_module(self.db, account, "workshop")
+        guard_feature(company, request.url.path, request.method)
+        return {**account, **public_configuration(company)}
 
     async def company(self, request: Request, token: str = Depends(bearer)):
         account = await self.ready(await self.identity(token))
         if account["role"] == "workshop_staff":
             if request.headers.get("X-Support-Token"):
                 raise HTTPException(403, "Modo de suporte indisponível.")
-            company = await self.db.workshops.find_one({"id": account["workshop_id"]}, {"_id": 0, "modules": 1})
-            return {**account, "modules": active_modules(company)}
+            company = await self.db.workshops.find_one({"id": account["workshop_id"]}, {"_id": 0})
+            guard_feature(company, request.url.path, request.method)
+            return {**account, "modules": active_modules(company), **public_configuration(company)}
         if account["role"] != "admin":
             raise HTTPException(403, "Não tem acesso à área da oficina.")
         support = request.headers.get("X-Support-Token", "")
         context = await self.db.support_sessions.find_one({"digest": hashlib.sha256(support.encode()).hexdigest(), "actor_id": account["id"], "expires_at": {"$gt": now()}}, {"_id": 0})
         if not context:
             raise HTTPException(403, "Selecione uma oficina no painel de administração.")
-        workshop = await self.db.workshops.find_one({"id": context["workshop_id"]}, {"_id": 0, "id": 1, "modules": 1})
+        workshop = await self.db.workshops.find_one({"id": context["workshop_id"]}, {"_id": 0})
         if not workshop:
             raise HTTPException(404, "Oficina não encontrada")
+        if workshop.get("status") != "active":
+            raise HTTPException(403, "Esta empresa está inativa.")
         await self.audit(account, f"support:{request.method}", workshop["id"], request.url.path)
-        return {**account, "workshop_id": workshop["id"], "support_mode": True, "modules": active_modules(workshop)}
+        guard_feature(workshop, request.url.path, request.method)
+        return {**account, "workshop_id": workshop["id"], "support_mode": True, "modules": active_modules(workshop), **public_configuration(workshop)}
 
     async def workshop(self, request: Request, token: str = Depends(bearer)):
         account = await self.company(request, token)
-        await require_module(self.db, account, "workshop")
+        if not is_modular(account):
+            await require_module(self.db, account, "workshop")
         return account
 
     async def stand(self, request: Request, token: str = Depends(bearer)):
@@ -240,6 +250,9 @@ class Access:
 
 
 def register_auth_routes(api, access):
+    from roadmesh.core.account_profile import register_account_routes
+    register_account_routes(api, access)
+
     async def login_role(kind, body, request):
         expected = {"staff": "workshop_staff", "client": "client", "admin": "admin"}.get(kind)
         if kind is not None and not expected:

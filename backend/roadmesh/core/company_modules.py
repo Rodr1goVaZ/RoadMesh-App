@@ -1,8 +1,11 @@
 """Company modules share the existing workshop tenant and identity."""
 from fastapi import HTTPException
+from roadmesh.core.module_catalog import is_modular
 
 
 def active_modules(company):
+    if is_modular(company):
+        return ['workshop']  # Reuse the common workspace; access is checked per capability.
     # An absent configuration is a pre-modular workshop. An invalid explicit
     # configuration must never silently grant access to an additional module.
     value = company.get('modules', ['workshop']) if company else []

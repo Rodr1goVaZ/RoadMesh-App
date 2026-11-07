@@ -4,8 +4,9 @@ const { loadTypeScript } = require('./test-helpers.cjs');
 const schedule = loadTypeScript('../src/features/administration/company-opening-hours.ts');
 const validation = loadTypeScript('../src/shared/utils/validation.ts');
 const modules = loadTypeScript('../src/core/auth/company-modules.ts');
+const features = loadTypeScript('../src/core/auth/company-features.ts');
 const { companyForm, validateCompany, companyPayload } = loadTypeScript('../src/features/administration/company-profile.ts', {
-  modules: { '@/src/shared/utils/validation': validation, '@/src/core/auth/company-modules': modules, './company-opening-hours': schedule }, globals: { URL },
+  modules: { '@/src/shared/utils/validation': validation, '@/src/core/auth/company-modules': modules, '@/src/core/auth/company-features': features, './company-opening-hours': schedule }, globals: { URL },
 });
 const valid = () => ({ ...companyForm(), payment_day: '5', support_hours: '10', name: 'Auto Teste', legal_name: 'Auto Teste Lda.', nif: '500123456', entity_type: 'company',
   district: 'Lisboa', municipality: 'Sintra', address: 'Rua dos Testes 1', postal_code: '2710-001', phone: '+351 210 000 000', email: 'geral@teste.pt', manager_name: 'Responsável Teste', manager_email: 'responsavel@teste.pt' });

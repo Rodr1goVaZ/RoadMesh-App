@@ -5,9 +5,12 @@ import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { colors } from "@/src/shared/theme/legacy";
 
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { hasFeature } from "@/src/core/auth/company-features";
 export type StockProduct = { id: string; name: string; sale_price: number; vat_rate: number; stock: number };
 export function ProductPicker({ value, onChange, testID }: { value?: string | null; onChange: (product: StockProduct | null) => void; testID: string }) {
-  const { data = [], error } = useQuery<StockProduct[]>({ queryKey: ["products", "all"], queryFn: () => api.get("/products") });
+  const { user, support } = useAuth(); const active = hasFeature(support || user, "inventory");
+  const { data = [], error } = useQuery<StockProduct[]>({ queryKey: ["products", "all"], queryFn: () => api.get("/products"), enabled: active });
   return <View style={{ gap: 8 }}>
     <Text style={{ color: colors.muted, fontSize: 13 }}>Produto de stock ou peça avulsa</Text>
     <ScrollView horizontal contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">

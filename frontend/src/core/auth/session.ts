@@ -37,7 +37,7 @@ async function freshToken(): Promise<string | null> {
   if (!refreshPending) {
     const current = generation;
     refreshPending = (async () => {
-      const response = await fetch(`${API_BASE}/auth/refresh`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetch(`${API_BASE}/auth/refresh`, { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) {
         if (response.status === 401 && current === generation) authEvents.emit(401);
         throw new Error(response.status === 401 ? "Sessão expirada. Entre novamente." : "Não foi possível renovar a sessão. Tente novamente.");
@@ -52,6 +52,17 @@ async function freshToken(): Promise<string | null> {
 }
 
 export const session = {
+  clearPrivateDrafts: async () => {
+    const keys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith("roadmesh:company-draft:"));
+    if (keys.length) await AsyncStorage.multiRemove(keys);
+  },
+  revoke: async (token: string) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: "POST", cache: "no-store", headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+    } finally { clearTimeout(timer); }
+  },
   saveSupport: (support: any) => set(SUPPORT_KEY, JSON.stringify(support)),
   getSupport: async () => { const value = await get(SUPPORT_KEY); try { return value ? JSON.parse(value) : null; } catch { return null; } },
   clearSupport: () => del(SUPPORT_KEY),

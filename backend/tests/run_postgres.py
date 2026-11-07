@@ -13,7 +13,6 @@ from pathlib import Path
 
 import psycopg
 import requests
-from pgserver.postgres_server import POSTGRES_BIN_PATH
 
 from run_local import ROOT, available_port, wait_for
 
@@ -48,6 +47,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
                     return False
             wait_for(ready, embedded, 'Embedded PostgreSQL')
         else:
+            from pgserver.postgres_server import POSTGRES_BIN_PATH
             subprocess.run([str(POSTGRES_BIN_PATH/'initdb'), '-D',str(data), '-U','postgres', '-A','trust', '--no-locale', '-E','UTF8'], check=True)
             subprocess.run([str(POSTGRES_BIN_PATH/'pg_ctl'), '-D',str(data), '-l',str(temp/'postgres.log'), '-o',f"-k {temp} -h ''", '-w','start'], check=True)
             base_url = f'postgresql://postgres@/postgres?host={temp}'
@@ -60,7 +60,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
                     conn.execute('CREATE DATABASE roadmesh_test')
             url = base_url if embedded else f'postgresql://postgres@/roadmesh_test?host={temp}'
             with psycopg.connect(url) as conn:
-                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql', '005_company_modules_stand.sql', '006_platform_service_ledger.sql'):
+                for name in ('001_initial.sql', '002_backend_compatibility.sql', '003_business_modules.sql', '004_runtime_role.sql', '005_company_modules_stand.sql', '006_platform_service_ledger.sql', '007_module_presets.sql'):
                     conn.execute((ROOT / 'sql' / name).read_text(), prepare=False)
             env = {**os.environ, 'DATABASE_URL':url, 'DATABASE_POOL_SIZE':'4',
                 'JWT_SECRET':secrets.token_urlsafe(48),
@@ -75,7 +75,7 @@ process.on('SIGTERM', async()=>{{await server.stop(); await db.close(); process.
             port = env['EXPO_PUBLIC_BACKEND_URL'].rsplit(':', 1)[1]
             with (temp / 'api.log').open('w') as log:
                 process = subprocess.Popen([sys.executable, '-m', 'uvicorn', 'embedded_api:app' if embedded else 'server:app',
-                    '--app-dir',str(ROOT/'tests') if embedded else str(ROOT), '--host','127.0.0.1','--port',port,'--no-access-log'], cwd=ROOT, env=env,
+                    '--app-dir',str(ROOT/'tests') if embedded else str(ROOT), '--loop','asyncio:SelectorEventLoop', '--host','127.0.0.1','--port',port,'--no-access-log'], cwd=ROOT, env=env,
                     stdout=log, stderr=subprocess.STDOUT)
                 api = env['EXPO_PUBLIC_BACKEND_URL'] + '/api'
                 wait_for(lambda: requests.get(api+'/', timeout=1).status_code == 200, process, 'PostgreSQL API')

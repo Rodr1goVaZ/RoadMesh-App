@@ -8,7 +8,10 @@ import { AreaPage, QueryState } from "@/src/shared/layout/AreaUI";
 import { VehicleCard } from "@/src/features/portal/VehicleCard";
 import { portalColors as c, portalStyles } from "@/src/features/portal/theme";
 import { useNow } from "@/src/shared/hooks/useNow";
-export default function ClientHome() {
+import { useAuth } from "@/src/core/auth/AuthProvider";
+import { ModularDashboard } from "@/src/features/workspace/ModularDashboard";
+export default function ClientHome() { const { user } = useAuth(); return user?.subscription_version === 1 ? <ModularDashboard portal /> : <LegacyClientHome />; }
+function LegacyClientHome() {
   const wide = useWindowDimensions().width >= 700; const now = useNow();
   const vehicles = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const appointments = useQuery({ queryKey: ["portal-appointments"], queryFn: () => api.get("/portal/appointments") });

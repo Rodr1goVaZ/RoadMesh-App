@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { companyModules } from "@/src/core/auth/company-modules";
+import { featureSummary, featureCatalog } from "@/src/core/auth/company-features";
 import { AreaPage, QueryState, CredentialsNotice } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
@@ -45,7 +45,7 @@ export default function CompanyDetail() {
         <View style={[s.identityRow, wide && s.horizontal]}>
           <View style={[s.identity, wide && { flex: 1.6 }]}>
             {data.logo_media_id && <Photo mediaId={data.logo_media_id} testID="admin-workshop-logo" style={s.logo} />}
-            <View style={s.flex}><Text style={s.eyebrow}>EMPRESA</Text><Text accessibilityRole="header" style={s.title}>{data.name}</Text><View style={s.inline}><Text style={s.hint}>{companyModules(data).map(module => module === "stand" ? "Stand" : "Oficina").join(" + ")}</Text><Text testID="admin-workshop-state" style={[s.status, data.status !== "active" && s.inactive]}>{({ active: "Ativa", disabled: "Inativa", archived: "Arquivada" } as any)[data.status]}</Text></View><Text selectable style={s.contact}>{data.email || "Email geral não indicado"}</Text><Text selectable style={s.contact}>{data.mobile || data.phone || "Contacto não indicado"}</Text></View>
+            <View style={s.flex}><Text style={s.eyebrow}>EMPRESA</Text><Text accessibilityRole="header" style={s.title}>{data.name}</Text><View style={s.inline}><Text style={s.hint}>{featureSummary(data)}</Text><Text testID="admin-workshop-state" style={[s.status, data.status !== "active" && s.inactive]}>{({ active: "Ativa", disabled: "Inativa", archived: "Arquivada" } as any)[data.status]}</Text></View><Text selectable style={s.contact}>{data.email || "Email geral não indicado"}</Text><Text selectable style={s.contact}>{data.mobile || data.phone || "Contacto não indicado"}</Text></View>
           </View>
           <View style={[s.responsible, wide && s.flex, wide ? s.sideDivider : s.topDivider]}><Text style={s.eyebrow}>PESSOA RESPONSÁVEL</Text><Text style={s.responsibleName}>{responsible?.name || data.manager_name || "Não indicada"}</Text><Text selectable style={s.contact}>{responsible?.email || data.manager_email || "Email não indicado"}</Text></View>
         </View>
@@ -61,6 +61,7 @@ export default function CompanyDetail() {
         ].filter(([, value]) => value).map(([label, value]) => <View key={label} style={s.detail}><Text style={s.hint}>{label}</Text><Text selectable style={s.contact}>{value}</Text></View>)}</View>}
       </View>
       <View style={s.card} testID="company-activity"><Text style={s.sectionTitle}>Atividade da empresa</Text><View style={s.metrics}>{[{ label: "Clientes", value: data.metrics.clients }, { label: "Viaturas", value: data.metrics.vehicles }, { label: "Ordens de serviço", value: data.metrics.work_orders }, { label: "Faturação da empresa", value: formatEUR(data.metrics.revenue) }].map((metric, index) => <View key={metric.label} style={[s.metric, { flexBasis: wide ? "22%" : "45%" }]}><Text style={s.hint}>{metric.label}</Text><Text testID={`workshop-metrics-${index}-value`} style={s.metricValue}>{metric.value}</Text></View>)}</View></View>
+      {data.subscription_version === 1 && <View style={s.card} testID="company-module-contract"><Text style={s.sectionTitle}>Módulos e mensalidade</Text><Text style={s.contact}>Valor base: {formatEUR(Number(data.base_monthly_fee))}/mês</Text>{featureCatalog.filter(item => data.enabled_modules.includes(item.id)).map(item => <Text key={item.id} style={s.contact}>{item.name}: {formatEUR(Number(data.module_prices[item.id]))}/mês</Text>)}<Text style={s.sectionTitle}>Total mensal: {formatEUR(Number(data.monthly_fee))}</Text><Text style={s.hint}>Os meses registados mantêm os valores faturados.</Text></View>}
       <CompanyServicePanel company={data} />
       <View style={s.card}><Pressable accessibilityRole="button" accessibilityState={{ expanded: users }} testID="company-toggle-users" onPress={() => setUsers(!users)} style={s.disclosure}><Text style={[s.sectionTitle, s.flex]}>Utilizadores e acessos ({data.users.length})</Text><Ionicons name={users ? "chevron-up" : "chevron-down"} size={20} color={c.brandPrimary} /></Pressable>
         {users && <>

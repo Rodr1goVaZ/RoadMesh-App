@@ -1,5 +1,6 @@
 """Customer-owned vehicle history and workshop-confirmed appointments."""
 
+from roadmesh.core.module_catalog import enabled_features, is_modular
 from datetime import datetime, timezone
 from typing import Literal, Optional
 from zoneinfo import ZoneInfo
@@ -55,7 +56,10 @@ def register_portal_routes(api, db, access):
             raise HTTPException(404, "Viatura não encontrada")
         return vehicle
 
-    async def cover(vehicle):
+    async def cover(vehicle, account):
+        if is_modular(account) and "vehicle_reception" not in enabled_features(account):
+            vehicle["cover"] = None
+            return vehicle
         vehicle["cover"] = await db.photos.find_one(
             {"workshop_id": vehicle["workshop_id"], "vehicle_id": vehicle["id"]},
             {"_id": 0, "id": 1, "media_id": 1, "image_b64": 1},
@@ -76,11 +80,11 @@ def register_portal_routes(api, db, access):
     @api.get("/portal/vehicles")
     async def vehicles(account=Depends(access.client)):
         docs = await db.vehicles.find(own(account), {"_id": 0}).sort("license_plate", 1).to_list(1000)
-        return [await cover(vehicle) for vehicle in docs]
+        return [await cover(vehicle, account) for vehicle in docs]
 
     @api.get("/portal/vehicles/{vid}")
     async def vehicle_detail(vid: str, account=Depends(access.client)):
-        vehicle = await cover(await owned_vehicle(vid, account))
+        vehicle = await cover(await owned_vehicle(vid, account), account)
         scope = own(account, {"vehicle_id": vid})
         # Only customer-facing fields: mechanic notes/internal complaints are not disclosed.
         fields = {
@@ -96,6 +100,8 @@ def register_portal_routes(api, db, access):
         }
         orders = await db.work_orders.find(scope, fields).sort("created_at", -1).to_list(2000)
         quotes = await db.quotes.find(scope, fields).sort("created_at", -1).to_list(2000)
+        if is_modular(account) and "service_orders" not in enabled_features(account):
+            orders, quotes = [], []
         converted = {order.get("quote_id") for order in orders}
         history = [
             {
@@ -114,6 +120,8 @@ def register_portal_routes(api, db, access):
         photo_scope = {"workshop_id": account["workshop_id"], "vehicle_id": vid}
         photos = await db.photos.find(photo_scope, {"_id": 0}).sort("created_at", -1).to_list(500)
         damages = await db.damages.find(photo_scope, {"_id": 0}).sort("created_at", -1).to_list(500)
+        if is_modular(account) and "vehicle_reception" not in enabled_features(account):
+            photos, damages = [], []
         # Strip internal stock/product IDs from client-facing line items.
         for entry in history:
             entry["items"] = [
