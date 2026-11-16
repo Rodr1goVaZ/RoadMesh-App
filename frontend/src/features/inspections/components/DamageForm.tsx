@@ -1,10 +1,11 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Image } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import { ImagePickerAsset } from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, radius } from "@/src/shared/theme/legacy";
+import { radius } from "@/src/shared/theme/legacy";
 import { pickPhoto, uploadPhoto } from "@/src/shared/media/helpers";
 import { DAMAGE_TYPES } from "@/src/features/inspections/components/DamageQuickActions";
 import { Input } from "@/src/shared/ui/Input";
@@ -12,12 +13,16 @@ import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export const SEVERITIES = [
-  { id: "baixo", label: "Ligeira", color: colors.success },
-  { id: "medio", label: "Moderada", color: colors.warning },
-  { id: "critico", label: "Grave", color: colors.error },
+  { id: "baixo", label: "Ligeira", tone: "success" as const },
+  { id: "medio", label: "Moderada", tone: "warning" as const },
+  { id: "critico", label: "Grave", tone: "error" as const },
 ];
 
 export function DamageForm({ vehicleId, initialCategory = "risco" }: { vehicleId: string; initialCategory?: string }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const qc = useQueryClient();
   const [category, setCategory] = useState(initialCategory);
   const [severity, setSeverity] = useState("baixo");
@@ -51,12 +56,12 @@ export function DamageForm({ vehicleId, initialCategory = "risco" }: { vehicleId
   return <View testID="damage-form" style={styles.form}>
     <Text testID="damage-type-label" style={styles.label}>Tipo de dano</Text>
     <View style={styles.row}>{DAMAGE_TYPES.map(type => <Pressable testID={`damage-type-${type.id}`} key={type.id} disabled={loading} accessibilityRole="button" accessibilityState={{ selected: category === type.id }} onPress={() => setCategory(type.id)} style={({ pressed }) => [styles.choice, category === type.id && styles.selected, pressed && styles.pressed]}>
-      <Ionicons name={type.icon} size={22} color={category === type.id ? colors.onBrand : colors.brandPrimary} />
+      <Ionicons name={type.icon} size={22} color={category === type.id ? colors.onBrand : colors.brandAccent} />
       <Text style={[styles.choiceLabel, category === type.id && styles.selectedLabel]}>{type.label}</Text>
     </Pressable>)}</View>
     <Text testID="damage-severity-label" style={styles.label}>Gravidade</Text>
     <View style={styles.row}>{SEVERITIES.map(level => <Pressable testID={`damage-severity-${level.id}`} key={level.id} disabled={loading} accessibilityRole="button" accessibilityState={{ selected: severity === level.id }} onPress={() => setSeverity(level.id)} style={({ pressed }) => [styles.choice, severity === level.id && styles.outlined, pressed && styles.pressed]}>
-      <View style={[styles.dot, { backgroundColor: level.color }]} /><Text style={styles.choiceLabel}>{level.label}</Text>
+      <View style={[styles.dot, { backgroundColor: theme.tones[level.tone] }]} /><Text style={styles.choiceLabel}>{level.label}</Text>
     </Pressable>)}</View>
     <Input testID="damage-location" label="Zona da viatura (opcional)" placeholder="Ex.: porta dianteira esquerda" value={location} onChangeText={setLocation} maxLength={150} editable={!loading} />
     <Input testID="damage-description" label="Observações (opcional)" placeholder="Descreva o dano observado…" value={description} onChangeText={setDescription} multiline maxLength={1000} editable={!loading} />
@@ -74,14 +79,14 @@ export function DamageForm({ vehicleId, initialCategory = "risco" }: { vehicleId
     <Button testID="damage-save" title="Guardar dano" onPress={save} loading={loading} disabled={picking} />
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   form: { gap: 14 }, row: { flexDirection: "row", gap: 8 }, flex: { flex: 1 },
   label: { color: colors.onSurface, fontSize: 14, fontWeight: "600" },
   choice: { flex: 1, minHeight: 66, padding: 8, justifyContent: "center", alignItems: "center", borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 8 },
-  selected: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
-  outlined: { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: colors.brandTertiary },
+  selected: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
+  outlined: { borderColor: colors.brandAccent, borderWidth: 2, backgroundColor: colors.brandTertiary },
   choiceLabel: { color: colors.onSurface, fontSize: 12, fontWeight: "600" }, selectedLabel: { color: colors.onBrand },
   dot: { width: 8, height: 8, borderRadius: 4 },
   photo: { width: "100%", height: 200, borderRadius: radius.md, backgroundColor: colors.surface },
   pressed: { opacity: .7 },
-});
+}); });

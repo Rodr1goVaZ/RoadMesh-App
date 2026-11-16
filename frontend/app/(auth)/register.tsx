@@ -1,10 +1,13 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { router } from "expo-router";
-import { AreaPage, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Logo } from "@/src/shared/ui/Logo";
 import { Button } from "@/src/shared/ui/Button";
 export default function RegisterInfo() {
+  const areaStyles = useAreaStyles(); const styles = useStyles();
+
   return <AreaPage title="Obter acesso" testID="register-screen"><View style={styles.brand}><Logo size={110} testID="register-logo" /></View>
     <Text testID="register-help" style={areaStyles.title}>Uma conta, o acesso certo</Text>
     <Text testID="register-workshop-info" style={areaStyles.hint}>As contas de oficina são criadas pela administração RoadMesh. Se é gerente ou colaborador, utilize os dados fornecidos pelo responsável.</Text>
@@ -13,4 +16,4 @@ export default function RegisterInfo() {
     <Button title="Entrar como oficina" testID="register-staff-login" variant="secondary" onPress={() => router.replace("/(auth)/login")} />
   </AreaPage>;
 }
-const styles = StyleSheet.create({ brand: { alignItems: "center", paddingVertical: 24 } });
+const useStyles = createThemedStyles((theme) => {  return ({ brand: { alignItems: "center", paddingVertical: 24 } }); });

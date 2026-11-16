@@ -31,6 +31,7 @@ from roadmesh.core.request_logging import RequestDiagnostics
 from roadmesh.modules.history.routes import register_history
 from roadmesh.modules.auth.recovery import register_recovery
 from roadmesh.modules.stand.routes import register_stand_routes
+from roadmesh.modules.products.routes import register_product_routes, initialize_products
 from roadmesh.domain.business_rules import prevent_duplicate, validate_prices, text, year_scope, fingerprint, sale_from_margin
 from roadmesh.modules.operations.service import register_operations, ensure_charge, consider_restock, receive_order, Receipt, ensure_supplier
 
@@ -967,6 +968,8 @@ async def set_quote_status(qid: str, body: dict, user: CurrentUser):
 
 @api.post("/quotes/{qid}/convert")
 async def convert_quote_to_wo(qid: str, user: CurrentUser):
+    if is_modular(user) and "service_orders" not in enabled_features(user):
+        raise HTTPException(403, "Ative Ordens de serviço para converter o orçamento.")
     async def operation(session):
         q = await db.quotes.find_one(tenant_filter(user, {"id": qid}), {"_id": 0}, session=session)
         if not q:
@@ -1132,8 +1135,16 @@ async def dashboard(user: CurrentUser):
             summary["service_orders"] = {"services": await db.work_orders.count_documents(f)}
         if "vehicle_reception" in modules:
             summary["vehicle_reception"] = {"photos": await db.photos.count_documents(f), "damages": await db.damages.count_documents(f)}
-        if "customer_notifications" in modules:
-            summary["customer_notifications"] = {"appointments": await db.appointments.count_documents({**f, "status": {"$nin": ["cancelada", "concluida"]}})}
+        if "appointments" in modules:
+            summary["appointments"] = {"appointments": await db.appointments.count_documents({**f, "status": {"$nin": ["cancelada", "concluida"]}})}
+        for key, collection in (("quotes", "quotes"), ("invoicing", "invoices"), ("payments", "financial_movements")):
+            if key in modules:
+                summary[key] = {"records": await db[collection].count_documents(f)}
+        if "reports" in modules:
+            summary["reports"] = {"modules": len(modules)}
+        for module in modules:
+            if module not in summary:
+                summary[module] = {"records": await db.product_records.count_documents({**f, "module": module, "status": {"$ne": "arquivada"}})}
         return {"enabled_modules": modules, "module_summary": summary}
     f = tenant_filter(user)
     total = await db.work_orders.count_documents(f)
@@ -1183,6 +1194,7 @@ register_operations(api, db, access)
 register_history(api, db, access)
 register_recovery(api, access)
 register_stand_routes(api, db, access)
+register_product_routes(api, db, access)
 app.include_router(api)
 app.add_middleware(RequestDiagnostics)
 app.add_middleware(
@@ -1206,6 +1218,7 @@ async def _startup_storage():
     await initialize_integrity(db)
     await access.initialize()
     await initialize_presets(db)
+    await initialize_products(db)
     try:
         await run_in_threadpool(storage_configuration)
     except Exception as exc:

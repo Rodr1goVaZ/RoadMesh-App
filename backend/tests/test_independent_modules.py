@@ -7,6 +7,7 @@ import pytest
 import requests
 
 from conftest import API, checked
+from roadmesh.core.module_catalog import FEATURE_IDS
 
 MODULES = ("customer_database", "inventory", "service_orders", "vehicle_reception", "customer_notifications")
 PRICES = dict(zip(MODULES, ("10.10", "20.20", "30.30", "40.40", "50.50")))
@@ -33,7 +34,7 @@ def test_every_combination_authorizes_only_its_independent_capabilities(platform
     assert set(me["enabled_modules"]) == set(modules)
     dashboard = checked(staff.get(API + "/dashboard"))
     assert set(dashboard["module_summary"]) == set(modules)
-    for key, path in (("inventory", "/products"), ("service_orders", "/work-orders"), ("vehicle_reception", "/photos"), ("customer_notifications", "/appointments")):
+    for key, path in (("inventory", "/products"), ("service_orders", "/work-orders"), ("vehicle_reception", "/photos"), ("customer_notifications", "/workspace/customer_notifications/records")):
         assert staff.get(API + path).status_code == (200 if key in modules else 403)
     references = any(key in modules for key in ("customer_database", "service_orders", "vehicle_reception", "customer_notifications"))
     assert staff.get(API + "/vehicles").status_code == (200 if references else 403)
@@ -81,9 +82,9 @@ def test_portal_permissions_refresh_without_a_new_login(platform_session, compan
     assert detail["history"] == detail["photos"] == detail["damages"] == []
     assert detail["cover"] is None
     assert client.get(API + "/portal/appointments").status_code == 403
-    checked(configure(platform_session, company, ["customer_notifications"]))
+    checked(configure(platform_session, company, ["appointments"], module_prices={**PRICES,"appointments":"0"}))
     assert client.get(API + "/portal/appointments").status_code == 200
-    assert checked(client.get(API + "/auth/me"))["enabled_modules"] == ["customer_notifications"]
+    assert checked(client.get(API + "/auth/me"))["enabled_modules"] == ["appointments"]
     assert client.get(API + "/portal/profile").status_code == 200
 
 
@@ -102,7 +103,7 @@ def test_presets_are_editable_admin_only_and_never_rewrite_contracts(platform_se
     wid = company["user"]["workshop_id"]
     before = checked(platform_session.get(API + f"/admin/workshops/{wid}"))
     catalog = checked(platform_session.get(API + "/admin/module-catalog"))
-    assert {item["id"] for item in catalog["modules"]} == set(MODULES)
+    assert {item["id"] for item in catalog["modules"]} == set(FEATURE_IDS)
     assert company["session"].get(API + "/admin/module-catalog").status_code == 403
     preset = checked(platform_session.post(API + "/admin/module-presets", json={"name": "Preset de teste", "enabled_modules": ["inventory"], "revision": 0}), 201)
     body = {"name": "Nome novo", "enabled_modules": ["service_orders", "vehicle_reception"], "revision": preset["revision"]}

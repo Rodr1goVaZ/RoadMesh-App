@@ -1,7 +1,8 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { api } from "@/src/core/http/api";
@@ -9,17 +10,21 @@ import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 import { formatDate, formatEUR } from "@/src/shared/utils/format";
 
 export default function VehicleDetail() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const { user, support } = useAuth(); const company = support || user;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["vehicle", id], queryFn: () => api.get(`/vehicles/${id}`), enabled: !!id });
   return <View style={styles.screen}>
     <ScreenHeader title="Ficha da viatura" back testID="vehicle-detail-header" />
     <ScrollView contentContainerStyle={styles.content}>
-      {isLoading && <ActivityIndicator testID="vehicle-detail-loading" color={colors.brandPrimary} />}
+      {isLoading && <ActivityIndicator testID="vehicle-detail-loading" color={colors.brandAccent} />}
       <Feedback testID="vehicle-detail-error" message={error?.message} error />
       {error && <Button testID="vehicle-detail-retry" title="Tentar novamente" onPress={() => refetch()} />}
       {data && <>
@@ -44,11 +49,11 @@ export default function VehicleDetail() {
     </ScrollView>
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: { padding: spacing.lg, gap: 16, paddingBottom: 40 },
   card: { padding: spacing.lg, gap: 8, borderRadius: radius.lg, backgroundColor: colors.surfaceSecondary, ...shadows.card },
-  plate: { color: colors.brandPrimary, fontSize: 28, fontWeight: "800", letterSpacing: 1 },
+  plate: { color: colors.brandAccent, fontSize: 28, fontWeight: "800", letterSpacing: 1 },
   title: { fontSize: 20, fontWeight: "700", color: colors.onSurface },
   hint: { fontSize: 14, lineHeight: 21, color: colors.muted },
-});
+}); });

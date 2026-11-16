@@ -1,11 +1,16 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { TextInput, View, Text, StyleSheet, TextInputProps, Pressable } from "react-native";
+import { TextInput, View, Text, TextInputProps, Pressable } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { colors, radius, spacing } from "@/src/shared/theme/legacy";
+import { radius, spacing } from "@/src/shared/theme/legacy";
 
 type Props = TextInputProps & { label?: string; error?: string; inputRef?: React.Ref<TextInput>; trailingAction?: React.ReactNode };
 
 export function Input({ label, error, style, secureTextEntry, inputRef, trailingAction, ...rest }: Props) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const [visible, setVisible] = useState(false);
   return (
     <View style={styles.wrap}>
@@ -13,7 +18,9 @@ export function Input({ label, error, style, secureTextEntry, inputRef, trailing
       <View style={styles.field}>
         <TextInput
         ref={inputRef}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.placeholder}
+        keyboardAppearance={theme.scheme}
+        selectionColor={colors.brandAccent}
         {...rest}
         secureTextEntry={!!secureTextEntry && !visible}
         autoCapitalize={secureTextEntry ? "none" : rest.autoCapitalize}
@@ -30,7 +37,7 @@ export function Input({ label, error, style, secureTextEntry, inputRef, trailing
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   wrap: { gap: 6 },
   field: { position: "relative" },
   password: { paddingRight: 54 },
@@ -47,4 +54,4 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   err: { color: colors.error, fontSize: 12 },
-});
+}); });

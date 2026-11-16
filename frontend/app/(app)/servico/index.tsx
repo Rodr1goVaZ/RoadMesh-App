@@ -1,12 +1,13 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useListState } from "@/src/shared/hooks/useListState";
 import { YearFilter } from "@/src/shared/ui/YearFilter";
 import React from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from "react-native";
+import { View, Text, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { StatusChip } from "@/src/shared/ui/StatusChip";
 import { Fab } from "@/src/shared/ui/Fab";
 import { EmptyState } from "@/src/shared/ui/EmptyState";
@@ -21,6 +22,10 @@ const FILTERS = [
 ];
 
 export default function OrdensList() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const [year, setYear] = useListState("index-year", "");
   const [filter, setFilter] = useListState("index-filter", "todos");
@@ -83,7 +88,7 @@ export default function OrdensList() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   header: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingBottom: 8, gap: 8 },
   title: { fontSize: 22, fontWeight: "800", color: colors.onSurface },
   subtitle: { color: colors.muted, fontSize: 13 },
@@ -91,9 +96,9 @@ const styles = StyleSheet.create({
   searchInput: { paddingVertical: 10, fontSize: 14, color: colors.onSurface },
   chipsRow: { gap: 8, paddingVertical: 8, paddingRight: 12 },
   chip: { paddingHorizontal: 14, height: 36, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, justifyContent: "center", flexShrink: 0 },
-  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   chipTxt: { color: colors.onSurface, fontSize: 13, fontWeight: "600" },
-  chipTxtActive: { color: "#fff" },
+  chipTxtActive: { color: theme.tones.onAction },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 6, ...shadows.card },
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   number: { fontWeight: "800", fontSize: 15, color: colors.onSurface },
@@ -102,4 +107,4 @@ const styles = StyleSheet.create({
   rowBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   date: { fontSize: 12, color: colors.muted },
   total: { fontWeight: "700", color: colors.onSurface },
-});
+}); });

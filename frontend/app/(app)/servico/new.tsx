@@ -1,13 +1,14 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { ClientVehicleFields } from "@/src/shared/pickers/RelationPicker";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
@@ -16,6 +17,10 @@ import { ProductPicker } from "@/src/features/inventory/components/ProductPicker
 type Item = { item_type: "peca" | "mao_de_obra"; description: string; quantity: string; unit_price: string; vat_rate: number; product_id?: string | null };
 
 export default function NewWo() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { user, support } = useAuth(); const manager = !!user?.can_manage_workshop || !!support;
@@ -109,14 +114,14 @@ export default function NewWo() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, ...shadows.card },
   label: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
   chipsRow: { gap: 6, paddingVertical: 4 },
   chip: { paddingHorizontal: 12, height: 34, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: "center", flexShrink: 0 },
-  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   chipTxt: { fontSize: 12, color: colors.onSurface, fontWeight: "600" },
-  chipTxtActive: { color: "#fff" },
+  chipTxtActive: { color: theme.tones.onAction },
   sticky: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: colors.surfaceSecondary,
     borderTopColor: colors.border, borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingTop: 12 },
-});
+}); });

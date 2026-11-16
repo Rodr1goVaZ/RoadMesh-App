@@ -3,7 +3,7 @@ import { Text } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useNow } from "@/src/shared/hooks/useNow";
-import { Panel, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Panel, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
@@ -11,6 +11,8 @@ import { appointmentLocal, localToInputs } from "@/src/features/appointments/com
 export const APPOINTMENT_STATUS: Record<string, string> = { agendada: "Agendada · Aguarda confirmação", confirmada: "Confirmada", concluida: "Concluída", cancelada: "Cancelada" };
 export function appointmentLabel(local: string) { const { date, time } = localToInputs(local); return `${date} às ${time}`; }
 export function AppointmentCard({ item, portal, onEdit }: { item: any; portal: boolean; onEdit: (item: any) => void }) {
+  const areaStyles = useAreaStyles();
+
   const now = useNow();
   const qc = useQueryClient(); const [details, setDetails] = useState(false); const [confirm, setConfirm] = useState(""); const [suggest, setSuggest] = useState(false);
   const [date, setDate] = useState(""); const [time, setTime] = useState(""); const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");

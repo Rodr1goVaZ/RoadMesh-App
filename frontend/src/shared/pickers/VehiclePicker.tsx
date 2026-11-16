@@ -1,14 +1,19 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { normalizeIdentifier } from "@/src/shared/utils/validation";
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, radius } from "@/src/shared/theme/legacy";
+import { radius } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { Button } from "@/src/shared/ui/Button";
 
 export function VehiclePicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const [search, setSearch] = useState("");
   const { data = [], isLoading, error, refetch } = useQuery({ queryKey: ["vehicles-all"], queryFn: () => api.get("/vehicles") });
   const selected = data.find((v: any) => v.id === value);
@@ -16,7 +21,7 @@ export function VehiclePicker({ value, onChange }: { value: string; onChange: (i
   const filtered = data.filter((v: any) => normalizeIdentifier(v.license_plate).includes(normalized));
   return <View style={styles.wrap}>
     <Text testID="damage-vehicle-label" style={styles.label}>Viatura</Text>
-    {isLoading && <ActivityIndicator testID="damage-vehicles-loading" color={colors.brandPrimary} />}
+    {isLoading && <ActivityIndicator testID="damage-vehicles-loading" color={colors.brandAccent} />}
     <Feedback error testID="damage-vehicles-error" message={error?.message} />
     {error && <Button testID="damage-vehicles-retry" title="Tentar novamente" onPress={() => refetch()} />}
     {selected ? <View style={styles.selected}>
@@ -31,11 +36,11 @@ export function VehiclePicker({ value, onChange }: { value: string; onChange: (i
     </>}
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   wrap: { gap: 8 },
   selected: { backgroundColor: colors.brandTertiary, borderRadius: radius.md, padding: 12 },
   label: { fontSize: 14, fontWeight: "600", color: colors.onSurface },
   option: { padding: 12, minHeight: 48, justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.surface },
   hint: { color: colors.muted, fontSize: 14 },
   pressed: { opacity: .7 },
-});
+}); });

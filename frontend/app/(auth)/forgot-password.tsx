@@ -1,6 +1,6 @@
 import { isValidEmail } from "@/src/shared/utils/validation";
 import React, { useState } from "react";
-import { AreaPage, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
@@ -8,6 +8,8 @@ import { api } from "@/src/core/http/api";
 import { Text } from "react-native";
 
 export default function ForgotPassword() {
+  const areaStyles = useAreaStyles();
+
   const [email, setEmail] = useState(""); const [message, setMessage] = useState("");
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const submit = async () => {

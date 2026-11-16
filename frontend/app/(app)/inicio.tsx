@@ -1,5 +1,6 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
-import { View, Text, StyleSheet, Pressable, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { api } from "@/src/core/http/api";
@@ -9,14 +10,20 @@ import { StatusChip } from "@/src/shared/ui/StatusChip";
 import { formatEUR, todayLongPT } from "@/src/shared/utils/format";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { DamageQuickActions } from "@/src/features/inspections/components/DamageQuickActions";
-import { DashboardHero, DashboardMetrics, DashboardAction, dashboardStyles as ds } from "@/src/shared/layout/DashboardUI";
-import { workspaceColors as c, workspaceStyles } from "@/src/shared/theme/workspace";
+import { DashboardHero, DashboardMetrics, DashboardAction, useDashboardStyles as useDashboardStylesds } from "@/src/shared/layout/DashboardUI";
+import { useWorkspaceStyles } from "@/src/shared/theme/workspace";
 import { ModularDashboard } from "@/src/features/workspace/ModularDashboard";
 export default function Inicio() {
   const { user, support } = useAuth();
   return (support || user)?.subscription_version === 1 ? <ModularDashboard /> : <LegacyInicio />;
 }
 function LegacyInicio() {
+  const theme = useAppTheme();
+  const c = theme.workspace;
+  const ds = useDashboardStylesds();
+  const workspaceStyles = useWorkspaceStyles();
+  const s = useStyles();
+
   const { user, support } = useAuth(); const wide = useWindowDimensions().width >= 900;
   const { data, error, isLoading, refetch, isRefetching } = useQuery({ queryKey: ["dashboard"], queryFn: () => api.get("/dashboard") });
   const k = data?.kpis; const recent = data?.recent_work_orders || [];
@@ -55,8 +62,8 @@ function LegacyInicio() {
     </View>
   </AreaPage>;
 }
-const s = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const c = theme.workspace; return ({
   search: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 60, backgroundColor: c.card, padding: 18, borderRadius: 19, borderWidth: 1, borderColor: c.line }, searchText: { flex: 1, fontSize: 15, color: c.muted },
   order: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: c.line, borderRadius: 18, padding: 16, backgroundColor: c.soft },
   orderNumber: { fontSize: 15, fontWeight: "700", color: c.ink }, orderClient: { fontSize: 14, color: c.ink },
-});
+}); });

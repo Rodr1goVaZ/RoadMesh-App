@@ -1,14 +1,20 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { colors as c } from "@/src/shared/theme/legacy";
-import { areaStyles, CredentialsNotice } from "@/src/shared/layout/AreaUI";
+
+import { CredentialsNotice, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
 export function UserManager({ user }: { user: any }) {
+  const theme = useAppTheme();
+  const c = theme.colors;
+  const areaStyles = useAreaStyles();
+  const s = useStyles();
+
   const wide = useWindowDimensions().width >= 900;
   const [hint, setHint] = useState("");
   const qc = useQueryClient(); const [editing, setEditing] = useState(false); const [name, setName] = useState(user.name); const [email, setEmail] = useState(user.email);
@@ -22,7 +28,7 @@ export function UserManager({ user }: { user: any }) {
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
   };
-  const iconButton = (kind: string, label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, danger = false) => <View style={s.iconWrap} key={kind}><Pressable testID={`managed-user-${kind}-${user.id}`} accessibilityRole="button" accessibilityLabel={label} disabled={busy} onPress={onPress} onHoverIn={() => setHint(kind)} onHoverOut={() => setHint("")} onFocus={() => setHint(kind)} onBlur={() => setHint("")} style={[s.iconButton, danger && s.dangerButton]}><Ionicons name={icon} size={20} color={danger ? "#D62D37" : c.brandPrimary} /></Pressable>{hint === kind && <View pointerEvents="none" style={[s.tooltip, kind !== "toggle" && !wide && { left: 0, right: undefined }]}><Text style={s.tooltipText}>{label}</Text></View>}</View>;
+  const iconButton = (kind: string, label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, danger = false) => <View style={s.iconWrap} key={kind}><Pressable testID={`managed-user-${kind}-${user.id}`} accessibilityRole="button" accessibilityLabel={label} disabled={busy} onPress={onPress} onHoverIn={() => setHint(kind)} onHoverOut={() => setHint("")} onFocus={() => setHint(kind)} onBlur={() => setHint("")} style={[s.iconButton, danger && s.dangerButton]}><Ionicons name={icon} size={20} color={danger ? theme.tones.error : c.brandAccent} /></Pressable>{hint === kind && <View pointerEvents="none" style={[s.tooltip, kind !== "toggle" && !wide && { left: 0, right: undefined }]}><Text style={s.tooltipText}>{label}</Text></View>}</View>;
   return <View testID={`managed-user-${user.id}`} style={s.user}>
     <View style={[s.header, !wide && s.vertical]}><View style={s.identity}><Text style={s.name}>{user.name}</Text><Text testID={`managed-user-info-${user.id}`} style={areaStyles.hint}>{user.email}{"\n"}{user.role === "client" ? "Cliente" : user.is_manager ? "Responsável" : "Colaborador"} · {user.is_active ? "Ativo" : "Inativo"}</Text></View><View style={s.actions}>
       {iconButton("reset", "Reset palavra-passe", "key-outline", () => { setConfirm("reset"); setEditing(false); })}
@@ -45,6 +51,6 @@ export function UserManager({ user }: { user: any }) {
   </View>;
 }
 
-const s = StyleSheet.create({
-  user: { borderTopWidth: 1, borderTopColor: c.border, paddingVertical: 18, gap: 14 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 }, vertical: { flexDirection: "column", alignItems: "flex-start" }, identity: { minWidth: 0, flexShrink: 1, gap: 5 }, name: { fontSize: 16, fontWeight: "700", color: c.onSurface }, actions: { flexDirection: "row", gap: 8 }, iconWrap: { position: "relative", zIndex: 2 }, iconButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: "#F7F3F2", alignItems: "center", justifyContent: "center" }, dangerButton: { backgroundColor: "#FFF0F1" }, tooltip: { position: "absolute", bottom: 48, right: 0, backgroundColor: "#242830", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, minWidth: 155, zIndex: 10 }, tooltipText: { fontSize: 12, color: "#FFFFFF", textAlign: "center" },
-});
+const useStyles = createThemedStyles((theme) => { const c = theme.colors; return ({
+  user: { borderTopWidth: 1, borderTopColor: c.border, paddingVertical: 18, gap: 14 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 }, vertical: { flexDirection: "column", alignItems: "flex-start" }, identity: { minWidth: 0, flexShrink: 1, gap: 5 }, name: { fontSize: 16, fontWeight: "700", color: c.onSurface }, actions: { flexDirection: "row", gap: 8 }, iconWrap: { position: "relative", zIndex: 2 }, iconButton: { width: 40, height: 40, borderRadius: 11, backgroundColor: theme.tones.soft, alignItems: "center", justifyContent: "center" }, dangerButton: { backgroundColor: theme.tones.errorSoft }, tooltip: { position: "absolute", bottom: 48, right: 0, backgroundColor: theme.tones.ink, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, minWidth: 155, zIndex: 10 }, tooltipText: { fontSize: 12, color: theme.tones.onAction, textAlign: "center" },
+}); });

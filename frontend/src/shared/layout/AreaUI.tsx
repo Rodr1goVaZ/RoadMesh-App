@@ -1,3 +1,4 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useContext } from "react";
 import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions, ActivityIndicator, Pressable, RefreshControl, StyleProp, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -5,27 +6,38 @@ import { AdminBreadcrumbs } from "./AdminBreadcrumbs";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
-import { PortalVisualContext, portalColors, portalStyles } from "@/src/features/portal/theme";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { PortalVisualContext, usePortalStyles } from "@/src/features/portal/theme";
 import { goBack } from "@/src/shared/utils/navigation";
 import { AdminPageContext, adminContentWidth } from "@/src/shared/theme/workspace";
 
-export function AreaPage({ title, testID, back = true, children, onRefresh, refreshing = false, contentStyle, scrollRef }: { title: string; testID: string; back?: boolean; children: React.ReactNode; onRefresh?: () => void; refreshing?: boolean; contentStyle?: StyleProp<ViewStyle>; scrollRef?: React.Ref<ScrollView> }) {
+export function AreaPage({ title, testID, back = true, breadcrumbs = true, children, onRefresh, refreshing = false, contentStyle, scrollRef }: { title: string; testID: string; back?: boolean; breadcrumbs?: boolean; children: React.ReactNode; onRefresh?: () => void; refreshing?: boolean; contentStyle?: StyleProp<ViewStyle>; scrollRef?: React.Ref<ScrollView> }) {
+  const theme = useAppTheme();
+  const portalColors = theme.workspace;
+  const areaStyles = useAreaStyles();
+
   const insets = useSafeAreaInsets();
   const portal = useContext(PortalVisualContext); const admin = useContext(AdminPageContext); const { width } = useWindowDimensions();
   const gap = StyleSheet.flatten([areaStyles.content, contentStyle]).gap;
   const adminGap = typeof gap === "number" ? gap : 20;
   return <View style={[areaStyles.screen, portal && { backgroundColor: portalColors.background }]}>{!admin && (portal ? back && <Pressable testID="back-btn" accessibilityRole="button" accessibilityLabel="Voltar" onPress={goBack} style={{ minHeight: 44, paddingHorizontal: 24, justifyContent: "center" }}><Text style={{ fontSize: 28, color: portalColors.brand }}>‹</Text></Pressable> : <ScreenHeader title={title} back={back} testID={`${testID}-header`} />)}
     <KeyboardAvoidingView style={areaStyles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView ref={scrollRef} testID={testID} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined} contentContainerStyle={[areaStyles.content, portal && { maxWidth: 1264, paddingHorizontal: width < 700 ? 22 : 32, paddingTop: 4, gap: 20 }, admin && { maxWidth: adminContentWidth, alignSelf: "flex-start", marginLeft: Math.max(0, (width - adminContentWidth) / 2), paddingHorizontal: width < 700 ? 16 : 24 }, { paddingBottom: insets.bottom + 40 }, contentStyle, admin && { paddingTop: 12 }]}>{admin && <View style={{ marginBottom: 5 - adminGap }}><AdminBreadcrumbs title={title} /></View>}{children}</ScrollView>
+      <ScrollView ref={scrollRef} testID={testID} keyboardShouldPersistTaps="handled" refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined} contentContainerStyle={[areaStyles.content, portal && { maxWidth: 1264, paddingHorizontal: width < 700 ? 22 : 32, paddingTop: 4, gap: 20 }, admin && { maxWidth: adminContentWidth, alignSelf: "flex-start", marginLeft: Math.max(0, (width - adminContentWidth) / 2), paddingHorizontal: width < 700 ? 16 : 24 }, { paddingBottom: insets.bottom + 40 }, contentStyle, admin && { paddingTop: 12 }]}>{admin && breadcrumbs && <View style={{ marginBottom: 5 - adminGap }}><AdminBreadcrumbs title={title} /></View>}{children}</ScrollView>
     </KeyboardAvoidingView>
   </View>;
 }
 export function Panel({ title, testID, children, accent = false }: { title?: string; testID: string; children: React.ReactNode; accent?: boolean }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const portalStyles = usePortalStyles();
+  const areaStyles = useAreaStyles();
+
   const portal = useContext(PortalVisualContext);
-  return <View testID={testID} style={[areaStyles.panel, portal && portalStyles.card, accent && { backgroundColor: colors.brandPrimary }]}>{title && <Text testID={`${testID}-title`} style={[areaStyles.title, accent && { color: "#FFFFFF" }]}>{title}</Text>}{children}</View>;
+  return <View testID={testID} style={[areaStyles.panel, portal && portalStyles.card, accent && { backgroundColor: colors.brandPrimary }]}>{title && <Text testID={`${testID}-title`} style={[areaStyles.title, accent && { color: theme.tones.onAction }]}>{title}</Text>}{children}</View>;
 }
 export function Metrics({ entries, testID }: { entries: { label: string; value: string | number }[]; testID: string }) {
+  const areaStyles = useAreaStyles();
+
   const { width } = useWindowDimensions();
   return <View style={areaStyles.grid}>{entries.map((entry, i) => <View key={entry.label} style={[areaStyles.metric, { width: width >= 700 ? "23%" : "47%" }]}>
     <Text testID={`${testID}-${i}-value`} style={areaStyles.metricValue}>{entry.value}</Text>
@@ -33,10 +45,15 @@ export function Metrics({ entries, testID }: { entries: { label: string; value: 
   </View>)}</View>;
 }
 export function QueryState({ loading, error, retry, testID }: { loading?: boolean; error?: Error | null; retry: () => void; testID: string }) {
-  return <>{loading && <ActivityIndicator testID={`${testID}-loading`} color={colors.brandPrimary} />}<Feedback testID={`${testID}-error`} error message={error?.message} />
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
+  return <>{loading && <ActivityIndicator testID={`${testID}-loading`} color={colors.brandAccent} />}<Feedback testID={`${testID}-error`} error message={error?.message} />
     {!!error && <Button testID={`${testID}-retry`} title="Tentar novamente" variant="secondary" onPress={retry} />}</>;
 }
 export function CredentialsNotice({ credentials, onClose }: { credentials: any; onClose: () => void }) {
+  const areaStyles = useAreaStyles();
+
   return <Panel testID="new-credentials" title="Acesso criado">
     <Text testID="credentials-warning" style={areaStyles.hint}>Partilhe estes dados em privado. A palavra-passe é mostrada apenas agora e terá de ser alterada no primeiro acesso.</Text>
     <Text selectable testID="credentials-email" style={areaStyles.label}>{credentials.email}</Text>
@@ -44,7 +61,7 @@ export function CredentialsNotice({ credentials, onClose }: { credentials: any; 
     <Button testID="credentials-close" title="Já guardei os dados" onPress={onClose} />
   </Panel>;
 }
-export const areaStyles = StyleSheet.create({
+export const useAreaStyles = createThemedStyles((theme) => { const colors = theme.colors;  return ({
   screen: { flex: 1, backgroundColor: colors.surface }, flex: { flex: 1 },
   content: { padding: spacing.lg, gap: 20, width: "100%", maxWidth: 1100, alignSelf: "center" },
   panel: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 14, ...shadows.card },
@@ -53,7 +70,7 @@ export const areaStyles = StyleSheet.create({
   hint: { color: colors.muted, fontSize: 14, lineHeight: 21 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: { padding: spacing.lg, minHeight: 102, gap: 8, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, flexGrow: 1, ...shadows.card },
-  metricValue: { fontSize: 24, fontWeight: "800", color: colors.brandPrimary },
+  metricValue: { fontSize: 24, fontWeight: "800", color: colors.brandAccent },
   row: { flexDirection: "row", gap: 10, flexWrap: "wrap", alignItems: "center" },
-  secret: { color: colors.brandPrimary, fontSize: 17, fontWeight: "700", lineHeight: 26 },
-});
+  secret: { color: colors.brandAccent, fontSize: 17, fontWeight: "700", lineHeight: 26 },
+}); });

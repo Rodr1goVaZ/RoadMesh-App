@@ -1,13 +1,18 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
 import { Modal, View, FlatList, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Button } from "@/src/shared/ui/Button";
-import { QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
-import { colors } from "@/src/shared/theme/legacy";
+import { QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
+
 
 export function YearFilter({ resource, value, onChange, extra = "" }: { resource: string; value: string; onChange: (year: string) => void; extra?: string }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const areaStyles = useAreaStyles();
+
   const [open, setOpen] = useState(false); const insets = useSafeAreaInsets();
   const q = useQuery({ queryKey: ["history-years", resource, extra], queryFn: () => api.get(`/history/${resource}/years${extra ? "?" + extra : ""}`), enabled: open });
   const choose = (year: string) => { onChange(year); setOpen(false); };

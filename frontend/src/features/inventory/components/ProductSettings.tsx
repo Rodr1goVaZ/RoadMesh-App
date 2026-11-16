@@ -4,12 +4,14 @@ import React, { useState } from "react";
 import { Switch, Text } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { Panel, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Panel, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export function ProductSettings({ product }: { product: any }) {
+  const areaStyles = useAreaStyles();
+
   const qc = useQueryClient(); const [barcode, setBarcode] = useState(product.barcode || "");
   const [enabled, setEnabled] = useState(!!product.restock_enabled); const [min, setMin] = useState(String(product.min_stock));
   const [buy, setBuy] = useState(String(product.purchase_price)); const [sell, setSell] = useState(String(product.sale_price));

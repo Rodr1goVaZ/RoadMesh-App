@@ -8,12 +8,12 @@ from pymongo import ReturnDocument
 from roadmesh.core.access_control import StrictModel, identifier, timestamp
 from roadmesh.core.module_catalog import FEATURE_IDS, FEATURES
 
-FeatureId = Literal["customer_database", "inventory", "service_orders", "vehicle_reception", "customer_notifications"]
+FeatureId = Literal['customer_database', 'vehicle_reception', 'quotes', 'service_orders', 'inventory', 'appointments', 'digital_inspections', 'technician_time', 'customer_notifications', 'online_bookings', 'payments', 'invoicing', 'reports', 'technical_data', 'marketing', 'multi_location']
 
 
 class PresetBody(StrictModel):
     name: str = Field(min_length=2, max_length=60)
-    enabled_modules: list[FeatureId] = Field(max_length=5)
+    enabled_modules: list[FeatureId] = Field(max_length=len(FEATURE_IDS))
     revision: int = Field(ge=0)
 
     @field_validator("enabled_modules")
@@ -28,9 +28,9 @@ async def initialize_presets(db):
     if getattr(db, "is_postgres", False) is not True:
         await db.module_presets.create_index("id", unique=True)
     defaults = [
-        ("c7bca442-81db-44f5-9834-17820df5e101", "Oficina", list(FEATURE_IDS)),
-        ("c7bca442-81db-44f5-9834-17820df5e102", "Stand", ["customer_database", "vehicle_reception", "customer_notifications"]),
-        ("c7bca442-81db-44f5-9834-17820df5e103", "Detailer", ["customer_database", "service_orders", "vehicle_reception", "customer_notifications"]),
+        ("c7bca442-81db-44f5-9834-17820df5e101", "Oficina", ["customer_database", "vehicle_reception", "quotes", "service_orders", "inventory", "appointments", "digital_inspections", "technician_time", "customer_notifications", "payments", "reports"]),
+        ("c7bca442-81db-44f5-9834-17820df5e102", "Stand", ["customer_database", "vehicle_reception", "quotes", "appointments", "customer_notifications", "payments", "reports"]),
+        ("c7bca442-81db-44f5-9834-17820df5e103", "Detailer", ["customer_database", "service_orders", "vehicle_reception", "quotes", "appointments", "customer_notifications", "payments", "reports"]),
     ]
     for key, name, modules in defaults:
         await db.module_presets.update_one({"id": key}, {"$setOnInsert": {
@@ -38,6 +38,8 @@ async def initialize_presets(db):
         }}, upsert=True)
         # Upgrade only untouched defaults from the first local catalogue draft.
         await db.module_presets.update_one({"id": key, "revision": 1, "seed_version": {"$exists": False}}, {"$set": {"enabled_modules": modules, "seed_version": 1}})
+        await db.module_presets.update_one({"id": key, "name": name, "revision": 1, "seed_version": 1},
+            {"$set": {"enabled_modules": modules, "seed_version": 2}})
 
 
 def register_preset_routes(api, db, access):

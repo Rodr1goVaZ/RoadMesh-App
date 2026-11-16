@@ -1,12 +1,13 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { VehiclePicker } from "@/src/shared/pickers/VehiclePicker";
 import { DamageForm } from "@/src/features/inspections/components/DamageForm";
 import { DamageHistory } from "@/src/features/inspections/components/DamageHistory";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 
 export default function Damages() {
   const { vehicle_id, category } = useLocalSearchParams<{ vehicle_id?: string; category?: string }>();
@@ -14,6 +15,8 @@ export default function Damages() {
 }
 
 function DamageScreen({ initialVehicleId, category }: { initialVehicleId: string; category?: string }) {
+  const styles = useStyles();
+
   const [vehicleId, setVehicleId] = useState(initialVehicleId);
   const insets = useSafeAreaInsets();
   const initialCategory = ["risco", "amolgadela", "fuga"].includes(category || "") ? category : "risco";
@@ -31,9 +34,9 @@ function DamageScreen({ initialVehicleId, category }: { initialVehicleId: string
     </KeyboardAvoidingView>
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   screen: { flex: 1, backgroundColor: colors.surface }, flex: { flex: 1 },
   content: { padding: spacing.lg, gap: 20 },
   card: { padding: spacing.lg, gap: 16, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, ...shadows.card },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-});
+}); });

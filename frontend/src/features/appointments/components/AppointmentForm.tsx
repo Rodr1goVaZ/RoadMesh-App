@@ -1,12 +1,13 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { Text, Pressable, StyleSheet, View } from "react-native";
+import { Text, Pressable, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { colors, radius } from "@/src/shared/theme/legacy";
+import { radius } from "@/src/shared/theme/legacy";
 
 export function localToInputs(local?: string) {
   if (!local) return { date: "", time: "" };
@@ -18,6 +19,8 @@ export function appointmentLocal(date: string, time: string) {
   return `${date.split("/").reverse().join("-")}T${time}`;
 }
 export function AppointmentForm({ appointment, initialVehicleId, onClose }: { appointment?: any; initialVehicleId?: string; onClose: () => void }) {
+  const areaStyles = useAreaStyles(); const styles = useStyles();
+
   const qc = useQueryClient(); const initial = localToInputs(appointment?.scheduled_local);
   const [vehicle, setVehicle] = useState(appointment?.vehicle_id || initialVehicleId || ""); const [date, setDate] = useState(initial.date); const [time, setTime] = useState(initial.time);
   const [description, setDescription] = useState(appointment?.description || ""); const [contact, setContact] = useState(appointment?.contact || "");
@@ -51,4 +54,4 @@ export function AppointmentForm({ appointment, initialVehicleId, onClose }: { ap
     <Button testID="appointment-form-cancel" title="Cancelar" variant="ghost" disabled={busy} onPress={onClose} />
   </Panel>;
 }
-const styles = StyleSheet.create({ choices: { gap: 8 }, choice: { padding: 14, minHeight: 48, justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, selected: { borderColor: colors.brandPrimary, backgroundColor: colors.brandTertiary }, label: { color: colors.onSurface, fontSize: 14 }, selectedText: { color: colors.brandPrimary, fontWeight: "700" } });
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({ choices: { gap: 8 }, choice: { padding: 14, minHeight: 48, justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, selected: { borderColor: colors.brandAccent, backgroundColor: colors.brandTertiary }, label: { color: colors.onSurface, fontSize: 14 }, selectedText: { color: colors.brandAccent, fontWeight: "700" } }); });

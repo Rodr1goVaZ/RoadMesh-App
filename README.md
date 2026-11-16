@@ -156,3 +156,14 @@ A estrutura usa os mesmos projetos Vercel, com raízes backend/ e frontend/. A v
 ## Empresas com Oficina e Stand
 
 A empresa pode usar Oficina, Stand ou ambos com um único login. Os módulos são configurados pela administração. A implementação PostgreSQL requer `backend/sql/005_company_modules_stand.sql` após 001–003 (004 continua opcional). **Aplicar e validar a migração antes de publicar este backend**. Empresas existentes mantêm Oficina por omissão. Ver [módulos, publicação e limites](docs/MODULOS-STAND.md).
+
+## Planeamento e dependências externas
+
+- [Guia prático: faturação, migrações e dados de peças](docs/GUIA-FATURACAO-MIGRACOES-PECAS.md).
+- [Guia prático em PDF](output/pdf/guia-faturacao-migracoes-pecas.pdf).
+- [Roteiro completo: áreas web, aplicações móveis, integrações e lançamento](docs/ROTEIRO-COMPLETO-ROADMESH.md).
+- [Roteiro completo em PDF](output/pdf/roteiro-completo-roadmesh.pdf).
+- [Registo vivo de pesquisas, contactos e contratos](docs/PENDENCIAS-EXTERNAS.md).
+- [Estado real dos produtos locais e trabalho por concluir](docs/ESTADO-PRODUTOS.md).
+- [Análise pública de referência e proposta de produtos](docs/ANALISE-CARBOB-2026-11-08.md).
+- O catálogo local expandido usa a migração PostgreSQL 008, após 001–007. Não foi aplicada em serviços externos.

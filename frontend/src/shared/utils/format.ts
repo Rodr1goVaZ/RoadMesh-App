@@ -35,12 +35,7 @@ export const OS_STATUS_LABELS: Record<string, string> = {
   aguardando_pecas: "Aguarda peças",
   concluido: "Concluído",
 };
-export const OS_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  entrada: { bg: "#DBEAFE", fg: "#1D4ED8" },
-  diagnostico: { bg: "#FEF3C7", fg: "#B45309" },
-  aguardando_pecas: { bg: "#E5E7EB", fg: "#374151" },
-  concluido: { bg: "#DCFCE7", fg: "#15803D" },
-};
+
 
 export const QUOTE_STATUS_LABELS: Record<string, string> = {
   rascunho: "Rascunho", enviado: "Enviado", aceite: "Aceite", recusado: "Recusado",

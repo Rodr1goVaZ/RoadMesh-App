@@ -1,10 +1,13 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Button } from '@/src/shared/ui/Button';
-import { colors as c } from '@/src/shared/theme/legacy';
+
 import { monthNames } from '../admin-analytics';
 
 export function CompanyPeriodPicker({ anchorRef, value, minYear = 2000, maxYear = 2100, yearOnly = false, title, onChange, onClose }: { anchorRef: React.RefObject<View | null>; value: string; minYear?: number; maxYear?: number; yearOnly?: boolean; title?: string; onChange: (period: string) => void; onClose: () => void }) {
+  const s = useStyles();
+
   const [year, setYear] = useState(Number(value.slice(0, 4))); const [month, setMonth] = useState(Number(value.slice(5)) || 1);
   const years = Array.from({ length: maxYear - minYear + 1 }, (_, index) => maxYear - index);
   const yearScroll = useRef<ScrollView>(null); const monthScroll = useRef<ScrollView>(null);
@@ -25,4 +28,4 @@ export function CompanyPeriodPicker({ anchorRef, value, minYear = 2000, maxYear 
     <View style={s.column}><Text style={s.label}>Ano</Text><ScrollView ref={yearScroll} onContentSizeChange={() => yearScroll.current?.scrollTo({ y: Math.max(0, (maxYear - year) * 44 - 88), animated: false })} style={s.list} nestedScrollEnabled>{years.map(number => <Pressable key={number} accessibilityRole="button" accessibilityState={{ selected: year === number }} onPress={() => setYear(number)} style={[s.option, year === number && s.selected]}><Text style={s.text}>{number}</Text></Pressable>)}</ScrollView></View>
     </View><View style={s.actions}><Button title="Cancelar" variant="ghost" fullWidth={false} onPress={onClose} /><Button title="Aplicar" testID="company-period-apply" fullWidth={false} onPress={() => { onChange(`${year}-${String(month).padStart(2, '0')}`); onClose(); }} /></View></View></View></Modal>;
 }
-const s = StyleSheet.create({ overlay: { flex: 1 }, dialog: { position: 'absolute', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, gap: 12, boxShadow: '0 8px 28px rgba(20,24,35,.14)' }, title: { fontSize: 16, fontWeight: '700', color: c.onSurface }, columns: { flexDirection: 'row', gap: 12, flex: 1 }, column: { flex: 1, minWidth: 0, gap: 10 }, label: { fontSize: 13, color: c.muted, fontWeight: '600' }, list: { height: 220, maxHeight: 220, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 12 }, option: { height: 44, justifyContent: 'center', paddingHorizontal: 14 }, selected: { backgroundColor: '#F6E8E6', borderRadius: 10 }, text: { color: c.onSurface, fontSize: 14 }, actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 } });
+const useStyles = createThemedStyles((theme) => { const c = theme.colors; return ({ overlay: { flex: 1 }, dialog: { position: 'absolute', backgroundColor: theme.tones.card, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, gap: 12, boxShadow: '0 8px 28px rgba(20,24,35,.14)' }, title: { fontSize: 16, fontWeight: '700', color: c.onSurface }, columns: { flexDirection: 'row', gap: 12, flex: 1 }, column: { flex: 1, minWidth: 0, gap: 10 }, label: { fontSize: 13, color: c.muted, fontWeight: '600' }, list: { height: 220, maxHeight: 220, flexShrink: 1, borderWidth: 1, borderColor: c.border, borderRadius: 12 }, option: { height: 44, justifyContent: 'center', paddingHorizontal: 14 }, selected: { backgroundColor: theme.tones.warm, borderRadius: 10 }, text: { color: c.onSurface, fontSize: 14 }, actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 } }); });

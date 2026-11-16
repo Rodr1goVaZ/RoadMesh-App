@@ -4,9 +4,11 @@ import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 export default function ClientProfile() {
+  const areaStyles = useAreaStyles();
+
   const { logout } = useAuth();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["portal-profile"], queryFn: () => api.get("/portal/profile") });
   return <AreaPage title="Perfil" testID="portal-profile" back={false}>

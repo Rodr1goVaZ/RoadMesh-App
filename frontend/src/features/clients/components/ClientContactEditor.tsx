@@ -1,6 +1,7 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { isValidEmail } from "@/src/shared/utils/validation";
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Input } from "@/src/shared/ui/Input";
@@ -8,6 +9,8 @@ import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export function ClientContactEditor({ client }: { client: any }) {
+  const styles = useStyles();
+
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(client.email || "");
@@ -34,4 +37,4 @@ export function ClientContactEditor({ client }: { client: any }) {
     <Button testID="client-cancel-contacts" title="Cancelar" variant="ghost" disabled={loading} onPress={() => setEditing(false)} />
   </View>;
 }
-const styles = StyleSheet.create({ form: { gap: 12 } });
+const useStyles = createThemedStyles((theme) => {  return ({ form: { gap: 12 } }); });

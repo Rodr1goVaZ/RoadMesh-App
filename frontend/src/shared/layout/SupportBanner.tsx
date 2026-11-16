@@ -1,11 +1,14 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { Button } from "@/src/shared/ui/Button";
-import { colors } from "@/src/shared/theme/legacy";
+
 export function SupportBanner() {
+  const styles = useStyles();
+
   const { user, support, endSupport } = useAuth(); const [busy, setBusy] = useState(false);
   if (user?.role !== "admin" || !support) return null;
   const leave = async () => { setBusy(true); try { await endSupport(); } finally { setBusy(false); router.replace("/(admin)/dashboard"); } };
@@ -16,4 +19,4 @@ export function SupportBanner() {
     </View>
   </SafeAreaView>;
 }
-const styles = StyleSheet.create({ wrap: { backgroundColor: colors.brandPrimary }, row: { padding: 12, gap: 12, flexDirection: "row", alignItems: "center" }, info: { flex: 1 }, title: { color: colors.onBrand, fontWeight: "800", fontSize: 11 }, name: { color: colors.onBrand, fontSize: 14, marginTop: 5 } });
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({ wrap: { backgroundColor: colors.brandPrimary }, row: { padding: 12, gap: 12, flexDirection: "row", alignItems: "center" }, info: { flex: 1 }, title: { color: colors.onBrand, fontWeight: "800", fontSize: 11 }, name: { color: colors.onBrand, fontSize: 14, marginTop: 5 } }); });

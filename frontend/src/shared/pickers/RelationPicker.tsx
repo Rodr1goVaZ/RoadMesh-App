@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
 import { Modal, View, Text, FlatList } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -5,12 +6,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/core/http/api";
 import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
-import { QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
-import { colors } from "@/src/shared/theme/legacy";
+import { QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
+
 
 export function SearchPicker({ title, endpoint, label, selected, onSelect, disabled }: {
   title: string; endpoint: string; label: (r: any) => string; selected?: string; onSelect: (r: any) => void; disabled?: boolean;
 }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const areaStyles = useAreaStyles();
+
   const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const insets = useSafeAreaInsets();
   const query = useQuery({ queryKey: ["relation-picker", endpoint, search], queryFn: () => api.get(`${endpoint}${endpoint.includes("?") ? "&" : "?"}search=${encodeURIComponent(search)}&limit=100`), enabled: open });
   return <><Button title={selected || title} variant="secondary" disabled={disabled} onPress={() => setOpen(true)} />

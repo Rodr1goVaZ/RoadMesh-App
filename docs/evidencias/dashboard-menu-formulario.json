@@ -1,0 +1,34 @@
+{
+  "ambiente": "Desenvolvimento local, versão web",
+  "branch": "UI-empresarios-digo",
+  "commit_criado": false,
+  "validacao": {
+    "testes_frontend_aprovados": 58,
+    "typescript": "aprovado",
+    "eslint_ficheiros_alterados": "aprovado",
+    "navegacao": "Dashboard sem caminho; criação/edição e restantes páginas administrativas mantêm o caminho.",
+    "calendario": "Ícone e abertura do seletor confirmados no resumo mensal; ícone e ano confirmados no resumo anual.",
+    "menu_conta": {
+      "cliques_repetidos": "Quatro cliques alternam abertura/fecho e terminam com zero menus; nova abertura cria um único menu.",
+      "posicao_computador": { "top": 88, "right": 1256, "width": 280 },
+      "scroll_computador": { "antes": 0, "depois": 790, "menus_abertos": 1 },
+      "scroll_ecra_pequeno": { "depois": 844, "menus_abertos": 1 },
+      "clique_fora": "Fecha o menu.",
+      "escape": "Fecha o menu e devolve o foco ao botão da conta."
+    },
+    "contactos": "Telemóvel assinalado por defeito; apenas telefone também é aceite e recebe a indicação obrigatória. Dados de teste repostos sem guardar alterações à empresa.",
+    "placeholder": {
+      "escuro": { "placeholder": "#737373", "texto": "#F3F3F3" },
+      "claro": { "placeholder": "#8A9099", "texto": "#111827" },
+      "campos_vazios": "Confirmado que o placeholder não é um valor preenchido."
+    }
+  },
+  "limites": "Verificação visual e de interação feita no navegador a 1280x900 e 390x844; sem execução de simuladores nativos.",
+  "capturas_locais": [
+    ".demo/evidence/dashboard-calendario-sem-caminho.png",
+    ".demo/evidence/menu-conta-scroll-ativo.png",
+    ".demo/evidence/dashboard-calendario-mobile.png",
+    ".demo/evidence/criar-empresa-placeholder-light.png",
+    ".demo/evidence/contacto-obrigatorio-placeholder.png"
+  ]
+}

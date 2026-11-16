@@ -1,12 +1,17 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { View, Text } from "react-native";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 
 export function Card({ children, style, testID }: any) {
+  const styles = useStyles();
+
   return <View testID={testID} style={[styles.card, style]}>{children}</View>;
 }
 
 export function KpiCard({ label, value, delta, testID }: { label: string; value: string; delta?: string; testID?: string }) {
+  const styles = useStyles();
+
   return (
     <View testID={testID} style={[styles.card, styles.kpi]}>
       <Text style={styles.kpiLabel} numberOfLines={1}>{label}</Text>
@@ -16,7 +21,7 @@ export function KpiCard({ label, value, delta, testID }: { label: string; value:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: {
     backgroundColor: colors.surfaceSecondary,
     borderRadius: radius.lg,
@@ -27,4 +32,4 @@ const styles = StyleSheet.create({
   kpiLabel: { color: colors.muted, fontSize: 12, fontWeight: "600" },
   kpiValue: { color: colors.onSurface, fontSize: 22, fontWeight: "800" },
   kpiDelta: { color: colors.muted, fontSize: 11 },
-});
+}); });

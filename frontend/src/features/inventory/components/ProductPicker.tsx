@@ -1,14 +1,18 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import { ScrollView, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { colors } from "@/src/shared/theme/legacy";
+
 
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { hasFeature } from "@/src/core/auth/company-features";
 export type StockProduct = { id: string; name: string; sale_price: number; vat_rate: number; stock: number };
 export function ProductPicker({ value, onChange, testID }: { value?: string | null; onChange: (product: StockProduct | null) => void; testID: string }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   const { user, support } = useAuth(); const active = hasFeature(support || user, "inventory");
   const { data = [], error } = useQuery<StockProduct[]>({ queryKey: ["products", "all"], queryFn: () => api.get("/products"), enabled: active });
   return <View style={{ gap: 8 }}>

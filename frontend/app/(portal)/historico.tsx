@@ -5,9 +5,11 @@ import { View, Text, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { api } from "@/src/core/http/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 export default function ClientHistory() {
+  const areaStyles = useAreaStyles();
+
   const { user } = useAuth();
   const { data = [], error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const wide = useWindowDimensions().width >= 700;
@@ -21,6 +23,6 @@ export default function ClientHistory() {
         <Button title="Consultar histórico completo" onPress={() => router.push({ pathname: "/(portal)/carro", params: { id: vehicle.id } })} />
       </Panel></View>)}
     </View>
-    {hasFeature(user, "customer_notifications") && <Button testID="portal-history-appointments" title="Histórico de marcações" variant="secondary" onPress={() => router.push("/(portal)/marcacoes")} />}
+    {hasFeature(user, "appointments") && <Button testID="portal-history-appointments" title="Histórico de marcações" variant="secondary" onPress={() => router.push("/(portal)/marcacoes")} />}
   </AreaPage>;
 }

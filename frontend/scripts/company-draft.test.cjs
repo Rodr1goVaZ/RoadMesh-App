@@ -93,5 +93,5 @@ test('old server drafts with empty subscription defaults preserve their agreed m
  const restored = decodeCompanyDraft(JSON.stringify({ version: 2, form: old, step: 0, savedAt: new Date().toISOString() }));
  assert.equal(restored.form.base_monthly_fee, '175,50');
  assert.equal(restored.form.monthly_fee, '175,50');
- assert.equal(restored.form.enabled_modules.length, 5);
+ assert.deepEqual([...restored.form.enabled_modules].sort(), ['customer_database','inventory','service_orders','vehicle_reception','customer_notifications','quotes','appointments','payments','reports','invoicing'].sort());
 });

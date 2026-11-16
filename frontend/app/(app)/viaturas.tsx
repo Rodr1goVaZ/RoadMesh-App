@@ -1,5 +1,6 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, FlatList, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -8,9 +9,13 @@ import { Input } from "@/src/shared/ui/Input";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { Button } from "@/src/shared/ui/Button";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 
 export default function Vehicles() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   useEffect(() => { const timer = setTimeout(() => setQuery(search), 250); return () => clearTimeout(timer); }, [search]);
@@ -22,7 +27,7 @@ export default function Vehicles() {
       <Input testID="vehicle-plate-search" label="Matrícula" value={search} onChangeText={setSearch} autoCapitalize="characters" autoCorrect={false} placeholder="Ex.: AA-12-BB ou AA12BB" returnKeyType="search" />
       <Text testID="vehicle-search-help" style={styles.hint}>Todas as viaturas da sua oficina, mesmo sem Ordem de Serviço.</Text>
       {search ? <Button testID="vehicle-search-clear" title="Limpar pesquisa" variant="ghost" onPress={() => setSearch("")} /> : null}
-      {searching && <ActivityIndicator testID="vehicle-search-loading" color={colors.brandPrimary} />}
+      {searching && <ActivityIndicator testID="vehicle-search-loading" color={colors.brandAccent} />}
       {!searching && !error && <Text testID="vehicle-search-count" style={styles.hint}>{data.length} viatura(s) encontrada(s)</Text>}
       <Feedback testID="vehicle-search-error" error message={error?.message} />
       {error && <Button testID="vehicle-search-retry" title="Tentar novamente" variant="secondary" onPress={() => refetch()} />}
@@ -30,7 +35,7 @@ export default function Vehicles() {
     <FlatList data={searching ? [] : data} keyExtractor={(v: any) => v.id} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}
       ListEmptyComponent={!searching && !error ? <Text testID="vehicle-search-empty" style={styles.empty}>Nenhuma viatura encontrada.</Text> : null}
       renderItem={({ item }) => <Pressable testID={`vehicle-result-${item.id}`} onPress={() => router.push({ pathname: "/(app)/viatura", params: { id: item.id } })} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-        <View style={styles.icon}><Ionicons name="car-outline" size={26} color={colors.brandPrimary} /></View>
+        <View style={styles.icon}><Ionicons name="car-outline" size={26} color={colors.brandAccent} /></View>
         <View style={styles.info}>
           <Text testID={`vehicle-plate-${item.id}`} style={styles.plate}>{item.license_plate}</Text>
           <Text testID={`vehicle-model-${item.id}`} style={styles.model}>{item.make} {item.model}</Text>
@@ -40,7 +45,7 @@ export default function Vehicles() {
       </Pressable>} />
   </KeyboardAvoidingView>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   screen: { flex: 1, backgroundColor: colors.surface },
   search: { padding: spacing.lg, gap: 8 },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 19 },
@@ -52,4 +57,4 @@ const styles = StyleSheet.create({
   model: { color: colors.onSurface, fontSize: 15 },
   empty: { paddingVertical: 32, textAlign: "center", color: colors.muted },
   pressed: { opacity: .7 },
-});
+}); });

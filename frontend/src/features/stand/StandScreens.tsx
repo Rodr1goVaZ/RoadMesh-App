@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
@@ -22,6 +22,8 @@ function useStandQuery(key: string, path: string, enabled = true) {
 }
 function State({ query }: { query: ReturnType<typeof useStandQuery> }) { return <QueryState loading={query.isLoading} error={query.error} retry={query.refetch} testID="stand-query" />; }
 function Choices({ options, value, onChange }: { options: Record<string, string>; value: string; onChange: (value: string) => void }) {
+  const areaStyles = useAreaStyles();
+
   return <View style={areaStyles.row}>{Object.entries(options).map(([key, label]) => <Button key={key} title={label} variant={value === key ? "primary" : "secondary"} fullWidth={false} onPress={() => onChange(key)} />)}</View>;
 }
 
@@ -50,6 +52,8 @@ export function StandHome() {
 }
 
 export function StandInventory() {
+  const areaStyles = useAreaStyles();
+
   const [search, setSearch] = useState(""); const [status, setStatus] = useState(""); const manage = useManager(); const wide = useWindowDimensions().width >= 900;
   const query = useStandQuery("inventory", `/stand/inventory?search=${encodeURIComponent(search)}&status=${status}`);
   return <AreaPage title="Viaturas do Stand" testID="stand-inventory" back={false}>
@@ -75,6 +79,8 @@ export function StandVehicle() {
   return <InventoryEditor key={id || "new"} data={query.data} manage={manage} />;
 }
 function InventoryEditor({ data, manage }: { data?: any; manage: boolean }) {
+  const areaStyles = useAreaStyles();
+
   const qc = useQueryClient(); const [form, setForm] = useState(() => data ? { ...emptyVehicle, ...Object.fromEntries(Object.keys(emptyVehicle).map(key => [key, key === "vehicle_id" ? data[key] || null : String(data[key] ?? "")])) } : emptyVehicle);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const editable = manage && data?.status !== "vendido";
@@ -101,6 +107,8 @@ function InventoryEditor({ data, manage }: { data?: any; manage: boolean }) {
 }
 
 export function StandClients() {
+  const areaStyles = useAreaStyles();
+
   const qc = useQueryClient(); const [search, setSearch] = useState(""); const [newClient, setNewClient] = useState(false); const [leadOpen, setLeadOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const clients = useStandQuery("clients", `/clients?search=${encodeURIComponent(search)}`); const leads = useStandQuery("leads", "/stand/leads");
@@ -141,6 +149,8 @@ export function StandClients() {
 }
 
 export function StandSales() {
+  const areaStyles = useAreaStyles();
+
   const manage = useManager(); const qc = useQueryClient(); const { inventoryId } = useLocalSearchParams<{ inventoryId?: string }>();
   const sales = useStandQuery("sales", "/stand/sales", manage);
   const [vehicle, setVehicle] = useState<any>(inventoryId ? { id: inventoryId } : null); const [buyer, setBuyer] = useState<any>(null);
@@ -167,11 +177,15 @@ export function StandSales() {
 }
 
 export function StandHistory() {
+  const areaStyles = useAreaStyles();
+
   const manage = useManager(); const query = useStandQuery("history", "/stand/history", manage);
   const labels: Record<string, string> = { "stand.vehicle.created": "Viatura adicionada", "stand.vehicle.updated": "Viatura atualizada", "stand.lead.created": "Contacto criado", "stand.lead.updated": "Contacto atualizado", "stand.sale.created": "Venda registada" };
   return <AreaPage title="Histórico do Stand" testID="stand-history"><Text style={areaStyles.hint}>{manage ? "Registos de viaturas, contactos e vendas da empresa." : "O histórico global está reservado ao responsável da empresa."}</Text><State query={query} />{query.data?.map((row: any) => <Panel key={row.id} title={labels[row.action] || row.action} testID={`stand-history-${row.id}`}><Text style={areaStyles.hint}>{date(row.created_at)}</Text><Text selectable style={areaStyles.hint}>Referência: {row.resource}</Text></Panel>)}{query.data?.length === 0 && <Text style={areaStyles.hint}>Sem movimentos registados.</Text>}</AreaPage>;
 }
 export function StandMore() {
+  const areaStyles = useAreaStyles();
+
   const { user, logout } = useAuth(); const manage = useManager();
   return <AreaPage title="Mais · Stand" testID="stand-more" back={false}><Panel title={user?.name} testID="stand-account"><Text style={areaStyles.hint}>{user?.workshop_name}</Text><Text style={areaStyles.label}>{user?.email}</Text></Panel>
     {manage && <DashboardAction testID="stand-open-history" label="Histórico de transações e alterações" icon="time-outline" onPress={() => router.push("/(stand)/stand-historico")} />}

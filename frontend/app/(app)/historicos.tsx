@@ -4,14 +4,16 @@ import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { YearFilter } from "@/src/shared/ui/YearFilter";
 import { Button } from "@/src/shared/ui/Button";
 import { formatDateTime, formatEUR } from "@/src/shared/utils/format";
 
 export default function Histories() {
+  const areaStyles = useAreaStyles();
+
   const { user, support } = useAuth(); const [selectedResource, setResource] = useState("stock");
-  const resources = Object.entries({ stock: "Stock", receipts: "Receções", orders: "Encomendas", services: "Ordens de Serviço", quotes: "Orçamentos", invoices: "Documentos", photos: "Fotografias", damages: "Danos", ...(user?.can_manage_workshop || support ? { payments: "Pagamentos e ajustes" } : {}) }).filter(([key]) => hasFeature(support || user, ["stock", "receipts", "orders"].includes(key) ? "inventory" : ["photos", "damages"].includes(key) ? "vehicle_reception" : "service_orders"));
+  const resources = Object.entries({ stock: "Stock", receipts: "Receções", orders: "Encomendas", services: "Ordens de Serviço", quotes: "Orçamentos", invoices: "Documentos", photos: "Fotografias", damages: "Danos", ...(user?.can_manage_workshop || support ? { payments: "Pagamentos e ajustes" } : {}) }).filter(([key]) => hasFeature(support || user, ["stock", "receipts", "orders"].includes(key) ? "inventory" : ["photos", "damages"].includes(key) ? "vehicle_reception" : key === "quotes" ? "quotes" : key === "invoices" ? "invoicing" : key === "payments" ? "payments" : "service_orders"));
   const resource = resources.some(([key]) => key === selectedResource) ? selectedResource : resources[0]?.[0] || "";
   const [year, setYear] = useState(""); const [page, setPage] = useState(0);
   const q = useQuery({ queryKey: ["history", resource, year, page], enabled: !!resource, queryFn: () => api.get(`/history/${resource}?skip=${page * 50}&limit=50${year ? "&year=" + year : ""}`) });

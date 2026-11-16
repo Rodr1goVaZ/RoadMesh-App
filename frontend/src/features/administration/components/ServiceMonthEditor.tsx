@@ -1,15 +1,18 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { ServiceMovementPanel } from "./ServiceMovementPanel";
 import React, { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/src/core/http/api';
 import { Input } from '@/src/shared/ui/Input';
 import { Button } from '@/src/shared/ui/Button';
 import { Feedback } from '@/src/shared/ui/Feedback';
-import { workspaceColors as c } from '@/src/shared/theme/workspace';
+
 import { monthNames, parseDueDate, readAmount, ServiceCompany } from '@/src/features/administration/admin-analytics';
 
 export function ServiceMonthEditor({ company, year, month, onClose, onSaved, initialSection = "all" }: { initialSection?: "payment" | "assistance" | "all"; company: ServiceCompany; year: number; month: number; onClose: () => void; onSaved: () => void }) {
+  const s = useStyles();
+
   const firstField = useRef<TextInput>(null);
   const [record, setRecord] = useState(company.record); const wide = useWindowDimensions().width >= 700;
   const [form, setForm] = useState({ billed: String(record?.billed ?? company.suggested_monthly_fee ?? '').replace('.', ','), received: String(record?.received ?? 0).replace('.', ','), hours_included: String(record?.hours_included ?? company.suggested_support_hours ?? '').replace('.', ','), hours_used: String(record?.hours_used ?? 0).replace('.', ','), due_date: record?.due_date?.split('-').reverse().join('/') || '', note: record?.note || '' });
@@ -50,4 +53,4 @@ export function ServiceMonthEditor({ company, year, month, onClose, onSaved, ini
     </ScrollView></View></View>
   </Modal>;
 }
-const s = StyleSheet.create({ overlay: { flex: 1, backgroundColor: 'rgba(20,24,35,.48)', alignItems: 'center', justifyContent: 'center', padding: 16 }, dialog: { width: '100%', maxWidth: 650, maxHeight: '94%', backgroundColor: '#FFF', borderRadius: 24, overflow: 'hidden' }, content: { padding: 26, gap: 20 }, eyebrow: { color: c.brand, fontWeight: '700', fontSize: 11, letterSpacing: 1.2 }, title: { fontSize: 24, fontWeight: '700', color: c.ink }, hint: { fontSize: 13, lineHeight: 20, color: c.muted }, row: { gap: 16 }, horizontal: { flexDirection: 'row' }, field: { flex: 1, minWidth: 0 } });
+const useStyles = createThemedStyles((theme) => { const c = theme.workspace; return ({ overlay: { flex: 1, backgroundColor: theme.tones.overlay, alignItems: 'center', justifyContent: 'center', padding: 16 }, dialog: { width: '100%', maxWidth: 650, maxHeight: '94%', backgroundColor: theme.tones.card, borderRadius: 24, overflow: 'hidden' }, content: { padding: 26, gap: 20 }, eyebrow: { color: c.brand, fontWeight: '700', fontSize: 11, letterSpacing: 1.2 }, title: { fontSize: 24, fontWeight: '700', color: c.ink }, hint: { fontSize: 13, lineHeight: 20, color: c.muted }, row: { gap: 16 }, horizontal: { flexDirection: 'row' }, field: { flex: 1, minWidth: 0 } }); });

@@ -1,8 +1,10 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { router } from "expo-router";
+import { hasFeature } from "@/src/core/auth/company-features";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { View, Text } from "react-native";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 import { formatDate, formatEUR } from "@/src/shared/utils/format";
 import { exportInvoice } from "@/src/shared/utils/documents";
 import { Button } from "@/src/shared/ui/Button";
@@ -10,6 +12,8 @@ import { Feedback } from "@/src/shared/ui/Feedback";
 
 const TYPES: Record<string, string> = { fatura: "Fatura", fatura_recibo: "Fatura-recibo", orcamento: "Orçamento" };
 export function InvoiceCard({ invoice }: { invoice: any }) {
+  const styles = useStyles();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const exportPdf = async () => {
@@ -32,16 +36,16 @@ export function InvoiceCard({ invoice }: { invoice: any }) {
     <Text testID={`invoice-vat-${id}`} style={styles.hint}>IVA: {formatEUR(invoice.vat)}</Text>
     <Text testID={`invoice-total-${id}`} style={styles.total}>Total {formatEUR(invoice.grand_total)}</Text>
     <Feedback testID={`invoice-export-error-${id}`} error message={error} />
-    {(user?.can_manage_workshop || support) && invoice.document_type !== "orcamento" && <Button title="Pagamentos e movimentos" variant="secondary" onPress={() => router.push({ pathname: "/(app)/financeiro", params: { invoiceId: id } })} />}
+    {hasFeature(support || user, "payments") && (user?.can_manage_workshop || support) && invoice.document_type !== "orcamento" && <Button title="Pagamentos e movimentos" variant="secondary" onPress={() => router.push({ pathname: "/(app)/financeiro", params: { invoiceId: id } })} />}
     <Button testID={`invoice-export-pdf-${id}`} title="Exportar PDF" onPress={exportPdf} loading={loading} />
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { padding: spacing.lg, gap: 10, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, ...shadows.card },
   number: { color: colors.onSurface, fontSize: 18, fontWeight: "800" },
-  type: { color: colors.brandPrimary, fontSize: 12, fontWeight: "700" },
+  type: { color: colors.brandAccent, fontSize: 12, fontWeight: "700" },
   client: { color: colors.onSurface, fontSize: 16, fontWeight: "600" },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   row: { gap: 4, marginTop: 6 },
-  total: { color: colors.brandPrimary, fontSize: 22, fontWeight: "800", marginVertical: 6 },
-});
+  total: { color: colors.brandAccent, fontSize: 22, fontWeight: "800", marginVertical: 6 },
+}); });

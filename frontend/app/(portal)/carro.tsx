@@ -1,15 +1,18 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { hasFeature } from "@/src/core/auth/company-features";
 import React from "react";
-import { Text, StyleSheet } from "react-native";
+import { Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Photo } from "@/src/shared/media/Photo";
 import { formatDate, formatEUR } from "@/src/shared/utils/format";
-import { colors, radius } from "@/src/shared/theme/legacy";
+import { radius } from "@/src/shared/theme/legacy";
 export default function ClientCar() {
+  const areaStyles = useAreaStyles(); const styles = useStyles();
+
   const { user } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["portal-vehicle", id], queryFn: () => api.get(`/portal/vehicles/${id}`) });
@@ -47,4 +50,4 @@ export default function ClientCar() {
     </>}
   </AreaPage>;
 }
-const styles = StyleSheet.create({ photo: { width: "100%", height: 210, borderRadius: radius.md, backgroundColor: colors.surface }, total: { fontSize: 32, fontWeight: "800", color: colors.brandPrimary } });
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({ photo: { width: "100%", height: 210, borderRadius: radius.md, backgroundColor: colors.surface }, total: { fontSize: 32, fontWeight: "800", color: colors.brandAccent } }); });

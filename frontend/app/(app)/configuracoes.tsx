@@ -3,12 +3,14 @@ import { Text } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export default function Settings() {
+  const areaStyles = useAreaStyles();
+
   const { user, support } = useAuth(); const manager = !!user?.can_manage_workshop || !!support;
   const qc = useQueryClient(); const query = useQuery({ queryKey: ["workshop-settings"], queryFn: () => api.get("/workshop/settings") });
   const [editedRate, setRate] = useState<string | null>(null); const [editedVat, setVat] = useState<string | null>(null);

@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
@@ -5,12 +6,15 @@ import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing } from "@/src/shared/theme/legacy";
+import { spacing } from "@/src/shared/theme/legacy";
 import { ClientFields } from "@/src/features/clients/components/ClientFields";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 
 export default function NewClient() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [client, setClient] = useState({ name: "", nif: "", phone: "", email: "", address: "" });

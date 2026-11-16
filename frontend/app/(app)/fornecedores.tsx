@@ -3,11 +3,13 @@ import { Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { api } from "@/src/core/http/api";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 
 export default function Suppliers() {
+  const areaStyles = useAreaStyles();
+
   const [search, setSearch] = useState(""); const [selected, setSelected] = useState<any>(null);
   const suppliers = useQuery({ queryKey: ["suppliers", search], queryFn: () => api.get("/suppliers?search=" + encodeURIComponent(search)) });
   const products = useQuery({ queryKey: ["supplier-products", selected?.id], queryFn: () => api.get(`/suppliers/${selected.id}/products`), enabled: !!selected });

@@ -29,7 +29,7 @@ from roadmesh.modules.administration.module_presets import FeatureId, register_p
 
 class WorkshopBody(StrictModel):
     subscription_version: Literal[1] | None = None
-    enabled_modules: list[FeatureId] | None = Field(default=None, max_length=5)
+    enabled_modules: list[FeatureId] | None = Field(default=None, max_length=len(FEATURE_IDS))
     module_prices: dict[FeatureId, Annotated[Decimal, Field(ge=0, max_digits=11, decimal_places=2)]] | None = None
     base_monthly_fee: Decimal | None = Field(default=None, ge=0, max_digits=11, decimal_places=2)
 
@@ -131,7 +131,7 @@ class WorkshopBody(StrictModel):
 
 class CompanyDraftForm(StrictModel):
     subscription_version: Literal[1] | None = None
-    enabled_modules: list[FeatureId] = Field(default_factory=list, max_length=5)
+    enabled_modules: list[FeatureId] = Field(default_factory=list, max_length=len(FEATURE_IDS))
     module_prices: dict[FeatureId, str] = Field(default_factory=dict)
     base_monthly_fee: str = Field(default="", max_length=16)
     modules: list[Literal["workshop", "stand"]] = Field(default_factory=lambda: ["workshop"], min_length=1, max_length=2)
@@ -296,7 +296,7 @@ def register_admin_routes(api, db, access):
         wid = identifier()
         async def operation(session):
             manager, credentials = await access.create_account(body.manager_name, str(body.manager_email), "workshop_staff", wid, manager=True, session=session)
-            doc = {"id": wid, **body.model_dump(mode="json"), "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
+            doc = {"id": wid, **body.model_dump(mode="json"), "product_catalog_version": 2, "manager_id": manager["id"], "status": "active", "created_at": timestamp(), "updated_at": timestamp()}
             await db.workshops.insert_one(doc, session=session)
             return doc, credentials
 
@@ -321,6 +321,7 @@ def register_admin_routes(api, db, access):
                 raise HTTPException(409, "O email do responsável já está em uso.") from exc
         update = {**body.model_dump(mode="json", exclude_unset=True), "updated_at": timestamp()}
         if body.subscription_version == 1:
+            update["product_catalog_version"] = 2
             update["monthly_fee"] = str(body.monthly_fee)
             keys = ("enabled_modules", "module_prices", "base_monthly_fee", "monthly_fee")
             if any(workshop.get(key) != update.get(key) for key in keys):

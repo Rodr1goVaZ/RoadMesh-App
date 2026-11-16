@@ -1,8 +1,9 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Platform, StyleSheet, View, StyleProp, ImageStyle, Text, ImageResizeMode } from "react-native";
+import { ActivityIndicator, Image, Platform, View, StyleProp, ImageStyle, Text, ImageResizeMode } from "react-native";
 import { API_BASE } from "@/src/core/http/api";
 import { session } from "@/src/core/auth/session";
-import { colors } from "@/src/shared/theme/legacy";
+
 import { useAuth } from "@/src/core/auth/AuthProvider";
 
 export function Photo({ mediaId, legacyUri, testID, style, resizeMode = "contain" }: { mediaId?: string; legacyUri?: string; testID: string; style: StyleProp<ImageStyle>; resizeMode?: ImageResizeMode }) {
@@ -11,6 +12,10 @@ export function Photo({ mediaId, legacyUri, testID, style, resizeMode = "contain
 }
 
 function PhotoImage({ mediaId, legacyUri, testID, style, resizeMode, supportToken }: { mediaId?: string; legacyUri?: string; testID: string; style: StyleProp<ImageStyle>; resizeMode?: ImageResizeMode; supportToken?: string }) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const [source, setSource] = useState<any>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -31,10 +36,10 @@ function PhotoImage({ mediaId, legacyUri, testID, style, resizeMode, supportToke
     return () => { active = false; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [mediaId, legacyUri, supportToken]);
   if (error) return <View style={[style, styles.center]}><Text testID={`${testID}-error`} style={styles.error}>Foto indisponível</Text></View>;
-  if (!source) return <View style={[style, styles.center]}><ActivityIndicator testID={`${testID}-loading`} color={colors.brandPrimary} /></View>;
+  if (!source) return <View style={[style, styles.center]}><ActivityIndicator testID={`${testID}-loading`} color={colors.brandAccent} /></View>;
   return <Image testID={testID} source={source} style={style} resizeMode={resizeMode} onError={() => setError(true)} />;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   center: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceTertiary },
   error: { color: colors.muted, fontSize: 12 },
-});
+}); });

@@ -1,17 +1,20 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { hasFeature } from "@/src/core/auth/company-features";
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { api } from "@/src/core/http/api";
-import { colors, radius, spacing, shadows } from "@/src/shared/theme/legacy";
+import { radius, spacing, shadows } from "@/src/shared/theme/legacy";
 import { formatDate, formatEUR, QUOTE_STATUS_LABELS } from "@/src/shared/utils/format";
 import { shareQuote } from "@/src/shared/utils/documents";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 
 export function QuoteCard({ quote }: { quote: any }) {
+  const styles = useStyles();
+
   const { user, support } = useAuth(); const notifications = hasFeature(support || user, "customer_notifications");
   const qc = useQueryClient();
   const [busy, setBusy] = useState("");
@@ -58,7 +61,7 @@ export function QuoteCard({ quote }: { quote: any }) {
       <Button testID={`quote-whatsapp-${id}`} title="WhatsApp" variant="secondary" style={styles.flex} disabled={!!busy} loading={busy === "whatsapp"} onPress={() => send("whatsapp")} />
     </View>}
     <Feedback testID={`quote-error-${id}`} error message={error} />
-    {error.includes("contactos") && <Button testID={`quote-edit-client-${id}`} title="Abrir ficha do cliente" variant="ghost" onPress={() => router.push(`/(app)/clientes/${quote.client_id}`)} />}
+    {hasFeature(support || user, "customer_database") && error.includes("contactos") && <Button testID={`quote-edit-client-${id}`} title="Abrir ficha do cliente" variant="ghost" onPress={() => router.push(`/(app)/clientes/${quote.client_id}`)} />}
     <Feedback testID={`quote-feedback-${id}`} message={message} />
     {quote.converted_work_order_id && <Text testID={`quote-converted-${id}`} style={styles.hint}>Já convertido em ordem de serviço.</Text>}
     {!quote.converted_work_order_id && quote.status === "rascunho" && <Button testID={`quote-mark-sent-${id}`} title="Confirmar que enviei" variant="ghost" disabled={!!busy} loading={busy === "enviado"} onPress={() => changeStatus("enviado")} />}
@@ -66,20 +69,20 @@ export function QuoteCard({ quote }: { quote: any }) {
       <Button testID={`quote-accept-${id}`} title="Aceite" style={styles.flex} disabled={!!busy} loading={busy === "aceite"} onPress={() => changeStatus("aceite")} />
       <Button testID={`quote-reject-${id}`} title="Recusado" variant="secondary" style={styles.flex} disabled={!!busy} onPress={() => changeStatus("recusado")} />
     </View>}
-    {!quote.converted_work_order_id && quote.status === "aceite" && (confirm ? <>
+    {hasFeature(support || user, "service_orders") && !quote.converted_work_order_id && quote.status === "aceite" && (confirm ? <>
       <Text testID={`quote-convert-confirmation-${id}`} style={styles.hint}>Criar uma ordem de serviço a partir deste orçamento?</Text>
       <Button testID={`quote-convert-confirm-${id}`} title="Criar Ordem de Serviço" disabled={!!busy} loading={busy === "convert"} onPress={convert} />
       <Button testID={`quote-convert-cancel-${id}`} title="Cancelar" variant="ghost" disabled={!!busy} onPress={() => setConfirm(false)} />
     </> : <Button testID={`quote-convert-${id}`} title="Converter em Ordem de Serviço" disabled={!!busy} onPress={() => setConfirm(true)} />)}
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { padding: spacing.lg, gap: 10, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, ...shadows.card },
   row: { flexDirection: "row", gap: 10, alignItems: "center", justifyContent: "space-between" }, flex: { flex: 1 },
   number: { color: colors.onSurface, fontWeight: "800", fontSize: 16, flexShrink: 1 },
-  status: { fontSize: 12, fontWeight: "700", color: colors.brandPrimary },
+  status: { fontSize: 12, fontWeight: "700", color: colors.brandAccent },
   client: { color: colors.onSurface, fontSize: 16, fontWeight: "600" },
   hint: { color: colors.muted, fontSize: 13, lineHeight: 20 },
-  total: { fontSize: 22, fontWeight: "800", color: colors.brandPrimary },
+  total: { fontSize: 22, fontWeight: "800", color: colors.brandAccent },
   lines: { gap: 8, padding: 12, backgroundColor: colors.surface, borderRadius: radius.md },
-});
+}); });

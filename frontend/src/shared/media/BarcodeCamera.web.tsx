@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text } from "react-native";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { areaStyles } from "@/src/shared/layout/AreaUI";
+import { useAreaStyles } from "@/src/shared/layout/AreaUI";
 
 type DetectorType = { new(): { detect(video: HTMLVideoElement): Promise<{ rawValue: string }[]> } };
 export function BarcodeCamera({ onRead }: { onRead: (code: string) => void }) {
+  const areaStyles = useAreaStyles();
+
   const video = useRef<HTMLVideoElement>(null); const stream = useRef<MediaStream | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null); const active = useRef(false);
   const [open, setOpen] = useState(false); const [error, setError] = useState("");

@@ -4,11 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { router, useLocalSearchParams } from "expo-router";
 import { useNow } from "@/src/shared/hooks/useNow";
-import { AreaPage, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { AppointmentForm } from "@/src/features/appointments/components/AppointmentForm";
 import { AppointmentCard } from "@/src/features/appointments/components/AppointmentCard";
 export function Appointments({ portal = true }: { portal?: boolean }) {
+  const areaStyles = useAreaStyles();
+
   const now = useNow();
   const params = useLocalSearchParams<{ novo?: string; vehicleId?: string }>();
   const [editing, setEditing] = useState<any>(null);

@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import { saleFromMargin } from "@/src/features/finance/pricing";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
@@ -6,12 +7,15 @@ import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing } from "@/src/shared/theme/legacy";
+import { spacing } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 
 export default function NewProduct() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [barcode, setBarcode] = useState("");

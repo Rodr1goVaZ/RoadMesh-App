@@ -1,17 +1,22 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { formatEUR } from "@/src/shared/utils/format";
 
 export default function NewOrder() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: products = [] } = useQuery({ queryKey: ["products", "all"], queryFn: () => api.get("/products") });
@@ -99,12 +104,15 @@ export default function NewOrder() {
   );
 }
 function Row({ label, value, bold }: any) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   return <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
     <Text style={{ color: colors.muted }}>{label}</Text>
-    <Text style={{ color: bold ? colors.brandPrimary : colors.onSurface, fontWeight: bold ? "800" : "600" }}>{value}</Text>
+    <Text style={{ color: bold ? colors.brandAccent : colors.onSurface, fontWeight: bold ? "800" : "600" }}>{value}</Text>
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, ...shadows.card },
   label: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
   itemName: { fontSize: 14, fontWeight: "700", color: colors.onSurface, marginBottom: 8 },
@@ -112,4 +120,4 @@ const styles = StyleSheet.create({
   chipTxt: { fontSize: 12, color: colors.onSurface },
   sticky: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: colors.surfaceSecondary,
     borderTopColor: colors.border, borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingTop: 12 },
-});
+}); });

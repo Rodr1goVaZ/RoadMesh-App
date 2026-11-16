@@ -6,11 +6,13 @@ import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Button } from "@/src/shared/ui/Button";
 import { formatEUR, formatDate } from "@/src/shared/utils/format";
 const labels: Record<string, string> = { rascunho: "Rascunho", por_validar: "Por validar", pendente: "Por receber", parcial: "Recebida parcialmente", recebida: "Recebida", cancelada: "Cancelada" };
 export default function Orders() {
+  const areaStyles = useAreaStyles();
+
   const { user, support } = useAuth(); const [year, setYear] = useListState("encomendas-year", "");
   const query = useQuery({ queryKey: ["purchase-orders", year], queryFn: () => api.get(`/purchase-orders${year.length === 4 ? "?year=" + year : ""}`) });
   return <AreaPage title="Encomendas" testID="orders"><YearFilter resource="orders" value={year} onChange={setYear} />

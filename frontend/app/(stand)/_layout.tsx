@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
 import { Stack, Redirect } from "expo-router";
 import { View, useWindowDimensions } from "react-native";
@@ -5,7 +6,7 @@ import { useAuth, homeFor } from "@/src/core/auth/AuthProvider";
 import { companyHome, companyModules } from "@/src/core/auth/company-modules";
 import { SupportBanner } from "@/src/shared/layout/SupportBanner";
 import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/shared/layout/WorkspaceChrome";
-import { WorkspaceVisualContext, workspaceColors as c } from "@/src/shared/theme/workspace";
+import { WorkspaceVisualContext } from "@/src/shared/theme/workspace";
 import { ModuleSwitch } from "@/src/shared/layout/ModuleSwitch";
 const items: WorkspaceLink[] = [
   { label: "Início", href: "/(stand)/stand-inicio", icon: "home-outline", activeIcon: "home", testID: "stand-tab-home", matches: ["(stand)/stand-inicio"] },
@@ -15,6 +16,9 @@ const items: WorkspaceLink[] = [
   { label: "Mais", href: "/(stand)/stand-mais", icon: "grid-outline", testID: "stand-tab-more", matches: ["(stand)/stand-mais","(stand)/stand-historico"] },
 ];
 export default function StandLayout() {
+  const theme = useAppTheme();
+  const c = theme.workspace;
+
   const { user, support, loading } = useAuth(); const mobile = useWindowDimensions().width < 700;
   if (loading) return null;
   if (!user || user.password_change_required || (user.role !== "workshop_staff" && !(user.role === "admin" && support))) return <Redirect href={homeFor(user)} />;

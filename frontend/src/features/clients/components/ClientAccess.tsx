@@ -1,12 +1,15 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { CredentialsNotice, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { CredentialsNotice, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 export function ClientAccess({ client }: { client: any }) {
+  const areaStyles = useAreaStyles(); const styles = useStyles();
+
   const qc = useQueryClient(); const [email, setEmail] = useState(client.email || ""); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false);
   const [error, setError] = useState(""); const [credentials, setCredentials] = useState<any>(null);
   const { data, isLoading, error: queryError, refetch } = useQuery({ queryKey: ["client-account", client.id], queryFn: () => api.get(`/clients/${client.id}/account`) });
@@ -34,4 +37,4 @@ export function ClientAccess({ client }: { client: any }) {
     <Feedback testID="client-portal-access-error" error message={error} />
   </View>;
 }
-const styles = StyleSheet.create({ wrap: { gap: 12, paddingVertical: 20 } });
+const useStyles = createThemedStyles((theme) => {  return ({ wrap: { gap: 12, paddingVertical: 20 } }); });

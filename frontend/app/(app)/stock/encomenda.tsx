@@ -7,13 +7,15 @@ import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 export default function OrderDetail() {
+  const areaStyles = useAreaStyles();
+
   const { id } = useLocalSearchParams<{ id: string }>(); const { user, support } = useAuth();
   const manager = !!user?.can_manage_workshop || !!support; const qc = useQueryClient();
   const query = useQuery({ queryKey: ["purchase-order", id], queryFn: () => api.get(`/purchase-orders/${id}`), enabled: !!id });

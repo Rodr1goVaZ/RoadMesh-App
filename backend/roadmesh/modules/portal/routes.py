@@ -101,7 +101,9 @@ def register_portal_routes(api, db, access):
         orders = await db.work_orders.find(scope, fields).sort("created_at", -1).to_list(2000)
         quotes = await db.quotes.find(scope, fields).sort("created_at", -1).to_list(2000)
         if is_modular(account) and "service_orders" not in enabled_features(account):
-            orders, quotes = [], []
+            orders = []
+        if is_modular(account) and "quotes" not in enabled_features(account):
+            quotes = []
         converted = {order.get("quote_id") for order in orders}
         history = [
             {

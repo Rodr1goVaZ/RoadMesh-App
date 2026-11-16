@@ -1,11 +1,12 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
 import { Photo } from "@/src/shared/media/Photo";
@@ -22,6 +23,10 @@ const ZONES = [
 ];
 
 export default function VehiclePhotos() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const { vehicleId } = useLocalSearchParams<{ vehicleId: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -87,7 +92,7 @@ export default function VehiclePhotos() {
           <View style={styles.grid}>
             {filtered.map((p: any) => (
               <Pressable key={p.id} testID={`vehicle-photo-thumb-${p.id}`} onPress={() => setSelected(p.id)} onLongPress={() => del(p.id)}
-                         style={[styles.thumb, main?.id === p.id && { borderColor: colors.brandPrimary, borderWidth: 2 }]}>
+                         style={[styles.thumb, main?.id === p.id && { borderColor: colors.brandAccent, borderWidth: 2 }]}>
                 <Photo mediaId={p.media_id} legacyUri={p.image_b64} testID={`vehicle-photo-${p.id}`} style={styles.thumbImg} />
               </Pressable>
             ))}
@@ -102,15 +107,15 @@ export default function VehiclePhotos() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   thumbImg: { width: "100%", height: "100%" },
   sub: { color: colors.muted, textAlign: "center", paddingBottom: 4 },
   chip: { paddingHorizontal: 12, height: 32, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, justifyContent: "center", flexShrink: 0 },
-  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   chipTxt: { fontSize: 12, color: colors.onSurface, fontWeight: "600" },
-  chipTxtActive: { color: "#fff" },
+  chipTxtActive: { color: theme.tones.onAction },
   mainCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, overflow: "hidden", ...shadows.card },
   mainImg: { width: "100%", height: 220 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   thumb: { width: 80, height: 80, borderRadius: 8, overflow: "hidden", backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border },
-});
+}); });

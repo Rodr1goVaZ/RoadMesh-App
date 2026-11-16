@@ -1,21 +1,26 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { YearFilter } from "@/src/shared/ui/YearFilter";
 import { ProductSettings } from "@/src/features/inventory/components/ProductSettings";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
 import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 export default function ProductDetail() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -104,7 +109,7 @@ export default function ProductDetail() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 8, ...shadows.card },
   ref: { fontSize: 11, color: colors.muted, fontWeight: "700" },
   name: { fontSize: 18, fontWeight: "800", color: colors.onSurface },
@@ -116,4 +121,4 @@ const styles = StyleSheet.create({
   mvRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.divider },
   mvReason: { color: colors.onSurface, fontSize: 14 },
   mvDelta: { fontWeight: "800", fontSize: 15 },
-});
+}); });

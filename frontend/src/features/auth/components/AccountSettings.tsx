@@ -1,5 +1,6 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React, { useState } from "react";
-import { Platform, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Platform, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { AreaPage } from "@/src/shared/layout/AreaUI";
@@ -7,10 +8,12 @@ import { Button } from "@/src/shared/ui/Button";
 import { Input } from "@/src/shared/ui/Input";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { pickPhoto } from "@/src/shared/media/helpers";
-import { workspaceColors as c } from "@/src/shared/theme/workspace";
+
 import { AccountAvatar } from "./AccountAvatar";
 
 export function AccountSettings() {
+  const s = useStyles();
+
   const { user, updateProfile, updateAvatar, changePassword, logout } = useAuth();
   const wide = useWindowDimensions().width >= 850;
   const [name, setName] = useState(user?.name || "");
@@ -81,11 +84,11 @@ export function AccountSettings() {
     </View>
   </AreaPage>;
 }
-const s = StyleSheet.create({
-  card: { backgroundColor: c.card, borderRadius: 24, padding: 24, gap: 28, borderWidth: 1, borderColor: c.line, shadowColor: "#20243A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: .045, shadowRadius: 12, elevation: 2 },
+const useStyles = createThemedStyles((theme) => { const c = theme.workspace; return ({
+  card: { backgroundColor: c.card, borderRadius: 24, padding: 24, gap: 28, borderWidth: 1, borderColor: c.line, shadowColor: theme.tones.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: .045, shadowRadius: 12, elevation: 2 },
   heading: { gap: 8 }, title: { fontSize: 27, fontWeight: "700", color: c.ink }, sectionTitle: { fontSize: 19, fontWeight: "700", color: c.ink }, hint: { color: c.muted, fontSize: 14, lineHeight: 22 },
   columns: { gap: 28 }, column: { flex: 1, minWidth: 0, gap: 14 }, security: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 28 }, securityWide: { borderTopWidth: 0, paddingTop: 0, borderLeftWidth: 1, borderLeftColor: c.line, paddingLeft: 28 },
   session: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 24, gap: 20 }, sessionWide: { flexDirection: "row", alignItems: "center" },
   photoRow: { flexDirection: "row", alignItems: "center", gap: 20, flexWrap: "wrap" }, photoActions: { gap: 2 },
   email: { gap: 8, paddingVertical: 8 }, label: { color: c.muted, fontSize: 13, fontWeight: "600" }, emailText: { color: c.ink, fontSize: 16 },
-});
+}); });

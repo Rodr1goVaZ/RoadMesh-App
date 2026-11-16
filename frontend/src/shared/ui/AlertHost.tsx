@@ -1,9 +1,12 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useSyncExternalStore } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import { alertStore, AppAlert } from "@/src/shared/utils/alerts";
-import { colors, radius, spacing } from "@/src/shared/theme/legacy";
+import { radius, spacing } from "@/src/shared/theme/legacy";
 
 export function AlertHost() {
+  const styles = useStyles();
+
   const request = useSyncExternalStore(alertStore.subscribe, alertStore.snapshot, alertStore.snapshot);
   if (!request) return null;
   const select = (index: number) => {
@@ -30,13 +33,13 @@ export function AlertHost() {
     </View>
   </Modal>;
 }
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
+  backdrop: { flex: 1, backgroundColor: theme.tones.overlay, alignItems: "center", justifyContent: "center", padding: spacing.lg },
   panel: { width: "100%", maxWidth: 440, borderRadius: radius.lg, backgroundColor: colors.surfaceSecondary, padding: spacing.lg, gap: spacing.md },
   title: { fontSize: 20, fontWeight: "700", color: colors.onSurface },
   message: { fontSize: 15, lineHeight: 22, color: colors.muted },
   actions: { flexDirection: "row", gap: spacing.md, justifyContent: "flex-end", flexWrap: "wrap" },
   button: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: radius.md, backgroundColor: colors.surface },
-  primary: { backgroundColor: colors.brandPrimary }, danger: { backgroundColor: colors.error },
-  buttonText: { color: colors.onSurface, fontWeight: "700" }, primaryText: { color: "white" },
-});
+  primary: { backgroundColor: colors.brandPrimary }, danger: { backgroundColor: colors.errorFill },
+  buttonText: { color: colors.onSurface, fontWeight: "700" }, primaryText: { color: theme.tones.onAction },
+}); });

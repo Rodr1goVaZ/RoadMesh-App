@@ -1,13 +1,15 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
+import { hasFeature } from "@/src/core/auth/company-features";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { StatusChip } from "@/src/shared/ui/StatusChip";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
@@ -18,6 +20,10 @@ import { Feedback } from "@/src/shared/ui/Feedback";
 const STATUSES = ["entrada", "diagnostico", "aguardando_pecas", "concluido"];
 
 export default function WoDetail() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const { user, support } = useAuth();
   const canManage = user?.can_manage_workshop === true || (user?.role === "admin" && !!support);
   const insets = useSafeAreaInsets();
@@ -134,6 +140,7 @@ export default function WoDetail() {
         </View>}
 
         <View style={styles.card}>
+          {hasFeature(support || user, "invoicing") && <>
           <Feedback testID="wo-invoice-error" message={invoiceError} error />
           <Text testID="wo-invoice-notice" style={styles.mut}>Documento interno, sem validade fiscal.</Text>
           {data.status !== "concluido" ? <Text testID="wo-invoice-required-status" style={styles.mut}>Conclua a ordem de serviço antes de emitir a fatura.</Text> : null}
@@ -147,6 +154,7 @@ export default function WoDetail() {
             } catch (e: any) { setInvoiceError(e.message); }
             finally { setIssuing(false); }
           }} />
+          </>}
           <View style={{ height: 8 }} />
           {(data.status === "entrada" || canManage) && <Button title="Apagar Ordem de Serviço" variant="danger" testID="wo-delete" disabled={saving || issuing} onPress={del} />}
         </View>
@@ -160,19 +168,19 @@ export default function WoDetail() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 4, ...shadows.card },
   label: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   value: { color: colors.onSurface, fontSize: 14 },
   mut: { color: colors.muted, fontSize: 13 },
   rowH: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 },
   divider: { height: 1, backgroundColor: colors.divider, marginVertical: 8 },
-  total: { fontWeight: "800", fontSize: 16, color: colors.brandPrimary },
+  total: { fontWeight: "800", fontSize: 16, color: colors.brandAccent },
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   chipTxt: { fontSize: 12, color: colors.onSurface, fontWeight: "600" },
-  chipTxtActive: { color: "#fff" },
+  chipTxtActive: { color: theme.tones.onAction },
   sticky: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: colors.surfaceSecondary,
     borderTopColor: colors.border, borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingTop: 12 },
-});
+}); });

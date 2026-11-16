@@ -1,11 +1,12 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useListState } from "@/src/shared/hooks/useListState";
 import { YearFilter } from "@/src/shared/ui/YearFilter";
 import React from "react";
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing } from "@/src/shared/theme/legacy";
+import { spacing } from "@/src/shared/theme/legacy";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Feedback } from "@/src/shared/ui/Feedback";
 import { Button } from "@/src/shared/ui/Button";
@@ -13,6 +14,10 @@ import { Fab } from "@/src/shared/ui/Fab";
 import { QuoteCard } from "@/src/features/finance/components/QuoteCard";
 
 export default function Quotes() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const [year, setYear] = useListState("orcamentos-year", "");
   const { data = [], error, isLoading, refetch, isRefetching } = useQuery({ queryKey: ["quotes", year], queryFn: () => api.get(`/quotes${year.length === 4 ? "?year=" + year : ""}`) });
   return <View style={styles.screen}>
@@ -21,7 +26,7 @@ export default function Quotes() {
       ListHeaderComponent={<>
         <YearFilter resource="quotes" value={year} onChange={setYear} />
         <Text testID="quotes-sharing-help" style={styles.hint}>Envie ao cliente por email ou WhatsApp. O envio é concluído na aplicação escolhida.</Text>
-        {isLoading && <ActivityIndicator testID="quotes-loading" color={colors.brandPrimary} />}
+        {isLoading && <ActivityIndicator testID="quotes-loading" color={colors.brandAccent} />}
         <Feedback testID="quotes-error" error message={error?.message} />
         {error && <Button testID="quotes-retry" title="Tentar novamente" onPress={() => refetch()} />}
       </>}
@@ -30,8 +35,8 @@ export default function Quotes() {
     <Fab testID="fab-new-quote" onPress={() => router.push("/(app)/orcamento-new")} />
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   screen: { flex: 1, backgroundColor: colors.surface },
   list: { width: "100%", maxWidth: 1100, alignSelf: "center", padding: spacing.lg, gap: 16, paddingBottom: 100 },
   hint: { color: colors.muted, fontSize: 14, lineHeight: 21, paddingBottom: 8 },
-});
+}); });

@@ -4,7 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { useAuth } from "@/src/core/auth/AuthProvider";
-import { AreaPage, Panel, Metrics, QueryState, areaStyles } from "@/src/shared/layout/AreaUI";
+import { AreaPage, Panel, Metrics, QueryState, useAreaStyles } from "@/src/shared/layout/AreaUI";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { Feedback } from "@/src/shared/ui/Feedback";
@@ -12,6 +12,8 @@ import { formatEUR, formatDateTime } from "@/src/shared/utils/format";
 
 const kinds: Record<string, string> = { charge: "Documento emitido", payment: "Pagamento", payment_reversal: "Estorno de pagamento", credit: "Crédito interno" };
 export default function Finance() {
+  const areaStyles = useAreaStyles();
+
   const { invoiceId } = useLocalSearchParams<{ invoiceId?: string }>(); const { user, support } = useAuth();
   const manager = !!user?.can_manage_workshop || !!support; const qc = useQueryClient();
   const [selected, setSelected] = useState(invoiceId || ""); const [search, setSearch] = useState("");

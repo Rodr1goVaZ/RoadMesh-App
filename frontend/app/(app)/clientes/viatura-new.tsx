@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
 import { View, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
@@ -6,12 +7,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing } from "@/src/shared/theme/legacy";
+import { spacing } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 
 export default function NewVehicle() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { client_id } = useLocalSearchParams<{ client_id: string }>();

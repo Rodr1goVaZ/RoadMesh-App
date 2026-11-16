@@ -1,15 +1,16 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { hasFeature } from "@/src/core/auth/company-features";
 import { goBack } from "@/src/shared/utils/navigation";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { AppAlert as Alert } from "@/src/shared/utils/alerts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { Feedback } from "@/src/shared/ui/Feedback";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { StatusChip } from "@/src/shared/ui/StatusChip";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
 import { Button } from "@/src/shared/ui/Button";
@@ -20,6 +21,10 @@ import { ClientAccess } from "@/src/features/clients/components/ClientAccess";
 const TABS = ["contactos", "viaturas", "historico"] as const;
 
 export default function ClientDetail() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const { user, support } = useAuth();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -101,20 +106,23 @@ export default function ClientDetail() {
   );
 }
 function Row({ label, value }: any) {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+
   return <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 }}>
     <Text style={{ color: colors.muted, fontSize: 13 }}>{label}</Text>
     <Text style={{ color: colors.onSurface, fontSize: 14, fontWeight: "600", maxWidth: "60%", textAlign: "right" }}>{value}</Text>
   </View>;
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   flex: { flex: 1 },
   tabs: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: 8, paddingVertical: 4 },
   tab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
-  tabActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  tabActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   tabTxt: { color: colors.onSurface, fontWeight: "600", fontSize: 13 },
-  tabTxtActive: { color: "#fff" },
+  tabTxtActive: { color: theme.tones.onAction },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, ...shadows.card },
   title: { fontSize: 15, fontWeight: "700", color: colors.onSurface },
   mut: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  link: { color: colors.brandPrimary, fontWeight: "600", marginTop: 6, fontSize: 13 },
-});
+  link: { color: colors.brandAccent, fontWeight: "600", marginTop: 6, fontSize: 13 },
+}); });

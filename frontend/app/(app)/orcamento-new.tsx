@@ -1,12 +1,13 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { ClientVehicleFields } from "@/src/shared/pickers/RelationPicker";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { Input } from "@/src/shared/ui/Input";
 import { Button } from "@/src/shared/ui/Button";
 import { ScreenHeader } from "@/src/shared/layout/ScreenHeader";
@@ -14,6 +15,10 @@ import { Feedback } from "@/src/shared/ui/Feedback";
 import { ProductPicker } from "@/src/features/inventory/components/ProductPicker";
 
 export default function NewQuote() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { user, support } = useAuth(); const manager = !!user?.can_manage_workshop || !!support;
@@ -84,12 +89,12 @@ export default function NewQuote() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   types: { flexDirection: "row", gap: 8 },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, ...shadows.card },
   label: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
   chip: { paddingHorizontal: 12, minHeight: 44, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: "center", flexShrink: 0 },
-  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
+  chipActive: { backgroundColor: colors.brandPrimary, borderColor: colors.brandAccent },
   chipTxt: { fontSize: 12, color: colors.onSurface, fontWeight: "600" },
   chipTxtActive: { color: colors.onBrand },
-});
+}); });

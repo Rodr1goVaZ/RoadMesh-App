@@ -1,11 +1,14 @@
+import { createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors } from "@/src/shared/theme/legacy";
+import { View, Text } from "react-native";
+
 import { Button } from "@/src/shared/ui/Button";
 
 export function EmptyState({ icon = "📭", title, message, actionLabel, onAction, testID }: {
   icon?: string; title: string; message?: string; actionLabel?: string; onAction?: () => void; testID?: string;
 }) {
+  const styles = useStyles();
+
   return (
     <View testID={testID} style={styles.wrap}>
       <Text style={styles.icon}>{icon}</Text>
@@ -19,9 +22,9 @@ export function EmptyState({ icon = "📭", title, message, actionLabel, onActio
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   wrap: { alignItems: "center", justifyContent: "center", padding: 32, gap: 8 },
   icon: { fontSize: 44 },
   title: { fontSize: 16, fontWeight: "700", color: colors.onSurface, textAlign: "center" },
   msg: { fontSize: 13, color: colors.muted, textAlign: "center", maxWidth: 300 },
-});
+}); });

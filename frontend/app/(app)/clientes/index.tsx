@@ -1,15 +1,20 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import { useListState } from "@/src/shared/hooks/useListState";
 import React from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, RefreshControl } from "react-native";
+import { View, Text, FlatList, Pressable, TextInput, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
-import { colors, spacing, radius, shadows } from "@/src/shared/theme/legacy";
+import { spacing, radius, shadows } from "@/src/shared/theme/legacy";
 import { Fab } from "@/src/shared/ui/Fab";
 import { EmptyState } from "@/src/shared/ui/EmptyState";
 
 export default function Clientes() {
+  const theme = useAppTheme();
+  const colors = theme.colors;
+  const styles = useStyles();
+
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useListState("index-search", "");
   const { data = [], refetch, isRefetching } = useQuery({
@@ -51,15 +56,15 @@ export default function Clientes() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((theme) => { const colors = theme.colors; return ({
   header: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingBottom: 8, gap: 8 },
   title: { fontSize: 22, fontWeight: "800", color: colors.onSurface },
   searchBox: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
   searchInput: { paddingVertical: 10, fontSize: 14, color: colors.onSurface },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.md, flexDirection: "row", alignItems: "center", gap: 12, ...shadows.card },
   avatar: { width: 40, height: 40, borderRadius: 999, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  avatarTxt: { fontWeight: "800", color: colors.brandPrimary, fontSize: 13 },
+  avatarTxt: { fontWeight: "800", color: colors.brandAccent, fontSize: 13 },
   name: { fontSize: 15, fontWeight: "700", color: colors.onSurface },
   sub: { color: colors.muted, fontSize: 12 },
   count: { color: colors.muted, fontSize: 11 },
-});
+}); });

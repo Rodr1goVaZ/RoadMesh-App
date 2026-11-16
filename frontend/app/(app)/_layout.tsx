@@ -1,3 +1,4 @@
+import { useAppTheme } from "@/src/shared/theme/ThemeProvider";
 import React, { useEffect } from "react";
 import { Tabs, router, useSegments, Redirect } from "expo-router";
 import { View, useWindowDimensions } from "react-native";
@@ -5,7 +6,7 @@ import { ModuleSwitch } from "@/src/shared/layout/ModuleSwitch";
 import { companyModules, companyHome } from "@/src/core/auth/company-modules";
 import { useAuth, homeFor } from "@/src/core/auth/AuthProvider";
 import { SupportBanner } from "@/src/shared/layout/SupportBanner";
-import { WorkspaceVisualContext, workspaceColors } from "@/src/shared/theme/workspace";
+import { WorkspaceVisualContext } from "@/src/shared/theme/workspace";
 import { WorkspaceHeader, WorkspaceNavigation, WorkspaceLink } from "@/src/shared/layout/WorkspaceChrome";
 import { featureForScreen, hasFeature } from "@/src/core/auth/company-features";
 const allItems: WorkspaceLink[] = [
@@ -13,9 +14,12 @@ const allItems: WorkspaceLink[] = [
   { label: "Serviço", href: "/(app)/servico", icon: "construct-outline", activeIcon: "construct", testID: "workshop-tab-services", matches: ["(app)/servico"] },
   { label: "Clientes", href: "/(app)/clientes", icon: "people-outline", activeIcon: "people", testID: "workshop-tab-clients", matches: ["(app)/clientes"] },
   { label: "Stock", href: "/(app)/stock", icon: "cube-outline", activeIcon: "cube", testID: "workshop-tab-stock", matches: ["(app)/stock"] },
-  { label: "Mais", href: "/(app)/mais", icon: "grid-outline", activeIcon: "grid", testID: "workshop-tab-more", matches: ["(app)/mais","(app)/configuracoes","(app)/fornecedores","(app)/historicos","(app)/financeiro","(app)/faturacao","(app)/orcamentos","(app)/orcamento-new","(app)/viaturas","(app)/viatura","(app)/danos","(app)/marcacoes","(app)/fotos"] },
+  { label: "Mais", href: "/(app)/mais", icon: "grid-outline", activeIcon: "grid", testID: "workshop-tab-more", matches: ["(app)/produtos","(app)/mais","(app)/configuracoes","(app)/fornecedores","(app)/historicos","(app)/financeiro","(app)/faturacao","(app)/orcamentos","(app)/orcamento-new","(app)/viaturas","(app)/viatura","(app)/danos","(app)/marcacoes","(app)/fotos"] },
 ];
 export default function AppLayout() {
+  const theme = useAppTheme();
+  const workspaceColors = theme.workspace;
+
   const { user, loading, support } = useAuth(); const mobile = useWindowDimensions().width < 700;
   const segments = useSegments() as string[];
   const company = support || user;
@@ -28,7 +32,7 @@ export default function AppLayout() {
   if (!permitted) return <Redirect href="/(app)/inicio" />;
   return <WorkspaceVisualContext.Provider value={true}><View style={{ flex: 1, backgroundColor: workspaceColors.background }}>
     <SupportBanner />
-    <WorkspaceHeader items={items} profileHref={user.role === "admin" ? "/(admin)/conta" : "/(app)/conta-oficina"} actionHref={hasFeature(company, "customer_notifications") ? "/(app)/marcacoes" : undefined} actionLabel="Ver marcações dos clientes" testID="workshop-header" />
+    <WorkspaceHeader items={items} profileHref={user.role === "admin" ? "/(admin)/conta" : "/(app)/conta-oficina"} actionHref={hasFeature(company, "appointments") ? "/(app)/marcacoes" : undefined} actionLabel="Ver marcações dos clientes" testID="workshop-header" />
     {!mobile && <ModuleSwitch current="workshop" />}
     <Tabs backBehavior="history" tabBar={() => mobile ? <><ModuleSwitch current="workshop" /><WorkspaceNavigation items={items} mobile /></> : null} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: workspaceColors.background } }}>
       <Tabs.Screen name="inicio" options={{ title: "Início" }} />
@@ -36,6 +40,7 @@ export default function AppLayout() {
       <Tabs.Screen name="clientes" options={{ title: "Clientes" }} />
       <Tabs.Screen name="stock" options={{ title: "Stock" }} />
       <Tabs.Screen name="mais" options={{ title: "Mais" }} />
+      <Tabs.Screen name="produtos" options={{ href: null }} />
       <Tabs.Screen name="rececao" options={{ href: null }} />
       <Tabs.Screen name="conta-oficina" options={{ href: null }} />
       <Tabs.Screen name="fotos" options={{ href: null }} />

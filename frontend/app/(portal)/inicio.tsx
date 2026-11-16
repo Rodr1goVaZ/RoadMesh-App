@@ -1,17 +1,23 @@
+import { useAppTheme, createThemedStyles } from "@/src/shared/theme/ThemeProvider";
 import React from "react";
-import { View, Text, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/src/core/http/api";
 import { AreaPage, QueryState } from "@/src/shared/layout/AreaUI";
 import { VehicleCard } from "@/src/features/portal/VehicleCard";
-import { portalColors as c, portalStyles } from "@/src/features/portal/theme";
+import { usePortalStyles } from "@/src/features/portal/theme";
 import { useNow } from "@/src/shared/hooks/useNow";
 import { useAuth } from "@/src/core/auth/AuthProvider";
 import { ModularDashboard } from "@/src/features/workspace/ModularDashboard";
 export default function ClientHome() { const { user } = useAuth(); return user?.subscription_version === 1 ? <ModularDashboard portal /> : <LegacyClientHome />; }
 function LegacyClientHome() {
+  const theme = useAppTheme();
+  const c = theme.workspace;
+  const portalStyles = usePortalStyles();
+  const s = useStyles();
+
   const wide = useWindowDimensions().width >= 700; const now = useNow();
   const vehicles = useQuery({ queryKey: ["portal-vehicles"], queryFn: () => api.get("/portal/vehicles") });
   const appointments = useQuery({ queryKey: ["portal-appointments"], queryFn: () => api.get("/portal/appointments") });
@@ -50,15 +56,19 @@ function LegacyClientHome() {
   </AreaPage>;
 }
 function Quick({ icon, title, onPress, testID }: { icon: React.ComponentProps<typeof Ionicons>["name"]; title: string; onPress: () => void; testID: string }) {
+  const theme = useAppTheme();
+  const c = theme.workspace;
+  const s = useStyles();
+
   return <Pressable testID={testID} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.quick, pressed && { opacity: 0.7 }]}><View style={s.quickIcon}><Ionicons name={icon} size={19} color={c.brand} /></View><Text style={s.quickLabel}>{title}</Text><Ionicons name="chevron-forward" size={18} color={c.muted} /></Pressable>;
 }
-const s = StyleSheet.create({
-  hero: { gap: 20, backgroundColor: "#FFFCFC", padding: 24 }, heroWide: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  heroIntro: { flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }, shield: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#F2E7E7", justifyContent: "center", alignItems: "center" },
+const useStyles = createThemedStyles((theme) => { const c = theme.workspace; return ({
+  hero: { gap: 20, backgroundColor: theme.tones.card, padding: 24 }, heroWide: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heroIntro: { flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }, shield: { width: 52, height: 52, borderRadius: 26, backgroundColor: theme.tones.line, justifyContent: "center", alignItems: "center" },
   heroTitle: { color: c.brand, fontSize: 17, fontWeight: "700", lineHeight: 24 }, copy: { color: c.ink, fontSize: 14, lineHeight: 20 },
-  heroButton: { backgroundColor: c.brand, borderRadius: 15, minHeight: 46, paddingHorizontal: 24, paddingVertical: 14, alignItems: "center", justifyContent: "center" }, white: { color: "#FFF", fontWeight: "600", fontSize: 14 },
+  heroButton: { backgroundColor: c.brandFill, borderRadius: 15, minHeight: 46, paddingHorizontal: 24, paddingVertical: 14, alignItems: "center", justifyContent: "center" }, white: { color: theme.tones.onAction, fontWeight: "600", fontSize: 14 },
   columns: { gap: 20 }, sectionTitle: { flexDirection: "row", alignItems: "center", gap: 9 },
   alert: { backgroundColor: c.warm, padding: 16, borderRadius: 18, gap: 12, flexDirection: "row", alignItems: "flex-start" }, alertTitle: { color: c.brand, fontWeight: "600", fontSize: 13, lineHeight: 19 }, small: { color: c.ink, fontSize: 12, lineHeight: 19 },
   quick: { flexDirection: "row", alignItems: "center", gap: 14, padding: 14, minHeight: 66, borderRadius: 18, borderWidth: 1, borderColor: c.line, backgroundColor: c.soft },
-  quickIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#EBEEF8", alignItems: "center", justifyContent: "center" }, quickLabel: { flex: 1, fontSize: 14, lineHeight: 20, color: c.ink },
-});
+  quickIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: theme.tones.soft, alignItems: "center", justifyContent: "center" }, quickLabel: { flex: 1, fontSize: 14, lineHeight: 20, color: c.ink },
+}); });
